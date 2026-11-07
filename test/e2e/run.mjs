@@ -530,6 +530,7 @@ try {
     const url = await client.run(
       chrome(`
         const browser = ${popup};
+        await sleep(800); // the popup resizes to its content first
         const bitmap = await browser.browsingContext.currentWindowGlobal.drawSnapshot(null, 1, "white");
         const canvas = window.document.createElementNS("http://www.w3.org/1999/xhtml", "canvas");
         canvas.width = bitmap.width;

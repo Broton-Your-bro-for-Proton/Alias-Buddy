@@ -11,13 +11,16 @@ const SUMMARY = {
 
 function render({ preview, last }) {
   $("summary").textContent = SUMMARY[preview.state](preview);
+  $("summary").className = { alias: "state-ok", blocked: "state-blocked" }[preview.state] ?? "";
   const body = $("rows").tBodies[0];
   body.replaceChildren();
   for (const row of preview.rows ?? []) {
     const tr = body.insertRow();
     tr.insertCell().textContent = row.field;
     tr.insertCell().textContent = row.email;
-    tr.insertCell().textContent = row.via == row.email ? "directly" : row.via ?? "new reverse alias on send";
+    const via = tr.insertCell();
+    via.textContent = row.via == row.email ? "directly" : row.via ?? "new reverse alias on send";
+    via.className = row.via ? "" : "pending";
   }
   $("rows").hidden = !body.rows.length;
   const lastBlocked = last?.state == "blocked" && last.reason != preview.reason;

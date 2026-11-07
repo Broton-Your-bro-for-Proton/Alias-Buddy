@@ -1,33 +1,48 @@
 <!doctype html>
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Alias Buddy settings</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Alias Buddy Settings</title>
     <link rel="stylesheet" href="../style.css" />
   </head>
   <body>
-    <h1>Alias Buddy for SimpleLogin</h1>
-    <p class="hint">Not affiliated with Proton AG or SimpleLogin.</p>
-    <form id="form">
-      <label for="apiUrl">SimpleLogin URL</label>
-      <input id="apiUrl" type="url" required />
-      <p class="hint">Change it only for a self-hosted server.</p>
+    <header class="navbar">
+      <img src="../icons/icon.svg" alt="" width="28" height="28" />
+      <span class="brand">Alias Buddy</span>
+      <span class="subtitle">for SimpleLogin, not affiliated with Proton AG or SimpleLogin</span>
+    </header>
 
-      <label for="apiKey">API key</label>
-      <input id="apiKey" type="password" autocomplete="off" />
-      <p class="hint">Create one in the SimpleLogin dashboard under API Keys.</p>
+    <main>
+      <form id="form">
+        <section class="panel">
+          <h2>Connection</h2>
+          <label class="field" for="apiUrl">SimpleLogin URL</label>
+          <input id="apiUrl" type="url" required />
+          <p class="muted">Change it only for a self-hosted server.</p>
 
-      <label for="protected">More real addresses to protect</label>
-      <textarea id="protected"></textarea>
-      <p class="hint">One per line. Your SimpleLogin mailboxes are always protected.</p>
+          <label class="field" for="apiKey">API key</label>
+          <input id="apiKey" type="password" autocomplete="off" />
+          <p class="muted">Create one in the SimpleLogin dashboard under API Keys.</p>
+        </section>
 
-      <label for="allowlist">Allowed to see your real address</label>
-      <textarea id="allowlist"></textarea>
-      <p class="hint">One address or @domain per line, for example family.</p>
+        <section class="panel">
+          <h2>Guard</h2>
+          <label class="field" for="protected">More real addresses to protect</label>
+          <textarea id="protected"></textarea>
+          <p class="muted">One per line. Your SimpleLogin mailboxes are always protected.</p>
 
-      <p><button type="submit">Save and test</button></p>
-    </form>
-    <p id="result"></p>
+          <label class="field" for="allowlist">Allowed to see your real address</label>
+          <textarea id="allowlist"></textarea>
+          <p class="muted">One address or @domain per line, for example family.</p>
+
+          <div class="actions">
+            <button class="btn btn-primary" type="submit">Save and test</button>
+          </div>
+          <p id="result"></p>
+        </section>
+      </form>
+    </main>
     <script type="module" src="options.js"></script>
   </body>
 </html>
