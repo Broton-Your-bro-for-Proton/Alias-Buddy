@@ -26,6 +26,8 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 const MINE = "me@real.example";
 // A second mailbox without traps, for the checks that send from a real address.
 const PLAIN = "me2@real.example";
+// A mailbox whose only identity has an OpenPGP key.
+const KEYED = "keyed@real.example";
 
 // ---- fake SMTP server ----------------------------------------------------------
 
@@ -87,13 +89,18 @@ function header(mail, name) {
 
 const api = {
   down: false,
+  forbid: false, // contact creation answers 403, as for a plan without reverse aliases
   posts: 0,
   aliases: [
     { id: 1, email: "shop@alias.example", mailboxes: [{ id: 1, email: MINE }] },
     { id: 2, email: "other@alias.example", mailboxes: [{ id: 1, email: MINE }] },
+    { id: 3, email: "keyed@alias.example", mailboxes: [{ id: 3, email: KEYED }] },
   ],
   contacts: {
-    1: [{ id: 1, contact: "Known <known@x.example>", reverse_alias_address: "ra-known@sl.example" }],
+    1: [
+      { id: 1, contact: "known@x.example", reverse_alias_address: "ra-known@sl.example" },
+      { id: 3, contact: "known2@x.example", reverse_alias_address: "ra-known2@sl.example" },
+    ],
     2: [{ id: 2, contact: "anna@y.example", reverse_alias_address: "ra-other@sl.example" }],
   },
 };
@@ -123,6 +130,7 @@ const apiServer = http.createServer(async (req, res) => {
       mailboxes: [
         { id: 1, email: MINE, default: true, verified: true },
         { id: 2, email: PLAIN, default: false, verified: true },
+        { id: 3, email: KEYED, default: false, verified: true },
       ],
     });
   }
@@ -135,11 +143,14 @@ const apiServer = http.createServer(async (req, res) => {
       return send(200, { contacts: paged(list) });
     }
     api.posts++;
+    if (api.forbid) {
+      return send(403, { error: "Please upgrade to create a reverse-alias" });
+    }
     const email = body.contact.toLowerCase();
     if (Object.values(api.contacts).flat().some(c => c.reverse_alias_address == email)) {
       return send(400, { error: "You can't create contact for a reverse alias" });
     }
-    const existing = list.find(c => c.contact.toLowerCase().includes(`<${email}>`) || c.contact.toLowerCase() == email);
+    const existing = list.find(c => c.contact == email);
     if (existing) {
       return send(200, { ...existing, existed: true });
     }
@@ -181,7 +192,7 @@ const prefs = {
   "mail.accountmanager.defaultaccount": "account1",
   "mail.accountmanager.localfoldersserver": "server1",
   "mail.account.account1.server": "server1",
-  "mail.account.account1.identities": "id1,id2,id3,id4,id5",
+  "mail.account.account1.identities": "id1,id2,id3,id4,id5,id6,id7,id8",
   "mail.server.server1.type": "none",
   "mail.server.server1.hostname": "Local Folders",
   "mail.server.server1.userName": "nobody",
@@ -205,6 +216,9 @@ const prefs = {
   ...identity("id3", "work@other.example"),
   ...identity("id4", "fresh@alias.example"),
   ...identity("id5", PLAIN),
+  ...identity("id6", PLAIN, { attach_vcard: true }),
+  ...identity("id7", KEYED, { openpgp_key_id: "0123456789ABCDEF" }),
+  ...identity("id8", "keyed@alias.example"),
 };
 fs.writeFileSync(
   path.join(profile, "user.js"),
@@ -302,12 +316,18 @@ const helpers = `
     throw new Error("Timed out: " + what);
   }
   const composeWindows = () => [...Services.wm.getEnumerator("msgcompose")];
-  async function compose(key, { to = "", cc = "", body = "<p>Hello</p>", subject = "Test" } = {}) {
+  async function compose(key, { to = "", cc = "", body = "<p>Hello</p>", subject = "Test", from, attachment } = {}) {
     for (const w of composeWindows()) w.close();
     await until(() => !composeWindows().length, "old compose windows closed");
     const params = Cc["@mozilla.org/messengercompose/composeparams;1"].createInstance(Ci.nsIMsgComposeParams);
     const fields = Cc["@mozilla.org/messengercompose/composefields;1"].createInstance(Ci.nsIMsgCompFields);
     Object.assign(fields, { to, cc, subject, body });
+    if (from) fields.from = from;
+    if (attachment) {
+      const a = Cc["@mozilla.org/messengercompose/attachment;1"].createInstance(Ci.nsIMsgAttachment);
+      Object.assign(a, { url: PathUtils.toFileURI(attachment.path), name: attachment.name, contentType: attachment.type });
+      fields.addAttachment(a);
+    }
     params.composeFields = fields;
     params.identity = MailServices.accounts.getIdentity(key);
     params.type = Ci.nsIMsgCompType.New;
@@ -326,6 +346,7 @@ const helpers = `
     open: !win.closed,
     identity: win.closed ? null : win.getCurrentIdentityKey(),
     to: win.closed ? null : win.gMsgCompose.compFields.to,
+    reason: win.closed ? null : win.document.querySelector('[id$="-composeAction-toolbarbutton"]')?.getAttribute("tooltiptext"),
   });
 `;
 
@@ -460,7 +481,7 @@ try {
         `
       )
     );
-    expect(text, `Saved. Connected, protected mailboxes: ${MINE}, ${PLAIN}`, "result");
+    expect(text, `Saved. Connected, protected mailboxes: ${MINE}, ${PLAIN}, ${KEYED}`, "result");
   });
   await screenshot(client, "settings");
 
@@ -500,7 +521,8 @@ try {
       chrome(`const win = await send("id2", { to: "ra-other@sl.example" }); await sleep(3000); return state(win);`)
     );
     expect(await mail, null, "sent message");
-    expect(after, { open: true, identity: "id2", to: "ra-other@sl.example" }, "compose window restored");
+    expect([after.open, after.identity, after.to], [true, "id2", "ra-other@sl.example"], "compose window unchanged");
+    if (!/reverse alias/.test(after.reason)) throw new Error(`blocked for another reason: ${after.reason}`);
   });
 
   await check("alias: the real address in the text blocks the message", async () => {
@@ -607,6 +629,54 @@ try {
     await client.run(chrome(`await send("id3", { to: "bob@x.example" });`));
     expect((await mail)?.from, "work@other.example", "envelope sender");
   });
+
+  /** Sends with the given script and expects nothing on the wire and the window still open. */
+  const expectBlocked = async (script, reason) => {
+    const mail = nextMail(4000);
+    const after = await client.run(chrome(`const win = ${script}; await sleep(3000); return state(win);`));
+    expect(await mail, null, "sent message");
+    expect(after.open, true, "compose window open");
+    if (!reason.test(after.reason ?? "")) throw new Error(`blocked for another reason: ${after.reason}`);
+  };
+
+  await check("mailbox: a vCard on the way through SimpleLogin is blocked", () =>
+    expectBlocked(`await send("id6", { to: "ra-known@sl.example" })`, /vCard/)
+  );
+
+  await check("mailbox: reply all that keeps the alias in Cc passes", async () => {
+    const mail = nextMail();
+    await client.run(chrome(`await send("id5", { to: "ra-known@sl.example", cc: "shop@alias.example" });`));
+    expect((await mail)?.to?.sort(), ["ra-known@sl.example", "shop@alias.example"], "envelope recipients");
+  });
+
+  await check("alias: an existing contact is found when creating contacts is not allowed", async () => {
+    api.forbid = true;
+    const mail = nextMail();
+    await client.run(chrome(`await send("id2", { to: "known2@x.example" });`));
+    api.forbid = false;
+    expect((await mail)?.to, ["ra-known2@sl.example"], "envelope recipients");
+  });
+
+  await check("alias: a mailbox identity with an OpenPGP key is not used", () =>
+    expectBlocked(`await send("id8", { to: "peter@x.example" })`, /OpenPGP key or S\/MIME/)
+  );
+
+  const eml = path.join(profile, "forwarded.eml");
+  fs.writeFileSync(eml, `Delivered-To: ${MINE}\r\nFrom: shop@x.example\r\nSubject: Order\r\n\r\nThanks.\r\n`);
+  await check("alias: a forwarded message that names the real address is blocked", () =>
+    expectBlocked(
+      `await send("id2", { to: "peter@x.example", attachment: { path: ${JSON.stringify(eml)}, name: "Order.eml", type: "message/rfc822" } })`,
+      /an attachment contains me@real.example/
+    )
+  );
+
+  await check("alias: an embedded image is blocked", () =>
+    expectBlocked(`await send("id2", { to: "peter@x.example", body: '<p>Hi</p><img src="data:image/png;base64,iVBORw0KGgo=">' })`, /embedded images/)
+  );
+
+  await check("other identity: a customized From with the real address is blocked", () =>
+    expectBlocked(`await send("id3", { to: "bob@x.example", from: "Tester <${PLAIN}>" })`, /me2@real.example would be visible to bob/)
+  );
 
   await check("API down: an unknown identity is blocked", async () => {
     api.down = true;

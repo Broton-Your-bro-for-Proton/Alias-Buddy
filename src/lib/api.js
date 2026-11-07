@@ -1,4 +1,6 @@
-// Minimal SimpleLogin API client. Docs: https://github.com/simple-login/app/blob/master/docs/api.md
+// Minimal SimpleLogin API client. Paging stops at the first empty page, because
+// page sizes differ between servers.
+// Docs: https://github.com/simple-login/app/blob/master/docs/api.md
 import { addressOf, norm } from "./core.js";
 
 export class ApiError extends Error {
@@ -8,7 +10,6 @@ export class ApiError extends Error {
   }
 }
 
-const PAGE = 20;
 const MAX_PAGES = 50;
 
 export class SimpleLogin {
@@ -29,9 +30,12 @@ export class SimpleLogin {
     } catch (e) {
       throw new ApiError(0, `cannot reach ${this.url} (${e.message})`);
     }
-    const data = await response.json().catch(() => ({}));
+    const data = await response.json().catch(() => null);
     if (!response.ok) {
-      throw new ApiError(response.status, data.error ?? `HTTP ${response.status}`);
+      throw new ApiError(response.status, data?.error ?? `HTTP ${response.status}`);
+    }
+    if (!data || typeof data != "object") {
+      throw new ApiError(response.status, `unexpected answer from ${this.url}`);
     }
     return data;
   }
@@ -48,7 +52,7 @@ export class SimpleLogin {
       if (alias) {
         return { id: alias.id, email: norm(alias.email), mailboxes: alias.mailboxes.map(m => norm(m.email)) };
       }
-      if (aliases.length < PAGE) {
+      if (!aliases.length) {
         return null;
       }
     }
@@ -63,7 +67,7 @@ export class SimpleLogin {
       for (const c of contacts) {
         result[addressOf(c.contact)] = norm(c.reverse_alias_address ?? addressOf(c.reverse_alias));
       }
-      if (contacts.length < PAGE) {
+      if (!contacts.length) {
         return result;
       }
     }

@@ -26,6 +26,7 @@
   "compose_action": {
     "default_icon": "icons/icon.svg",
     "default_title": "Alias Buddy",
+    "default_label": "Alias Buddy",
     "default_popup": "popup/popup.html"
   },
   "options_ui": { "page": "options/options.html", "open_in_tab": true }

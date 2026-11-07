@@ -26,7 +26,7 @@ function render({ preview, last }) {
   const lastBlocked = last?.state == "blocked" && last.reason != preview.reason;
   $("last").hidden = !lastBlocked;
   $("last").textContent = lastBlocked ? `Last send was blocked: ${last.reason}` : "";
-  $("sendOnce").hidden = !(last?.state == "blocked" && last.overridable);
+  $("sendOnce").hidden = !(preview.state == "blocked" && preview.overridable);
 }
 
 render(await messenger.runtime.sendMessage({ type: "preview", tabId: tab.id }));
