@@ -1,0 +1,14 @@
+{
+  "name": "alias-buddy-simplelogin",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Thunderbird add-on for SimpleLogin aliases",
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "test:e2e": "node test/e2e/run.mjs",
+    "setup:thunderbird": "node scripts/fetch-thunderbird.mjs",
+    "build": "node scripts/build.mjs"
+  },
+  "license": "MPL-2.0"
+}

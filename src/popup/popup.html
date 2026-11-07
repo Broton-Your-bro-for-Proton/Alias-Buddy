@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="../style.css" />
+  </head>
+  <body class="popup">
+    <p id="summary">Checking...</p>
+    <table id="rows" hidden>
+      <thead>
+        <tr><th>Field</th><th>Recipient</th><th>Sent to</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <p id="last" class="state-blocked" hidden></p>
+    <div class="actions">
+      <button id="sendOnce" class="btn" hidden>Send this message unchanged</button>
+      <a href="#" id="options">Settings</a>
+    </div>
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>
