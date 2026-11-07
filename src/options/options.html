@@ -1,0 +1,33 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Alias Buddy settings</title>
+    <link rel="stylesheet" href="../style.css" />
+  </head>
+  <body>
+    <h1>Alias Buddy for SimpleLogin</h1>
+    <p class="hint">Not affiliated with Proton AG or SimpleLogin.</p>
+    <form id="form">
+      <label for="apiUrl">SimpleLogin URL</label>
+      <input id="apiUrl" type="url" required />
+      <p class="hint">Change it only for a self-hosted server.</p>
+
+      <label for="apiKey">API key</label>
+      <input id="apiKey" type="password" autocomplete="off" />
+      <p class="hint">Create one in the SimpleLogin dashboard under API Keys.</p>
+
+      <label for="protected">More real addresses to protect</label>
+      <textarea id="protected"></textarea>
+      <p class="hint">One per line. Your SimpleLogin mailboxes are always protected.</p>
+
+      <label for="allowlist">Allowed to see your real address</label>
+      <textarea id="allowlist"></textarea>
+      <p class="hint">One address or @domain per line, for example family.</p>
+
+      <p><button type="submit">Save and test</button></p>
+    </form>
+    <p id="result"></p>
+    <script type="module" src="options.js"></script>
+  </body>
+</html>

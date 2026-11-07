@@ -1,0 +1,32 @@
+{
+  "manifest_version": 2,
+  "name": "Alias Buddy for SimpleLogin",
+  "version": "0.1.0",
+  "description": "Send as a SimpleLogin alias to normal addresses, the add-on handles the reverse aliases. Blocks messages that would reveal your real address. Not affiliated with Proton AG or SimpleLogin.",
+  "author": "HyperCriSiS",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "aliasbuddy@hypercrisis",
+      "strict_min_version": "153.0"
+    }
+  },
+  "icons": { "64": "icons/icon.svg" },
+  "permissions": [
+    "compose",
+    "compose.send",
+    "accountsRead",
+    "messagesRead",
+    "addressBooks",
+    "storage",
+    "notifications",
+    "https://app.simplelogin.io/*"
+  ],
+  "optional_permissions": ["*://*/*"],
+  "background": { "page": "background.html" },
+  "compose_action": {
+    "default_icon": "icons/icon.svg",
+    "default_title": "Alias Buddy",
+    "default_popup": "popup/popup.html"
+  },
+  "options_ui": { "page": "options/options.html", "open_in_tab": true }
+}

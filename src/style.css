@@ -1,0 +1,41 @@
+:root {
+  color-scheme: light dark;
+  font: 14px system-ui, sans-serif;
+}
+body {
+  margin: 16px;
+  background: Canvas;
+  color: CanvasText;
+}
+body.popup {
+  width: 460px;
+}
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+th,
+td {
+  text-align: start;
+  padding: 4px 8px;
+  border-bottom: 1px solid color-mix(in srgb, CanvasText 20%, transparent);
+  word-break: break-all;
+}
+label {
+  display: block;
+  margin: 12px 0 4px;
+  font-weight: 600;
+}
+input,
+textarea {
+  width: 100%;
+  max-width: 520px;
+  box-sizing: border-box;
+}
+textarea {
+  height: 6em;
+}
+.hint {
+  color: color-mix(in srgb, CanvasText 70%, Canvas);
+  margin: 2px 0;
+}
