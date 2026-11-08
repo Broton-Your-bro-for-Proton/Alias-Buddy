@@ -252,7 +252,7 @@ main.wide {
   margin-bottom: 4px;
 }
 
-tr.disabled .alias {
+tr.disabled .address {
   color: var(--aio-muted);
   text-decoration: line-through;
 }

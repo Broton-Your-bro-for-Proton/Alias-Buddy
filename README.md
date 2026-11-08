@@ -50,8 +50,9 @@ The Aliases button in Thunderbird's main toolbar (also linked from the popup and
 - Per alias: its mailboxes, how many messages it received, sent and blocked, and the last activity.
 - Edit the note in place, pin it, turn it off (it stops receiving mail) or on again.
 - **Contacts** lists who the alias wrote to or got mail from, with their reverse alias. A contact can be blocked (SimpleLogin drops its mail) or deleted.
-- **Write** opens a new message with the alias as sender, creating its identity if needed. **Copy** copies the address.
-- **Delete** asks for a second click. Deleting is final: SimpleLogin does not let you create the same address again. Turning an alias off is the gentler choice.
+- **Write** opens a new message with the alias as sender, creating its identity if needed. A turned-off alias cannot be used, because replies to it would not arrive. **Copy** copies the address.
+- **Delete** asks for a second click (a double click does not count). Depending on your SimpleLogin setting the alias goes to its trash first or is deleted right away; either way the address cannot be created again. Turning an alias off is the gentler choice.
+- After deleting, the add-on removes the identities it created for the alias. Sending from an identity of a deleted alias, or from one of the add-on's identities whose alias is gone, is blocked: it would go out directly, past SimpleLogin. An identity you created yourself stays; delete it in the account settings.
 
 ## The guard
 

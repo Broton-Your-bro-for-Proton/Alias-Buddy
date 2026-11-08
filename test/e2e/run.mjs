@@ -105,6 +105,8 @@ const api = {
     { id: 5, email: "shop.otto@mine.example", mailboxes: [{ id: 1, email: MINE }] },
     // Only for the overview: deleted there.
     { id: 6, email: "old.trash@mine.example", mailboxes: [{ id: 1, email: MINE }], note: "to delete", nb_forward: 3 },
+    // Deleted in the overview while the user has an identity of their own for it.
+    { id: 7, email: "gone@mine.example", mailboxes: [{ id: 1, email: MINE }] },
   ],
   contacts: {
     1: [
@@ -272,7 +274,7 @@ const prefs = {
   "mail.accountmanager.defaultaccount": "account1",
   "mail.accountmanager.localfoldersserver": "server1",
   "mail.account.account1.server": "server1",
-  "mail.account.account1.identities": "id1,id2,id3,id4,id5,id6,id7,id8,id9,id10",
+  "mail.account.account1.identities": "id1,id2,id3,id4,id5,id6,id7,id8,id9,id10,id12",
   "mail.server.server1.type": "none",
   "mail.server.server1.hostname": "Local Folders",
   "mail.server.server1.userName": "nobody",
@@ -301,6 +303,7 @@ const prefs = {
   ...identity("id8", "keyed@alias.example"),
   ...identity("id9", PLAIN, { doCc: true, doCcList: "archive2@x.example" }),
   ...identity("id10", "other@alias.example", { doCc: true, doCcList: MINE }),
+  ...identity("id12", "gone@mine.example"),
 };
 fs.writeFileSync(
   path.join(profile, "user.js"),
@@ -1214,10 +1217,19 @@ try {
   // ---- alias overview
 
   const overview = `window.document.getElementById("tabmail").currentTabInfo.browser`;
-  const rowOf = email => `[...doc.querySelectorAll("#aliases > tbody > tr:not(.contacts)")].find(r => r.querySelector(".alias")?.textContent == ${JSON.stringify(email)})`;
+  const rowOf = email =>
+    `[...doc.querySelectorAll("#aliases > tbody > tr:not(.contacts)")].find(r => r.querySelector(".address")?.textContent == ${JSON.stringify(email)})`;
+  const buttonOf = (email, label) => `[...${rowOf(email)}.querySelectorAll("button")].find(b => b.textContent == ${JSON.stringify(label)})`;
+  const listed = `await until(() => doc.getElementById("state").textContent.endsWith("shown."), "listed");`;
+  const showAll = `
+    doc.getElementById("search").value = "";
+    const filter = doc.getElementById("filter");
+    filter.value = "";
+    filter.dispatchEvent(new content.Event("change"));
+    ${listed}`;
 
   await check("overview: the toolbar button opens the list of all aliases", async () => {
-    const opened = await client.run(
+    await client.run(
       chrome(`
         // Thunderbird's unified toolbar holds extension buttons as items named ext-<add-on id>.
         const selector = '#unifiedToolbarContent [item-id="ext-' + args[0] + '"]';
@@ -1227,21 +1239,17 @@ try {
         const item = window.document.querySelector(selector);
         (item.querySelector("button") ?? item).click();
         await until(() => window.document.getElementById("tabmail").currentTabInfo.browser?.currentURI?.spec.endsWith("overview/overview.html"), "overview opened");
-        return true;
       `),
       addon
     );
-    const emails = await client.run(
-      inPage(overview, `await until(() => doc.getElementById("state").textContent.endsWith("shown."), "listed"); return [...doc.querySelectorAll("#aliases .alias")].map(e => e.textContent);`)
-    );
+    const emails = await client.run(inPage(overview, `${listed} return [...doc.querySelectorAll("#aliases .address")].map(e => e.textContent);`));
     for (const email of ["shop@alias.example", "promo@mine.example", "old.trash@mine.example"]) {
       if (!emails.includes(email)) throw new Error(`${email} missing in ${emails.join(", ")}`);
     }
-    expect(opened, true, "opened");
   });
   await screenshot(client, "overview");
 
-  await check("overview: search, disable, note and pin change the alias in SimpleLogin", async () => {
+  await check("overview: search, disable, note, pin and unpin change the alias in SimpleLogin", async () => {
     await client.run(
       inPage(
         overview,
@@ -1249,84 +1257,131 @@ try {
         const search = doc.getElementById("search");
         search.value = "promo@";
         search.dispatchEvent(new content.Event("input"));
-        await until(() => doc.querySelectorAll("#aliases .alias").length == 1, "filtered");
+        await until(() => doc.querySelectorAll("#aliases .address").length == 1, "filtered");
         const row = ${rowOf("promo@mine.example")};
-        const enabled = row.querySelector('input[type="checkbox"]');
-        enabled.click();
-        await until(() => row.className == "disabled", "disabled");
+        row.querySelector('input[type="checkbox"]').click();
+        await until(() => row.className == "disabled" && !row.querySelector(".off").hidden, "disabled");
         const note = row.querySelector('input[type="text"]');
         note.value = "Newsletter only";
         note.dispatchEvent(new content.Event("change"));
-        row.querySelector(".pin").click();
-        await until(() => ${rowOf("promo@mine.example")}?.querySelector(".pin").getAttribute("aria-pressed") == "true", "pinned");
+        await until(() => doc.getElementById("state").textContent == "Note of promo@mine.example saved.", "note saved");
+        const pin = row.querySelector(".pin");
+        pin.focus();
+        pin.click();
+        await until(() => pin.getAttribute("aria-pressed") == "true", "pinned");
+        if (doc.activeElement != pin) throw new Error("focus lost after pinning");
         `
       )
     );
-    await sleep(500);
     const promo = api.aliases.find(a => a.email == "promo@mine.example");
     expect([promo.enabled, promo.note, promo.pinned], [false, "Newsletter only", true], "alias in SimpleLogin");
-    const disabled = await client.run(
+    const lists = await client.run(
       inPage(
         overview,
         `
         doc.getElementById("search").value = "";
         const filter = doc.getElementById("filter");
-        filter.value = "disabled";
-        filter.dispatchEvent(new content.Event("change"));
-        await until(() => doc.getElementById("state").textContent.endsWith("shown."), "filtered");
-        return [...doc.querySelectorAll("#aliases .alias")].map(e => e.textContent);
+        const result = {};
+        for (const value of ["disabled", "pinned"]) {
+          filter.value = value;
+          filter.dispatchEvent(new content.Event("change"));
+          await until(() => doc.getElementById("state").textContent.endsWith("shown."), "filtered " + value);
+          result[value] = [...doc.querySelectorAll("#aliases .address")].map(e => e.textContent);
+        }
+        ${rowOf("promo@mine.example")}.querySelector(".pin").click();
+        await until(() => !${rowOf("promo@mine.example")}, "unpinned row leaves the pinned list");
+        return result;
         `
       )
     );
-    expect(disabled, ["promo@mine.example"], "disabled filter");
-    promo.enabled = true; // the reply checks below need it enabled again
+    expect([lists, promo.pinned], [{ disabled: ["promo@mine.example"], pinned: ["promo@mine.example"] }, false], "filters and unpin");
+    promo.enabled = true; // the checks below need it enabled again
   });
 
-  await check("overview: contacts of an alias can be blocked", async () => {
+  await check("overview: Write refuses an alias that is turned off", async () => {
+    const error = await client.run(
+      inPage(
+        overview,
+        `
+        ${showAll}
+        const row = ${rowOf("shop.otto@mine.example")};
+        row.querySelector('input[type="checkbox"]').click();
+        await until(() => row.className == "disabled", "disabled");
+        ${buttonOf("shop.otto@mine.example", "Write")}.click();
+        await until(() => !doc.getElementById("error").hidden, "error shown");
+        const text = doc.getElementById("error").textContent;
+        row.querySelector('input[type="checkbox"]').click();
+        await until(() => row.className == "", "enabled again");
+        return text;
+        `
+      )
+    );
+    if (!/shop\.otto@mine\.example is turned off/.test(error)) throw new Error("error: " + error);
+  });
+
+  await check("overview: contacts of an alias can be blocked and deleted", async () => {
     await client.run(
       inPage(
         overview,
         `
-        const filter = doc.getElementById("filter");
-        filter.value = "";
-        filter.dispatchEvent(new content.Event("change"));
-        await until(() => ${rowOf("other@alias.example")}, "listed");
         const row = ${rowOf("other@alias.example")};
-        [...row.querySelectorAll("button")].find(b => b.textContent == "Contacts").click();
-        await until(() => row.nextElementSibling?.classList.contains("contacts") && row.nextElementSibling.querySelector("table"), "contacts shown");
-        const contact = [...row.nextElementSibling.querySelectorAll("tbody tr")].find(r => r.cells[0].textContent == "bea@y.example");
-        contact.querySelector('input[type="checkbox"]').click();
-        await until(() => contact.querySelector('input[type="checkbox"]').checked, "blocked");
+        const toggle = ${buttonOf("other@alias.example", "Contacts")};
+        toggle.click();
+        await until(() => row.nextElementSibling?.querySelector("table"), "contacts shown");
+        if (toggle.getAttribute("aria-expanded") != "true") throw new Error("aria-expanded not set");
+        const contactRow = name => [...row.nextElementSibling.querySelectorAll("tbody tr")].find(r => r.cells[0].textContent == name);
+        contactRow("bea@y.example").querySelector('input[type="checkbox"]').click();
+        await until(() => contactRow("bea@y.example").querySelector('input[type="checkbox"]').checked, "blocked");
+        const del = contactRow("anna@y.example").querySelector("button");
+        del.click();
+        await new Promise(r => content.setTimeout(r, 600));
+        del.click();
+        await until(() => !contactRow("anna@y.example"), "contact deleted");
         `
       )
     );
-    await sleep(300);
-    expect(api.contacts[2].find(c => c.contact == "bea@y.example").block_forward, true, "contact blocked in SimpleLogin");
+    expect(
+      [api.contacts[2].find(c => c.contact == "bea@y.example").block_forward, api.contacts[2].some(c => c.contact == "anna@y.example")],
+      [true, false],
+      "contacts in SimpleLogin"
+    );
   });
   await screenshot(client, "overview-contacts");
 
-  await check("overview: delete needs a second click", async () => {
+  await check("overview: a double click does not delete, a deliberate second click deletes the alias and its identity", async () => {
+    await client.run(inPage(overview, `${buttonOf("old.trash@mine.example", "Write")}.click();`));
+    await client.run(chrome(`await until(() => composeWindows()[0]?.composeEditorReady, "compose opened", 30000); for (const w of composeWindows()) w.close();`));
+    expect((await identitiesFor("old.trash@mine.example")).map(i => i[1]), ["Alias Buddy"], "identity created by Write");
+    const label = await client.run(inPage(overview, `const del = ${buttonOf("old.trash@mine.example", "Delete")}; del.click(); del.click(); return del.textContent;`));
+    expect([label, api.aliases.some(a => a.email == "old.trash@mine.example")], ["Confirm delete", true], "double click kept the alias");
+    await sleep(600);
     await client.run(
+      inPage(overview, `${buttonOf("old.trash@mine.example", "Confirm delete")}.click(); await until(() => !${rowOf("old.trash@mine.example")}, "row removed");`)
+    );
+    expect([api.aliases.some(a => a.email == "old.trash@mine.example"), await identitiesFor("old.trash@mine.example")], [false, []], "alias and its identity gone");
+  });
+
+  await check("overview: sending from your own identity of a deleted alias is blocked", async () => {
+    const status = await client.run(
       inPage(
         overview,
         `
-        const row = ${rowOf("old.trash@mine.example")};
-        const del = [...row.querySelectorAll("button")].find(b => b.textContent == "Delete");
+        const del = ${buttonOf("gone@mine.example", "Delete")};
         del.click();
-        if (del.textContent != "Confirm delete") throw new Error("no confirmation step");
+        await new Promise(r => content.setTimeout(r, 600));
+        del.click();
+        await until(() => doc.getElementById("state").textContent.startsWith("gone@mine.example deleted"), "deleted");
+        return doc.getElementById("state").textContent;
         `
       )
     );
-    if (!api.aliases.some(a => a.email == "old.trash@mine.example")) throw new Error("deleted after one click");
-    await client.run(
-      inPage(overview, `const row = ${rowOf("old.trash@mine.example")}; [...row.querySelectorAll("button")].find(b => b.textContent == "Confirm delete").click(); await until(() => !${rowOf("old.trash@mine.example")}, "row removed");`)
-    );
-    expect(api.aliases.some(a => a.email == "old.trash@mine.example"), false, "deleted in SimpleLogin");
+    if (!/Remove its 1 identity/.test(status)) throw new Error("status: " + status);
+    await expectBlocked(`await send("id12", { to: "bob@x.example" })`, /gone@mine\.example is no longer an alias/);
   });
 
   await check("overview: Copy puts the address on the clipboard", async () => {
     const text = await client.run(
-      inPage(overview, `const row = ${rowOf("shop@alias.example")}; [...row.querySelectorAll("button")].find(b => b.textContent == "Copy").click(); await until(() => doc.getElementById("state").textContent.startsWith("Copied"), "copied"); return doc.getElementById("state").textContent;`)
+      inPage(overview, `${buttonOf("shop@alias.example", "Copy")}.click(); await until(() => doc.getElementById("state").textContent.startsWith("Copied"), "copied"); return doc.getElementById("state").textContent;`)
     );
     const clip = await client.run(
       chrome(`
@@ -1344,9 +1399,7 @@ try {
 
   await check("overview: Write opens a new message with the alias as sender", async () => {
     await client.run(chrome(`for (const w of composeWindows()) w.close(); await until(() => !composeWindows().length, "closed");`));
-    await client.run(
-      inPage(overview, `const row = ${rowOf("shop@alias.example")}; [...row.querySelectorAll("button")].find(b => b.textContent == "Write").click();`)
-    );
+    await client.run(inPage(overview, `${buttonOf("shop@alias.example", "Write")}.click();`));
     const email = await client.run(
       chrome(`await until(() => composeWindows()[0]?.composeEditorReady, "compose opened", 30000); return MailServices.accounts.getIdentity(composeWindows()[0].getCurrentIdentityKey()).email;`)
     );

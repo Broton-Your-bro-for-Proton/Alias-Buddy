@@ -7,10 +7,17 @@ function element(tag, props = {}, ...children) {
   return node;
 }
 
+const say = text => ($("state").textContent = text);
+
 /** Runs an action in the background; shows its error and returns undefined on failure, true for success without a value. */
 async function act(type, args = {}) {
   $("error").hidden = true;
-  const answer = await messenger.runtime.sendMessage({ type, ...args });
+  let answer;
+  try {
+    answer = await messenger.runtime.sendMessage({ type, ...args });
+  } catch (e) {
+    answer = { ok: false, error: e.message };
+  }
   if (!answer?.ok) {
     $("error").textContent = answer?.error ?? "No answer from the add-on.";
     $("error").hidden = false;
@@ -19,21 +26,31 @@ async function act(type, args = {}) {
   return answer.value ?? true;
 }
 
-/** A button that asks for a second click before it acts. */
-function confirmButton(label, confirmLabel, onConfirm) {
+/**
+ * A button that asks for a second click before it acts. The second click
+ * counts only after half a second, so a double click cannot delete.
+ */
+function confirmButton(label, target, onConfirm) {
   const button = element("button", { type: "button", className: "btn btn-danger", textContent: label });
-  let armed = null;
+  button.setAttribute("aria-label", `${label} ${target}`);
+  let armedAt = 0;
+  let reset;
   button.addEventListener("click", async () => {
-    if (!armed) {
-      button.textContent = confirmLabel;
-      armed = setTimeout(() => {
-        armed = null;
+    if (!armedAt) {
+      armedAt = Date.now();
+      button.textContent = `Confirm ${label.toLowerCase()}`;
+      say(`Click again to ${label.toLowerCase()} ${target}.`);
+      reset = setTimeout(() => {
+        armedAt = 0;
         button.textContent = label;
       }, 5000);
       return;
     }
-    clearTimeout(armed);
-    armed = null;
+    if (Date.now() - armedAt < 500) {
+      return;
+    }
+    clearTimeout(reset);
+    armedAt = 0;
     button.disabled = true;
     await onConfirm();
     button.disabled = false;
@@ -47,30 +64,31 @@ function activityText(alias) {
   return alias.latest ? `${counts}. Last: ${alias.latest.action} ${alias.latest.contact} on ${date(alias.latest.at)}` : counts;
 }
 
-async function showContacts(alias, row) {
+async function showContacts(alias, row, toggle) {
   const next = row.nextElementSibling;
   if (next?.classList.contains("contacts")) {
     next.remove();
+    toggle.setAttribute("aria-expanded", "false");
+    return;
+  }
+  toggle.setAttribute("aria-expanded", "true");
+  const cell = element("td", { colSpan: 6 }, element("p", { className: "muted", textContent: "Loading contacts..." }));
+  row.after(element("tr", { className: "contacts" }, cell));
+  const result = await act("listContacts", { aliasId: alias.id });
+  if (!result) {
+    cell.replaceChildren(element("p", { className: "state-blocked", textContent: "Could not load the contacts." }));
     return;
   }
   const body = element("tbody");
-  const cell = element("td", { colSpan: 6 }, element("p", { className: "muted", textContent: "Loading contacts..." }));
-  const holder = element("tr", { className: "contacts" }, cell);
-  row.after(holder);
-  const contacts = [];
-  for (let page = 0; page < 50; page++) {
-    const found = await act("listContacts", { aliasId: alias.id, page });
-    if (!found?.length) {
-      break;
-    }
-    contacts.push(...found);
-  }
-  for (const contact of contacts) {
+  for (const contact of result.contacts) {
     const blocked = element("input", { type: "checkbox", checked: contact.blocked });
     blocked.setAttribute("aria-label", `Block mail from ${contact.email}`);
     blocked.addEventListener("change", async () => {
       const now = await act("toggleContact", { contactId: contact.id });
-      blocked.checked = now ?? !blocked.checked;
+      blocked.checked = now === undefined ? !blocked.checked : now;
+      if (now !== undefined) {
+        say(`${contact.email} is ${now ? "blocked" : "no longer blocked"}.`);
+      }
     });
     const tr = element(
       "tr",
@@ -82,9 +100,10 @@ async function showContacts(alias, row) {
       element(
         "td",
         {},
-        confirmButton("Delete", "Confirm delete", async () => {
-          if ((await act("deleteContact", { aliasId: alias.id, contactId: contact.id, email: contact.email, reverse: contact.reverse })) !== undefined) {
+        confirmButton("Delete", contact.email, async () => {
+          if (await act("deleteContact", { aliasId: alias.id, contactId: contact.id, email: contact.email, reverse: contact.reverse })) {
             tr.remove();
+            say(`Contact ${contact.email} deleted.`);
           }
         })
       )
@@ -94,34 +113,55 @@ async function showContacts(alias, row) {
   const head = element(
     "thead",
     {},
-    element(
-      "tr",
-      {},
-      ...["Contact", "Reverse alias", "Last written to", "Blocked", ""].map(text => element("th", { scope: "col", textContent: text }))
-    )
+    element("tr", {}, ...["Contact", "Reverse alias", "Last written to", "Blocked", ""].map(text => element("th", { scope: "col", textContent: text })))
   );
   cell.replaceChildren(
-    contacts.length ? element("table", { className: "inner" }, head, body) : element("p", { className: "muted", textContent: "No contacts yet." })
+    result.contacts.length ? element("table", { className: "inner" }, head, body) : element("p", { className: "muted", textContent: "No contacts yet." }),
+    ...(result.complete ? [] : [element("p", { className: "muted", textContent: "Only the first 1000 contacts are shown." })])
   );
 }
 
-function aliasRow(alias) {
-  const row = element("tr", { className: alias.enabled ? "" : "disabled" });
-  const pin = element("button", { type: "button", className: "btn pin", textContent: alias.pinned ? "★" : "☆" });
+function showPin(pin, alias) {
+  pin.textContent = alias.pinned ? "★" : "☆";
   pin.setAttribute("aria-label", alias.pinned ? `Unpin ${alias.email}` : `Pin ${alias.email}`);
   pin.setAttribute("aria-pressed", String(alias.pinned));
+}
+
+function showEnabled(row, alias) {
+  row.className = alias.enabled ? "" : "disabled";
+  row.querySelector(".off").hidden = alias.enabled;
+}
+
+function aliasRow(alias) {
+  const row = element("tr");
+  const pin = element("button", { type: "button", className: "btn pin" });
+  showPin(pin, alias);
   pin.addEventListener("click", async () => {
-    if ((await act("updateAlias", { id: alias.id, email: alias.email, fields: { pinned: !alias.pinned } })) !== undefined) {
-      alias.pinned = !alias.pinned;
-      row.replaceWith(aliasRow(alias));
+    // Busy instead of disabled: a disabled button would lose the keyboard focus.
+    if (pin.getAttribute("aria-busy") == "true") {
+      return;
+    }
+    const pinned = !alias.pinned;
+    pin.setAttribute("aria-busy", "true");
+    const done = await act("updateAlias", { id: alias.id, email: alias.email, fields: { pinned } });
+    pin.removeAttribute("aria-busy");
+    if (done) {
+      alias.pinned = pinned;
+      showPin(pin, alias);
+      if ($("filter").value == "pinned") {
+        await reload();
+      }
     }
   });
 
   const note = element("input", { type: "text", value: alias.note, placeholder: "Note" });
   note.setAttribute("aria-label", `Note for ${alias.email}`);
   note.addEventListener("change", async () => {
-    if ((await act("updateAlias", { id: alias.id, email: alias.email, fields: { note: note.value } })) !== undefined) {
+    if (await act("updateAlias", { id: alias.id, email: alias.email, fields: { note: note.value } })) {
       alias.note = note.value;
+      say(`Note of ${alias.email} saved.`);
+    } else {
+      note.value = alias.note;
     }
   });
 
@@ -129,45 +169,67 @@ function aliasRow(alias) {
   enabled.setAttribute("aria-label", `${alias.email} receives mail`);
   enabled.addEventListener("change", async () => {
     const now = await act("toggleAlias", { id: alias.id, email: alias.email });
-    alias.enabled = now ?? alias.enabled;
-    enabled.checked = alias.enabled;
-    row.className = alias.enabled ? "" : "disabled";
+    if (now === undefined) {
+      await reload(); // the state in SimpleLogin is unknown now
+      return;
+    }
+    alias.enabled = now;
+    enabled.checked = now;
+    showEnabled(row, alias);
+    say(`${alias.email} is turned ${now ? "on" : "off"}.`);
+    if ($("filter").value == "enabled" || $("filter").value == "disabled") {
+      await reload();
+    }
   });
 
-  const button = (label, onClick) => {
+  const button = (label, name, onClick) => {
     const b = element("button", { type: "button", className: "btn", textContent: label });
-    b.addEventListener("click", onClick);
+    b.setAttribute("aria-label", name);
+    b.addEventListener("click", () => onClick(b));
     return b;
   };
+  const contacts = button("Contacts", `Contacts of ${alias.email}`, b => showContacts(alias, row, b));
+  contacts.setAttribute("aria-expanded", "false");
   const actions = element(
     "td",
     { className: "row-actions" },
-    button("Contacts", () => showContacts(alias, row)),
-    button("Write", () => act("composeAs", { email: alias.email })),
-    button("Copy", async () => {
-      try {
-        await navigator.clipboard.writeText(alias.email);
-        $("state").textContent = `Copied ${alias.email}.`;
-      } catch (e) {
-        $("state").textContent = `Could not copy ${alias.email}: ${e.message}`;
+    contacts,
+    button("Write", `Write as ${alias.email}`, async () => {
+      if (await act("composeAs", { email: alias.email })) {
+        say(`New message as ${alias.email} opened.`);
       }
     }),
-    confirmButton("Delete", "Confirm delete", async () => {
-      if ((await act("deleteAlias", { id: alias.id, email: alias.email })) !== undefined) {
-        row.nextElementSibling?.classList.contains("contacts") && row.nextElementSibling.remove();
-        row.remove();
+    button("Copy", `Copy ${alias.email}`, async () => {
+      try {
+        await navigator.clipboard.writeText(alias.email);
+        say(`Copied ${alias.email}.`);
+      } catch (e) {
+        say(`Could not copy ${alias.email}: ${e.message}`);
+      }
+    }),
+    confirmButton("Delete", alias.email, async () => {
+      const result = await act("deleteAlias", { id: alias.id, email: alias.email });
+      if (result) {
+        say(
+          result.keptIdentities
+            ? `${alias.email} deleted. Remove its ${result.keptIdentities} identity in the account settings, the add-on blocks sending from it.`
+            : `${alias.email} deleted.`
+        );
+        await reload();
       }
     })
   );
 
+  const off = element("span", { className: "off muted", textContent: " (off)" });
   row.append(
     element("td", {}, pin),
-    element("td", {}, element("div", { className: "alias", textContent: alias.email }), note),
+    element("td", {}, element("div", { className: "alias" }, element("span", { className: "address", textContent: alias.email }), off), note),
     element("td", { textContent: alias.mailboxes.join(", ") }),
     element("td", { className: "muted", textContent: activityText(alias) }),
     element("td", {}, enabled),
     actions
   );
+  showEnabled(row, alias);
   return row;
 }
 
@@ -179,16 +241,34 @@ async function load(reset) {
     page = 0;
     $("aliases").tBodies[0].replaceChildren();
   }
-  $("state").textContent = "Loading...";
+  say("Loading...");
   const aliases = await act("listAliases", { page, query: $("search").value.trim(), filter: $("filter").value });
-  if (ticket != loading || aliases === undefined) {
+  if (ticket != loading) {
+    return;
+  }
+  if (aliases === undefined) {
+    say("Could not load the aliases.");
     return;
   }
   $("aliases").tBodies[0].append(...aliases.map(aliasRow));
   const shown = $("aliases").tBodies[0].querySelectorAll("tr:not(.contacts)").length;
-  $("state").textContent = shown ? `${shown} aliases shown.` : "No aliases found.";
+  say(shown ? `${shown} aliases shown.` : "No aliases found.");
   $("more").hidden = !aliases.length;
   page++;
+}
+
+/**
+ * Loads the pages shown so far again. SimpleLogin pages by position, so after
+ * a row left the list (deleted, or out of the filter) the next page would skip one.
+ */
+async function reload() {
+  const pages = page;
+  const status = $("state").textContent;
+  await load(true);
+  while (page < pages && !$("more").hidden) {
+    await load(false);
+  }
+  say(status);
 }
 
 let searchTimer;
