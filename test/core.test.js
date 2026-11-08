@@ -138,3 +138,28 @@ test("fingerprint changes with every field the user can edit", () => {
     assert.notEqual(core.fingerprint({ ...base, ...change }), same);
   }
 });
+
+test("canonical treats Proton's domains as one mailbox", () => {
+  assert.equal(core.canonical("Me@pm.me"), "me@proton.me");
+  assert.equal(core.canonical("me+x@protonmail.ch"), "me@proton.me");
+});
+
+test("unfold lets leaks find an address split by an iCalendar fold", () => {
+  const folded = "ATTENDEE;CN=Me;PARTSTAT=NEEDS-ACTION;ROLE=REQ-PARTICIPANT;RSVP=TRUE:mailto:me@r\r\n eal.example";
+  const mine = new Set(["me@real.example"]);
+  assert.deepEqual(core.leaks([folded], mine), []);
+  assert.deepEqual(core.leaks([core.unfold(folded)], mine), ["me@real.example"]);
+});
+
+test("idsInDomains finds Message-IDs from the mailbox domain", () => {
+  const ids = ["<a1.b2@real.example>", "<CAxyz@mail.gmail.com>", "x@other.example"];
+  assert.deepEqual(core.idsInDomains(ids, new Set(["real.example", "gmail.com"])), ["<a1.b2@real.example>"]);
+});
+
+test("checkMailboxSend ignores Bcc for mixing, SimpleLogin never sees it", () => {
+  const reverse = new Set(["ra1@sl.example"]);
+  const result = core.checkMailboxSend([r("to", "ra1@sl.example"), r("bcc", "mom@family.example")], reverse, [
+    "@family.example",
+  ]);
+  assert.deepEqual([result.exposed, result.mixed], [[], false]);
+});
