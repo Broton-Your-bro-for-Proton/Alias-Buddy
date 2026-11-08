@@ -11,14 +11,44 @@
             "name": "request",
             "type": "object",
             "properties": {
-              "sender": { "type": "string", "description": "Address of the identity Thunderbird would send from." },
-              "actor": { "type": "string", "description": "Address the calendar acts as: the attendee in a reply, the organizer in an invitation." },
-              "to": { "type": "array", "items": { "type": "string" } },
-              "cc": { "type": "array", "items": { "type": "string" }, "description": "Automatic Cc of the identity." },
-              "bcc": { "type": "array", "items": { "type": "string" }, "description": "Automatic Bcc of the identity." },
-              "subject": { "type": "string" },
-              "body": { "type": "string" },
-              "calendar": { "type": "string", "description": "The iCalendar part as it will be sent." }
+              "sender": {
+                "type": "string",
+                "description": "Address of the identity Thunderbird would send from."
+              },
+              "actor": {
+                "type": "string",
+                "description": "Address the calendar acts as: the attendee in a reply, the organizer in an invitation."
+              },
+              "to": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "cc": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Automatic Cc of the identity."
+              },
+              "bcc": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "Automatic Bcc of the identity."
+              },
+              "subject": {
+                "type": "string"
+              },
+              "body": {
+                "type": "string"
+              },
+              "calendar": {
+                "type": "string",
+                "description": "The iCalendar part as it will be sent."
+              }
             }
           }
         ],
@@ -26,11 +56,31 @@
           "type": "object",
           "description": "action: send (unchanged), rewrite (from identityId to the addresses in to), or anything else to drop it.",
           "properties": {
-            "action": { "type": "string" },
-            "identityId": { "type": "string", "optional": true },
-            "to": { "type": "array", "items": { "type": "string" }, "optional": true }
+            "action": {
+              "type": "string"
+            },
+            "identityId": {
+              "type": "string",
+              "optional": true
+            },
+            "to": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "optional": true
+            }
           }
         }
+      }
+    ],
+    "functions": [
+      {
+        "name": "plainIdentityIds",
+        "type": "function",
+        "async": true,
+        "description": "Keys of identities without automatic Cc/Bcc and Reply-To, which the calendar transport can send from unchanged.",
+        "parameters": []
       }
     ]
   }

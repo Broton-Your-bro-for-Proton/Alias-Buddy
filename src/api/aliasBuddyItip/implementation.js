@@ -12,23 +12,31 @@ var { CalAttendee } = ChromeUtils.importESModule("resource:///modules/CalAttende
 var { cal } = ChromeUtils.importESModule("resource:///modules/calendar/calUtils.sys.mjs");
 
 const proto = CalItipEmailTransport.prototype;
+// The method this wrapper replaced. It stays known after uninstall, because
+// another add-on may have wrapped this wrapper and still calls it.
 let original = null;
+let active = false;
 let decide = null;
 
 function install() {
-  if (!original) {
-    original = proto._sendXpcomMail;
+  if (!active) {
+    original ??= proto._sendXpcomMail;
     proto._sendXpcomMail = guardedSend;
+    active = true;
   }
 }
 
 function uninstall() {
   decide = null;
-  if (original) {
+  active = false;
+  // Put the original back only if nobody wrapped this wrapper since.
+  if (proto._sendXpcomMail === guardedSend) {
     proto._sendXpcomMail = original;
-    original = null;
   }
 }
+
+/** Identities the transport can send from as they are: no automatic Cc/Bcc, no Reply-To. */
+const isPlain = identity => !identity.doCc && !identity.doBcc && !identity.replyTo;
 
 function alertUser(text) {
   Services.prompt.alert(Services.wm.getMostRecentWindow("mail:3pane"), "Alias Buddy", text);
@@ -62,7 +70,7 @@ const addressList = list =>
 
 function guardedSend(toList, subject, body, itipItem) {
   const send = original;
-  if (itipItem.autoResponse == Ci.calIItipItem.NONE) {
+  if (!active || itipItem.autoResponse == Ci.calIItipItem.NONE) {
     return send.call(this, toList, subject, body, itipItem);
   }
   if (!decide) {
@@ -113,29 +121,20 @@ function sendRewritten(transport, send, { identityId, to }, subject, body, itipI
   if (!identity || !account) {
     throw new Error(`identity ${identityId} not found`);
   }
+  if (!isPlain(identity)) {
+    throw new Error(`the identity ${identity.email} adds automatic Cc/Bcc or a Reply-To`);
+  }
+  if (Services.io.offline) {
+    // Queued in the Outbox, the email would lose the identity and go out through the default server later.
+    throw new Error("Thunderbird is offline. Answer the invitation again when it is online");
+  }
   const attendees = to.map(email => {
     const attendee = new CalAttendee();
     attendee.id = cal.email.prependMailTo(email);
     return attendee;
   });
   const rerouted = Object.create(transport, { getIdentityAndAccount: { value: () => ({ identity, account }) } });
-  // The transport adds the identity's automatic Cc/Bcc, which SimpleLogin
-  // drops the message for, and writes its Reply-To as Return-path. It reads
-  // them synchronously, so they are off only during this call. They are
-  // identity prefs: should Thunderbird crash inside this call, the identity
-  // keeps them off until the user sets them again.
-  const saved = {};
-  try {
-    for (const [key, off] of [["doCc", false], ["doBcc", false], ["replyTo", ""]]) {
-      if (identity[key]) {
-        saved[key] = identity[key];
-        identity[key] = off;
-      }
-    }
-    send.call(rerouted, attendees, subject, body, itipItem);
-  } finally {
-    Object.assign(identity, saved);
-  }
+  send.call(rerouted, attendees, subject, body, itipItem);
 }
 
 this.aliasBuddyItip = class extends ExtensionCommon.ExtensionAPI {
@@ -150,6 +149,7 @@ this.aliasBuddyItip = class extends ExtensionCommon.ExtensionAPI {
   getAPI(context) {
     return {
       aliasBuddyItip: {
+        plainIdentityIds: async () => MailServices.accounts.allIdentities.filter(isPlain).map(i => i.key),
         onSend: new ExtensionCommon.EventManager({
           context,
           name: "aliasBuddyItip.onSend",
