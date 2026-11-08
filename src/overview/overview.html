@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Alias Buddy Aliases</title>
+    <link rel="stylesheet" href="../style.css" />
+  </head>
+  <body>
+    <header class="navbar">
+      <img src="../icons/icon.svg" alt="" width="28" height="28" />
+      <span class="brand">Alias Buddy</span>
+      <span class="subtitle">Your SimpleLogin aliases</span>
+    </header>
+
+    <main class="wide">
+      <section class="panel">
+        <div class="inline">
+          <input id="search" type="search" placeholder="Search address, note or name" aria-label="Search aliases" />
+          <select id="filter" aria-label="Show">
+            <option value="">All aliases</option>
+            <option value="enabled">Enabled</option>
+            <option value="disabled">Disabled</option>
+            <option value="pinned">Pinned</option>
+          </select>
+          <a href="#" id="settings">Settings</a>
+        </div>
+        <p id="state" class="muted" role="status">Loading...</p>
+        <p id="error" class="state-blocked" role="alert" hidden></p>
+        <table id="aliases">
+          <thead>
+            <tr>
+              <th scope="col"><span class="visually-hidden">Pinned</span></th>
+              <th scope="col">Alias and note</th>
+              <th scope="col">Mailboxes</th>
+              <th scope="col">Activity</th>
+              <th scope="col">Enabled</th>
+              <th scope="col">Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+        <div class="actions">
+          <button id="more" class="btn" type="button" hidden>Load more</button>
+        </div>
+      </section>
+    </main>
+    <script type="module" src="overview.js"></script>
+  </body>
+</html>

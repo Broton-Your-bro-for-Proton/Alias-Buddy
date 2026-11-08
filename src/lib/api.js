@@ -10,6 +10,22 @@ const aliasInfo = a => ({
   mailboxes: (a.mailboxes ?? []).map(m => norm(m.email)),
   note: a.note ?? "",
   enabled: a.enabled !== false,
+  pinned: !!a.pinned,
+  forwards: a.nb_forward ?? 0,
+  replies: a.nb_reply ?? 0,
+  blocks: a.nb_block ?? 0,
+  latest: a.latest_activity
+    ? { action: a.latest_activity.action, at: a.latest_activity.timestamp, contact: norm(a.latest_activity.contact?.email) }
+    : null,
+});
+
+/** The parts of a contact the overview shows. */
+const contactInfo = c => ({
+  id: c.id,
+  email: addressOf(c.contact),
+  reverse: norm(c.reverse_alias_address ?? addressOf(c.reverse_alias)),
+  blocked: !!c.block_forward,
+  lastSent: c.last_email_sent_timestamp ?? null,
 });
 
 export class ApiError extends Error {
@@ -97,8 +113,43 @@ export class SimpleLogin {
 
   /** Aliases matching a search (address, note or name), one page. */
   async searchAliases(query, page = 0) {
-    const { aliases } = await this.call("POST", `/api/v2/aliases?page_id=${page}`, { query });
+    return this.listAliases({ query, page });
+  }
+
+  /** One page of aliases, optionally searched and filtered to enabled, disabled or pinned ones. */
+  async listAliases({ page = 0, query = "", filter = "" } = {}) {
+    const flag = ["enabled", "disabled", "pinned"].includes(filter) ? `&${filter}` : "";
+    const { aliases } = await this.call("POST", `/api/v2/aliases?page_id=${page}${flag}`, { query });
     return aliases.map(aliasInfo);
+  }
+
+  /** Enables a disabled alias or disables an enabled one; returns whether it is enabled now. */
+  async toggleAlias(id) {
+    return (await this.call("POST", `/api/aliases/${id}/toggle`)).enabled;
+  }
+
+  /** Changes the note, name or pin of an alias. */
+  async updateAlias(id, fields) {
+    await this.call("PATCH", `/api/aliases/${id}`, fields);
+  }
+
+  async deleteAlias(id) {
+    await this.call("DELETE", `/api/aliases/${id}`);
+  }
+
+  /** One page of an alias's contacts, with their block state. */
+  async contactsPage(aliasId, page = 0) {
+    const { contacts } = await this.call("GET", `/api/aliases/${aliasId}/contacts?page_id=${page}`);
+    return contacts.map(contactInfo);
+  }
+
+  /** Blocks or unblocks mail from a contact; returns whether it is blocked now. */
+  async toggleContact(id) {
+    return (await this.call("POST", `/api/contacts/${id}/toggle`)).block_forward;
+  }
+
+  async deleteContact(id) {
+    await this.call("DELETE", `/api/contacts/${id}`);
   }
 
   /** The enabled alias whose note ties it to the site, or null. */

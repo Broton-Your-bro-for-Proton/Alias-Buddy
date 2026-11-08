@@ -108,6 +108,11 @@ $("sendOnce").addEventListener("click", async () => {
   await messenger.runtime.sendMessage({ type: "sendOnce", tabId: tab.id });
   window.close();
 });
+$("overview").addEventListener("click", async event => {
+  event.preventDefault();
+  await messenger.runtime.sendMessage({ type: "openOverview" });
+  window.close();
+});
 $("options").addEventListener("click", event => {
   event.preventDefault();
   messenger.runtime.openOptionsPage();

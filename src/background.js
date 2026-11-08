@@ -414,6 +414,10 @@ async function check(tab, details, ctx, { override = false, apply = true } = {})
   if (alias) {
     return checkAlias(tab, details, ctx, { ...options, alias, resumed });
   }
+  // An identity for an alias that no longer exists would send directly, past SimpleLogin.
+  if (ctx.sl && (identity.label == IDENTITY_LABEL || (await goneAliases()).includes(sender))) {
+    throw new Blocked(`${sender} is no longer an alias in SimpleLogin, so a message from it would go out directly. Choose another sender.`);
+  }
   const shown = [details.from && core.addressOf(details.from), ...(await recipientsOf(details, ["replyTo"])).map(r => r.email)];
   const exposedAs = shown.find(email => email && isMine(email));
   if (exposedAs) {
@@ -558,6 +562,11 @@ messenger.aliasBuddyItip.onSend.addListener(async request => {
 
 // ---- alias creation and choice ---------------------------------------------------
 
+const IDENTITY_LABEL = "Alias Buddy";
+
+/** Addresses of aliases deleted in the overview. Kept outside the cache, which saving the settings clears. */
+const goneAliases = async () => (await messenger.storage.local.get("goneAliases")).goneAliases ?? [];
+
 const creationNote = site => (site ? core.siteNote(site) : "Created by Alias Buddy");
 
 // A signed suffix from SimpleLogin is valid for 10 minutes; it is reused for 5.
@@ -644,6 +653,9 @@ async function planForSite(ctx, site) {
   }
   const plan = await newAliasPlan(ctx, site);
   const named = plan.random ? null : await aliasFor(ctx, plan.email);
+  if (named && !named.enabled) {
+    throw new Blocked(`${named.email} exists but is turned off. Turn it on in the alias overview, or change the name template.`);
+  }
   if (named) {
     return { alias: named, email: named.email, existing: true };
   }
@@ -733,7 +745,7 @@ async function ensureIdentity(ctx, alias, accountId) {
   if (!mailbox) {
     throw new Blocked(`No Thunderbird identity uses a verified mailbox of ${alias.email}, so the add-on cannot tell which account it belongs to.`);
   }
-  const created = await messenger.identities.create(mailbox.accountId, { email: alias.email, name: mailbox.name, label: "Alias Buddy" });
+  const created = await messenger.identities.create(mailbox.accountId, { email: alias.email, name: mailbox.name, label: IDENTITY_LABEL });
   // Open compose windows list their senders from when they opened.
   await messenger.aliasBuddyCompose.refreshIdentities();
   return created;
@@ -787,6 +799,105 @@ const ALIAS_ACTIONS = {
   createAlias: async (ctx, m) =>
     useAlias(ctx, m.tabId, await createAlias(ctx, m.site, { prefix: m.prefix, domain: m.domain, mailboxId: m.mailboxId })),
 };
+
+// ---- alias overview -------------------------------------------------------------
+
+/** Drops what the cache knows about an alias after it changed in SimpleLogin; its contacts only when it is gone. */
+function forgetAlias(ctx, email, id, { contacts = false } = {}) {
+  delete ctx.cache.aliases[email];
+  for (const [site, entry] of Object.entries(ctx.cache.sites ?? {})) {
+    if (entry.value?.email == email) {
+      delete ctx.cache.sites[site];
+    }
+  }
+  if (contacts) {
+    delete ctx.cache.contacts[id];
+    delete ctx.cache.contactsAt[id];
+  }
+}
+
+/** Turns an API error into a message the page can show. */
+async function api(ctx, action) {
+  if (!ctx.sl) {
+    throw new Blocked("Add your SimpleLogin API key in the settings first.");
+  }
+  try {
+    return await action();
+  } catch (e) {
+    throw new Blocked(`SimpleLogin: ${e.message}`);
+  }
+}
+
+Object.assign(ALIAS_ACTIONS, {
+  listAliases: (ctx, m) => api(ctx, () => ctx.sl.listAliases({ page: m.page, query: m.query, filter: m.filter })),
+  toggleAlias: async (ctx, m) => {
+    const enabled = await api(ctx, () => ctx.sl.toggleAlias(m.id));
+    forgetAlias(ctx, m.email, m.id);
+    return enabled;
+  },
+  updateAlias: async (ctx, m) => {
+    await api(ctx, () => ctx.sl.updateAlias(m.id, m.fields));
+    forgetAlias(ctx, m.email, m.id);
+  },
+  /**
+   * Deletes the alias, removes the identities the add-on created for it and
+   * remembers the address, so no identity can send from it past SimpleLogin.
+   */
+  deleteAlias: async (ctx, m) => {
+    await api(ctx, () => ctx.sl.deleteAlias(m.id));
+    forgetAlias(ctx, m.email, m.id, { contacts: true });
+    const gone = await goneAliases();
+    await messenger.storage.local.set({ goneAliases: [...new Set([...gone, core.norm(m.email)])] });
+    let kept = 0;
+    for (const identity of await messenger.identities.list()) {
+      if (core.norm(identity.email) == core.norm(m.email)) {
+        if (identity.label == IDENTITY_LABEL) {
+          await messenger.identities.delete(identity.id);
+        } else {
+          kept++;
+        }
+      }
+    }
+    return { keptIdentities: kept };
+  },
+  /** All contacts of an alias (up to 1000), in one go. */
+  listContacts: async (ctx, m) => {
+    const contacts = [];
+    for (let page = 0; page < 50; page++) {
+      const found = await api(ctx, () => ctx.sl.contactsPage(m.aliasId, page));
+      if (!found.length) {
+        return { contacts, complete: true };
+      }
+      contacts.push(...found);
+    }
+    return { contacts, complete: false };
+  },
+  toggleContact: (ctx, m) => api(ctx, () => ctx.sl.toggleContact(m.contactId)),
+  deleteContact: async (ctx, m) => {
+    await api(ctx, () => ctx.sl.deleteContact(m.contactId));
+    const contacts = ctx.cache.contacts[m.aliasId] ?? {};
+    for (const [email, reverse] of Object.entries(contacts)) {
+      if (email == m.email || reverse == m.reverse) {
+        delete contacts[email];
+      }
+    }
+  },
+  /** Opens a new message with the alias as sender. */
+  composeAs: async (ctx, m) => {
+    const alias = await aliasFor(ctx, core.norm(m.email));
+    if (!alias) {
+      throw new Blocked(`${m.email} is not one of your aliases.`);
+    }
+    if (!alias.enabled) {
+      throw new Blocked(`${alias.email} is turned off, so replies to it would not arrive. Turn it on first.`);
+    }
+    const identity = await ensureIdentity(ctx, alias, undefined);
+    await messenger.compose.beginNew({ identityId: identity.id });
+  },
+});
+
+const openOverview = () => messenger.tabs.create({ url: messenger.runtime.getURL("overview/overview.html") });
+messenger.browserAction.onClicked.addListener(openOverview);
 
 // A reply to a message that came through an alias goes out as that alias.
 messenger.tabs.onCreated.addListener(async tab => {
@@ -843,6 +954,9 @@ messenger.runtime.onMessage.addListener(async message => {
     } catch (e) {
       return { ok: false, error: e.message };
     }
+  }
+  if (message.type == "openOverview") {
+    await openOverview();
   }
   if (message.type == "sendOnce") {
     overrides.set(tabId, core.fingerprint(await messenger.compose.getComposeDetails(tabId)));
