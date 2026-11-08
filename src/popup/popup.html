@@ -13,6 +13,32 @@
       <tbody></tbody>
     </table>
     <p id="last" class="state-blocked" hidden></p>
+
+    <section id="aliasPanel" hidden>
+      <hr />
+      <h3>Send as alias</h3>
+      <div id="suggestion" hidden>
+        <p class="muted" id="suggestionText"></p>
+        <button id="useSuggestion" class="btn btn-primary choice" type="button"></button>
+      </div>
+
+      <label class="field" for="search">Existing alias</label>
+      <input id="search" type="search" placeholder="Search your aliases" />
+      <div id="results"></div>
+
+      <label class="field" for="prefix">New alias</label>
+      <div class="inline">
+        <input id="prefix" type="text" spellcheck="false" aria-label="Alias name" />
+        <span>@</span>
+        <select id="domain" aria-label="Domain"></select>
+      </div>
+      <div class="inline">
+        <select id="mailbox" aria-label="Mailbox"></select>
+        <button id="create" class="btn" type="button">Create and use</button>
+      </div>
+    </section>
+    <p id="aliasError" class="state-blocked" role="alert" hidden></p>
+
     <div class="actions">
       <button id="sendOnce" class="btn" hidden>Send this message unchanged</button>
       <a href="#" id="options">Settings</a>

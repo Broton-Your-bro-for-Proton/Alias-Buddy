@@ -29,7 +29,8 @@ test("findAlias pages past a full page and stops at an empty one", async () => {
     const page = Number(/page_id=(\d+)/.exec(p)[1]);
     return [200, { aliases: aliases.slice(page * 20, page * 20 + 20) }];
   });
-  assert.deepEqual(await sl.findAlias("shop@a.example"), { id: 99, email: "shop@a.example", mailboxes: ["me@real.example"] });
+  const found = await sl.findAlias("shop@a.example");
+  assert.deepEqual([found.id, found.email, found.mailboxes], [99, "shop@a.example", ["me@real.example"]]);
   assert.equal(calls.length, 2);
   fake(() => [200, { aliases: [] }]);
   assert.equal(await sl.findAlias("none@a.example"), null);
@@ -81,4 +82,33 @@ test("isOutage covers network, rate limit and server errors only", () => {
   for (const status of [400, 401, 403, TOO_MANY]) {
     assert.ok(!isOutage(new ApiError(status, "")));
   }
+});
+
+test("findSiteAlias finds the enabled alias whose note names the site", async () => {
+  fake((m, p, body) => {
+    const page = Number(/page_id=(\d+)/.exec(p)[1]);
+    assert.equal(body.query, "amazon.de");
+    const aliases = [
+      { id: 1, email: "a@x.example", note: "Alias Buddy: amazon.de", enabled: false, mailboxes: [] },
+      { id: 2, email: "B@x.example", note: "old\nAlias Buddy: amazon.de", enabled: true, mailboxes: [{ email: "Me@real.example" }] },
+    ];
+    return [200, { aliases: page == 0 ? aliases : [] }];
+  });
+  const alias = await sl.findSiteAlias("amazon.de");
+  assert.deepEqual([alias.id, alias.email, alias.mailboxes], [2, "b@x.example", ["me@real.example"]]);
+});
+
+test("suffixes and createAlias use the documented fields", async () => {
+  let sent;
+  fake((m, p, body) => {
+    if (p == "/api/v5/alias/options") {
+      return [200, { suffixes: [{ suffix: "@Mine.example", signed_suffix: "@mine.example.sig", is_custom: true }] }];
+    }
+    sent = body;
+    return [201, { id: 7, email: "shop.ab12c@mine.example", mailboxes: [{ email: "me@real.example" }], note: body.note }];
+  });
+  assert.deepEqual(await sl.suffixes(), [{ suffix: "@mine.example", signed: "@mine.example.sig", custom: true }]);
+  const alias = await sl.createAlias({ prefix: "shop.ab12c", signed: "@mine.example.sig", mailboxIds: [1], note: "n" });
+  assert.deepEqual(sent, { alias_prefix: "shop.ab12c", signed_suffix: "@mine.example.sig", mailbox_ids: [1], note: "n" });
+  assert.equal(alias.email, "shop.ab12c@mine.example");
 });

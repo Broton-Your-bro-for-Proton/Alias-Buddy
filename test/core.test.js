@@ -180,3 +180,53 @@ test("verifiedOf keeps verified mailboxes, all while unknown", () => {
   assert.deepEqual(core.verifiedOf(["a@x.example", "b@x.example"], known), ["a@x.example"]);
   assert.deepEqual(core.verifiedOf(["a@x.example"], undefined), ["a@x.example"]);
 });
+
+test("siteOf keeps the registrable part of the domain", () => {
+  assert.equal(core.siteOf("news@shop.amazon.de"), "amazon.de");
+  assert.equal(core.siteOf("a@mail.bbc.co.uk"), "bbc.co.uk");
+  assert.equal(core.siteOf("a@example.com"), "example.com");
+});
+
+test("prefixFrom fills the template with what SimpleLogin accepts", () => {
+  const fixed = () => 0;
+  assert.equal(core.prefixFrom("{domain}.{random}", "amazon.de", fixed), "amazon.aaaaa");
+  assert.equal(core.prefixFrom("{word}-{domain}", "bbc.co.uk", fixed), "amber-bbc");
+  assert.equal(core.prefixFrom("Mein Shop!!..{domain}", "x-y.de", fixed), "meinshop.x-y");
+  assert.equal(core.prefixFrom("{nothing}", "", fixed), "nothing");
+  assert.equal(core.prefixFrom("!!!", "", fixed), "aaaaaaaa");
+});
+
+test("pickSuffix prefers the plain suffix of an own domain", () => {
+  const suffixes = [
+    { suffix: ".cat@aleeas.example", custom: false },
+    { suffix: "@me.aleeas.example", custom: true },
+    { suffix: "@mine.example", custom: true },
+  ];
+  assert.equal(core.pickSuffix(suffixes, "mine.example").suffix, "@mine.example");
+  assert.equal(core.pickSuffix(suffixes, "aleeas.example").suffix, ".cat@aleeas.example");
+  assert.equal(core.pickSuffix(suffixes, "").suffix, "@me.aleeas.example");
+  assert.equal(core.pickSuffix(suffixes, "unknown.example"), null);
+  assert.deepEqual(
+    core.creationDomains(suffixes).map(d => [d.domain, d.custom, d.random]),
+    [["me.aleeas.example", true, false], ["mine.example", true, false], ["aleeas.example", false, true]]
+  );
+});
+
+test("noteNamesSite matches the whole note line only", () => {
+  assert.ok(core.noteNamesSite("Shopping\nAlias Buddy: amazon.de", "amazon.de"));
+  assert.ok(!core.noteNamesSite("Alias Buddy: amazon.de.evil", "amazon.de"));
+  assert.ok(!core.noteNamesSite(null, "amazon.de"));
+});
+
+test("siteOf handles subdomains, country endings and IP addresses", () => {
+  assert.equal(core.siteOf("a@news.dhl.de"), "dhl.de");
+  assert.equal(core.siteOf("a@mail.ing.nl"), "ing.nl");
+  assert.equal(core.siteOf("a@shop.example.com.au"), "example.com.au");
+  assert.equal(core.siteOf("a@[1.2.3.4]"), "1.2.3.4");
+  assert.equal(core.siteOf("a@localhost"), "localhost");
+});
+
+test("prefixFrom never ends in a dot after cutting at 40 characters", () => {
+  const prefix = core.prefixFrom("amazon." + "x".repeat(32) + ".tail", "amazon.de", () => 0);
+  assert.ok(prefix.length <= 40 && !/[._-]$/.test(prefix), prefix);
+});
