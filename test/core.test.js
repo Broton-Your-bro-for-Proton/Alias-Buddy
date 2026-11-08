@@ -212,10 +212,20 @@ test("pickSuffix prefers the plain suffix of an own domain", () => {
   );
 });
 
-test("noteNamesSite matches the whole note line only", () => {
-  assert.ok(core.noteNamesSite("Shopping\nAlias Buddy: amazon.de", "amazon.de"));
-  assert.ok(!core.noteNamesSite("Alias Buddy: amazon.de.evil", "amazon.de"));
-  assert.ok(!core.noteNamesSite(null, "amazon.de"));
+test("noteNamesSite matches site and template on a whole line, older ties belong to {domain}.{random}", () => {
+  const note = "Shopping\n" + core.siteNote("amazon.de", "news.{domain}");
+  assert.ok(core.noteNamesSite(note, "amazon.de", "news.{domain}"));
+  assert.ok(!core.noteNamesSite(note, "amazon.de", "shop.{domain}"));
+  assert.ok(!core.noteNamesSite("Alias Buddy: amazon.de.evil (news.{domain})", "amazon.de", "news.{domain}"));
+  assert.ok(core.noteNamesSite("Alias Buddy: amazon.de", "amazon.de", "{domain}.{random}"));
+  assert.ok(!core.noteNamesSite("Alias Buddy: amazon.de", "amazon.de", "shop.{domain}"));
+  assert.ok(!core.noteNamesSite(null, "amazon.de", "shop.{domain}"));
+});
+
+test("templateProblem requires a placeholder", () => {
+  assert.equal(core.templateProblem("shop.{domain}"), null);
+  assert.equal(core.templateProblem("{word}.{word}"), null);
+  assert.match(core.templateProblem("shop"), /every site would get the same name/);
 });
 
 test("siteOf handles subdomains, country endings and IP addresses", () => {

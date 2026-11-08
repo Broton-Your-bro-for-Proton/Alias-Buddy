@@ -1,5 +1,5 @@
 import { SimpleLogin } from "../lib/api.js";
-import { creationDomains, prefixFrom, templatesOf } from "../lib/core.js";
+import { creationDomains, prefixFrom, templateProblem, templatesOf } from "../lib/core.js";
 import { getSettings } from "../lib/settings.js";
 
 const $ = id => document.getElementById(id);
@@ -53,6 +53,12 @@ loadCreationChoices(settings);
 
 $("form").addEventListener("submit", async event => {
   event.preventDefault();
+  const templates = templatesOf({ templates: lines($("templates").value) });
+  const problem = templates.map(templateProblem).find(Boolean);
+  if (problem) {
+    $("result").textContent = `Not saved: ${problem}.`;
+    return;
+  }
   const next = {
     apiUrl: $("apiUrl").value.trim().replace(/\/+$/, ""),
     apiKey: $("apiKey").value.trim(),
@@ -61,7 +67,8 @@ $("form").addEventListener("submit", async event => {
     creation: {
       domain: $("domain").length > 1 ? $("domain").value : settings.creation.domain,
       mailboxId: $("mailboxId").length > 1 ? Number($("mailboxId").value) || null : settings.creation.mailboxId,
-      templates: templatesOf({ templates: lines($("templates").value) }),
+      templates,
+      template: templates[0], // read by older versions
       ...Object.fromEntries(FLAGS.map(flag => [flag, $(flag).checked])),
     },
   };

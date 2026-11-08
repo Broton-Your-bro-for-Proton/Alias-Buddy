@@ -268,9 +268,27 @@ export function creationDomains(suffixes) {
   return [...seen.values()].sort((a, b) => b.custom - a.custom);
 }
 
-/** The line in an alias note that ties it to a site. */
-export const siteNote = site => `Alias Buddy: ${site}`;
-export const noteNamesSite = (note, site) => String(note ?? "").split(/\r?\n/).some(line => line.trim() == siteNote(site));
+// The template of version 0.3, whose site ties carried no template.
+const FIRST_DEFAULT_TEMPLATE = "{domain}.{random}";
+
+/** The line in an alias note that ties it to a site and the template (category) it was made with. */
+export const siteNote = (site, template) => `Alias Buddy: ${site} (${template})`;
+
+/** Whether a note ties its alias to this site and template. Older ties without a template belong to {domain}.{random}. */
+export function noteNamesSite(note, site, template) {
+  return String(note ?? "")
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .some(line => line == siteNote(site, template) || (template == FIRST_DEFAULT_TEMPLATE && line == `Alias Buddy: ${site}`));
+}
+
+/** Why a name template cannot be used, or null. Each one needs a placeholder, or every site would get the same name. */
+export function templateProblem(template) {
+  if (!/\{(domain|random|word)\}/.test(template)) {
+    return `${template} has no {domain}, {random} or {word}, so every site would get the same name`;
+  }
+  return null;
+}
 
 /**
  * The name templates of the creation settings, the default first. Settings

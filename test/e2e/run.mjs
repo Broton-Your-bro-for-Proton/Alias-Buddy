@@ -1057,7 +1057,7 @@ try {
       chrome(`await until(() => /^shop\.[a-z0-9]{5}@mine\.example$/.test(MailServices.accounts.getIdentity(composeWindows()[0].getCurrentIdentityKey()).email), "switched to the new alias");`)
     );
     const alias = api.created[created];
-    expect([api.created.length - created, alias?.note, alias?.mailboxes.map(m => m.email)], [1, "Alias Buddy: shop.example", [MINE]], "created alias");
+    expect([api.created.length - created, alias?.note, alias?.mailboxes.map(m => m.email)], [1, "Alias Buddy: shop.example ({domain}.{random})", [MINE]], "created alias");
     expect((await identitiesFor(alias.email)).map(i => i[1]), ["Alias Buddy"], "identity created");
     const mail = nextMail();
     await client.run(chrome(`composeWindows()[0].goDoCommand("cmd_sendNow");`));
@@ -1092,7 +1092,7 @@ try {
     const mail = nextMail();
     await client.run(chrome(`await send("id5", { to: "info@shop.example" });`));
     const sent = await mail;
-    const alias = api.aliases.find(a => a.note == "Alias Buddy: shop.example");
+    const alias = api.aliases.find(a => a.note == "Alias Buddy: shop.example ({domain}.{random})");
     const contact = Object.values(api.contacts[alias.id] ?? {}).find(c => c.contact == "info@shop.example");
     expect([sent?.from, sent?.to, api.created.length - created], [MINE, [contact?.reverse_alias_address], 0], "reused alias");
   });
@@ -1135,7 +1135,7 @@ try {
     const sent = await mail;
     const alias = api.created[created];
     const contact = (api.contacts[alias?.id] ?? []).find(c => c.contact == "hello@fresh.example");
-    expect([api.created.length - created, alias?.note, sent?.to], [1, "Alias Buddy: fresh.example", [contact?.reverse_alias_address]], "new site alias");
+    expect([api.created.length - created, alias?.note, sent?.to], [1, "Alias Buddy: fresh.example ({domain}.{random})", [contact?.reverse_alias_address]], "new site alias");
   });
 
   await check("automatic: recipients of two sites are blocked, not switched", async () => {
@@ -1202,7 +1202,7 @@ try {
         `window.document.getElementById("tabmail").currentTabInfo.browser`,
         `
         await until(() => doc.getElementById("domain").length > 1, "domains loaded");
-        doc.getElementById("templates").value = "shop.{domain}\\nnews.{domain}";
+        doc.getElementById("templates").value = "shop.{domain}\\nnews.{domain}\\npromo.{random}";
         doc.getElementById("form").requestSubmit();
         await until(() => doc.getElementById("result").textContent.startsWith("Saved. Connected"), "saved");
         `
@@ -1242,6 +1242,36 @@ try {
       chrome(`await until(() => MailServices.accounts.getIdentity(composeWindows()[0].getCurrentIdentityKey()).email == "news.heise@mine.example", "switched to the news alias");`)
     );
     expect(api.created.length - created, 0, "nothing created");
+  });
+
+  await check("popup: an alias of a template with random parts is found again for its site", async () => {
+    const suggestionFor = async to => {
+      await client.run(chrome(`await compose("id5", { to: ${JSON.stringify(to)} });`));
+      await openPopup();
+      return client.run(
+        inPage(
+          popup,
+          `
+          await until(() => !doc.getElementById("templateRow").hidden, "templates offered");
+          const select = doc.getElementById("template");
+          const before = doc.getElementById("useSuggestion").textContent;
+          select.value = "promo.{random}";
+          select.dispatchEvent(new content.Event("change"));
+          await until(() => doc.getElementById("useSuggestion").textContent != before, "promo suggestion");
+          return doc.getElementById("useSuggestion").textContent;
+          `
+        )
+      );
+    };
+    const created = api.created.length;
+    const first = await suggestionFor("y@tiedsite.example");
+    if (!/^Create and use promo\.[a-z0-9]{5}@mine\.example$/.test(first)) throw new Error("first: " + first);
+    await client.run(inPage(popup, `doc.getElementById("useSuggestion").click();`));
+    await client.run(chrome(`await until(() => /^promo\./.test(MailServices.accounts.getIdentity(composeWindows()[0].getCurrentIdentityKey()).email), "switched");`));
+    const alias = api.created[created];
+    expect(alias?.note, "Alias Buddy: tiedsite.example (promo.{random})", "note names site and template");
+    const second = await suggestionFor("z@tiedsite.example");
+    expect([second, api.created.length - created], [`Use ${alias.email}`, 1], "found again, nothing more created");
   });
 
   // ---- alias overview

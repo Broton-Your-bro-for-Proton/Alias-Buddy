@@ -152,11 +152,11 @@ export class SimpleLogin {
     await this.call("DELETE", `/api/contacts/${id}`);
   }
 
-  /** The enabled alias whose note ties it to the site, or null. */
-  async findSiteAlias(site) {
+  /** The enabled alias whose note ties it to the site and template, or null. */
+  async findSiteAlias(site, template) {
     for (let page = 0; page < MAX_PAGES; page++) {
       const aliases = await this.searchAliases(site, page);
-      const alias = aliases.find(a => a.enabled && noteNamesSite(a.note, site));
+      const alias = aliases.find(a => a.enabled && noteNamesSite(a.note, site, template));
       if (alias || !aliases.length) {
         return alias ?? null;
       }
