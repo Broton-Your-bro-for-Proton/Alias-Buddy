@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { ApiError, SimpleLogin } from "../src/lib/api.js";
+import { ApiError, SimpleLogin, TOO_MANY, isOutage } from "../src/lib/api.js";
 
 /** Replaces fetch with a handler that receives (method, path, body). */
 function fake(handler) {
@@ -61,4 +61,24 @@ test("errors carry status and message, odd answers fail", async () => {
     throw new TypeError("network down");
   };
   await assert.rejects(sl.mailboxes(), e => e instanceof ApiError && e.status == 0);
+});
+
+test("contacts stops paging once the wanted addresses are found", async () => {
+  const calls = fake((m, p) => {
+    const page = Number(/page_id=(\d+)/.exec(p)[1]);
+    const contacts = Array.from({ length: 20 }, (_, i) => ({ contact: `c${page}-${i}@x.example`, reverse_alias_address: `ra${page}-${i}@sl.example` }));
+    return [200, { contacts }];
+  });
+  const result = await sl.contacts(1, ["ra1-5@sl.example"]);
+  assert.equal(result["c1-5@x.example"], "ra1-5@sl.example");
+  assert.equal(calls.length, 2);
+});
+
+test("isOutage covers network, rate limit and server errors only", () => {
+  assert.ok(isOutage(new ApiError(0, "")));
+  assert.ok(isOutage(new ApiError(429, "")));
+  assert.ok(isOutage(new ApiError(503, "")));
+  for (const status of [400, 401, 403, TOO_MANY]) {
+    assert.ok(!isOutage(new ApiError(status, "")));
+  }
 });

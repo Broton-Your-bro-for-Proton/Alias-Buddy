@@ -10,7 +10,12 @@ export class ApiError extends Error {
   }
 }
 
-const MAX_PAGES = 50;
+const MAX_PAGES = 500;
+/** Status of an ApiError when paging gave up; unlike 0 (unreachable) it is no outage. */
+export const TOO_MANY = -1;
+
+/** Errors after which an older answer may stand in: no connection, rate limit, server trouble. */
+export const isOutage = e => e instanceof ApiError && (e.status == 0 || e.status == 429 || e.status >= 500);
 
 export class SimpleLogin {
   constructor(url, key) {
@@ -56,22 +61,29 @@ export class SimpleLogin {
         return null;
       }
     }
-    throw new ApiError(0, `too many search results for ${email}`);
+    throw new ApiError(TOO_MANY, `too many search results for ${email}`);
   }
 
-  /** All contacts of an alias as { contact address: reverse alias }. */
-  async contacts(aliasId) {
+  /**
+   * Contacts of an alias as { contact address: reverse alias }. With `wanted`
+   * (contact addresses or reverse aliases) it stops as soon as all are found.
+   */
+  async contacts(aliasId, wanted = []) {
     const result = {};
+    const missing = new Set(wanted.map(norm));
     for (let page = 0; page < MAX_PAGES; page++) {
       const { contacts } = await this.call("GET", `/api/aliases/${aliasId}/contacts?page_id=${page}`);
       for (const c of contacts) {
-        result[addressOf(c.contact)] = norm(c.reverse_alias_address ?? addressOf(c.reverse_alias));
+        const contact = addressOf(c.contact);
+        result[contact] = norm(c.reverse_alias_address ?? addressOf(c.reverse_alias));
+        missing.delete(contact);
+        missing.delete(result[contact]);
       }
-      if (!contacts.length) {
+      if (!contacts.length || (wanted.length && !missing.size)) {
         return result;
       }
     }
-    throw new ApiError(0, "too many contacts");
+    throw new ApiError(TOO_MANY, "too many contacts to search");
   }
 
   /** Creates the contact, or returns the existing one. */

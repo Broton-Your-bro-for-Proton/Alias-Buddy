@@ -22,7 +22,19 @@ export function canonical(email) {
   if (domain == "gmail.com" || domain == "googlemail.com") {
     return `${local.replaceAll(".", "")}@gmail.com`;
   }
+  if (PROTON.has(domain)) {
+    return `${local}@proton.me`;
+  }
   return `${local}@${domain}`;
+}
+const PROTON = new Set(["proton.me", "protonmail.com", "protonmail.ch", "pm.me"]);
+
+/** Joins folded iCalendar lines (RFC 5545), so an address split by a fold is found. */
+export const unfold = text => String(text ?? "").replace(/\r?\n[ \t]/g, "");
+
+/** Message-IDs (as in In-Reply-To or References) whose domain is one of `domains`. */
+export function idsInDomains(ids, domains) {
+  return ids.filter(id => domains.has(norm(id).replace(/[<>\s]/g, "").split("@").pop()));
 }
 
 /** "a@b.c" matches that address, "@b.c" or "b.c" the whole domain. */
@@ -61,7 +73,10 @@ export function checkMailboxSend(recipients, reverseAliases, allowlist, owners =
   const rest = recipients.filter(r => !owners.has(norm(r.email)));
   const viaAlias = rest.filter(r => reverseAliases.has(norm(r.email)));
   const exposed = rest.filter(r => !reverseAliases.has(norm(r.email)) && !isAllowed(r.email, allowlist));
-  return { viaAlias, exposed, mixed: viaAlias.length > 0 && viaAlias.length < rest.length };
+  // SimpleLogin only sees To and Cc. Bcc goes out through the mailbox's own server.
+  const headers = rest.filter(r => r.field != "bcc");
+  const headersViaAlias = headers.filter(r => reverseAliases.has(norm(r.email)));
+  return { viaAlias, exposed, mixed: headersViaAlias.length > 0 && headersViaAlias.length < headers.length };
 }
 
 /**

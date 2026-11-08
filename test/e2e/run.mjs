@@ -193,7 +193,7 @@ const prefs = {
   "mail.accountmanager.defaultaccount": "account1",
   "mail.accountmanager.localfoldersserver": "server1",
   "mail.account.account1.server": "server1",
-  "mail.account.account1.identities": "id1,id2,id3,id4,id5,id6,id7,id8,id9",
+  "mail.account.account1.identities": "id1,id2,id3,id4,id5,id6,id7,id8,id9,id10",
   "mail.server.server1.type": "none",
   "mail.server.server1.hostname": "Local Folders",
   "mail.server.server1.userName": "nobody",
@@ -221,6 +221,7 @@ const prefs = {
   ...identity("id7", KEYED, { openpgp_key_id: "0123456789ABCDEF" }),
   ...identity("id8", "keyed@alias.example"),
   ...identity("id9", PLAIN, { doCc: true, doCcList: "archive2@x.example" }),
+  ...identity("id10", "other@alias.example", { doCc: true, doCcList: MINE }),
 };
 fs.writeFileSync(
   path.join(profile, "user.js"),
@@ -229,6 +230,22 @@ fs.writeFileSync(
     .join("\n")
 );
 fs.mkdirSync(path.join(profile, "Mail", "Local Folders"), { recursive: true });
+// A message whose Message-ID carries the mailbox domain, as Thunderbird writes it for the user's own messages.
+fs.writeFileSync(
+  path.join(profile, "Mail", "Local Folders", "Inbox"),
+  [
+    "From - Mon Jan 05 10:00:00 2026",
+    "Message-ID: <own-1@real.example>",
+    "Date: Mon, 05 Jan 2026 10:00:00 +0000",
+    "From: Peter <peter@x.example>",
+    "To: shop@alias.example",
+    "Subject: Question",
+    "",
+    "Hello.",
+    "",
+    "",
+  ].join("\n")
+);
 
 // ---- marionette client -----------------------------------------------------
 
@@ -762,6 +779,48 @@ try {
     const mail = nextMail(4000);
     await calendarSend({ identity: "id9", attendee: PLAIN, organizer: "mom@family.example", to: ["mom@family.example"] });
     expect(await mail, null, "sent message");
+  });
+
+  await check("calendar: an alias invitation that names the real address is blocked", async () => {
+    const mail = nextMail(4000);
+    await calendarSend({ method: "REQUEST", identity: "id5", organizer: "shop@alias.example", attendee: MINE, to: ["bob3@x.example"] });
+    expect(await mail, null, "sent message");
+  });
+
+  await check("alias: the identity's automatic Cc to the real mailbox is blocked", () =>
+    expectBlocked(`await send("id10", { to: "peter@x.example" })`, /me@real\.example is a recipient of a message sent as other@alias\.example/)
+  );
+
+  await check("mailbox: Bcc next to a reverse alias is not a mix", async () => {
+    const mail = nextMail();
+    await client.run(chrome(`const win = await compose("id5", { to: "ra-known@sl.example" }); win.gMsgCompose.compFields.bcc = "mom@family.example"; win.awAddRecipients(win.gMsgCompose.compFields, "addr_bcc", "mom@family.example"); win.goDoCommand("cmd_sendNow");`));
+    expect((await mail)?.to?.sort(), ["mom@family.example", "ra-known@sl.example"], "envelope recipients");
+  });
+
+  await check("alias: a reply that refers to a Message-ID with the mailbox domain is blocked", async () => {
+    const mail = nextMail(4000);
+    const after = await client.run(
+      chrome(`
+        const inbox = MailServices.accounts.getAccount("account1").incomingServer.rootFolder.getChildNamed("Inbox");
+        let parsed = false;
+        try {
+          inbox.QueryInterface(Ci.nsIMsgLocalMailFolder).getDatabaseWithReparse({ QueryInterface: ChromeUtils.generateQI(["nsIUrlListener"]), OnStartRunningUrl() {}, OnStopRunningUrl() { parsed = true; } }, null);
+          parsed = true;
+        } catch {}
+        await until(() => parsed || inbox.msgDatabase?.getMsgHdrForMessageID("own-1@real.example"), "inbox parsed");
+        const hdr = inbox.msgDatabase.getMsgHdrForMessageID("own-1@real.example");
+        for (const w of composeWindows()) w.close();
+        MailServices.compose.OpenComposeWindow(null, hdr, inbox.getUriForMsg(hdr), Ci.nsIMsgCompType.Reply, Ci.nsIMsgCompFormat.Default, MailServices.accounts.getIdentity("id2"), null, null);
+        await until(() => composeWindows()[0]?.composeEditorReady, "reply window ready", 30000);
+        await sleep(500);
+        const win = composeWindows()[0];
+        win.goDoCommand("cmd_sendNow");
+        await sleep(3000);
+        return state(win);
+      `)
+    );
+    expect(await mail, null, "sent message");
+    if (!/message whose ID ends in your mailbox domain/.test(after.reason ?? "")) throw new Error(`blocked for another reason: ${after.reason}`);
   });
 
   await check("calendar: other identities send unchanged", async () => {

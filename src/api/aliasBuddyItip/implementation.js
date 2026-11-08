@@ -65,15 +65,15 @@ function guardedSend(toList, subject, body, itipItem) {
   if (itipItem.autoResponse == Ci.calIItipItem.NONE) {
     return send.call(this, toList, subject, body, itipItem);
   }
+  if (!decide) {
+    alertUser("Alias Buddy is not ready, so this calendar email was not sent.");
+    return false;
+  }
   if (itipItem.autoResponse == Ci.calIItipItem.USER) {
     if (!confirmSend()) {
       return false;
     }
     itipItem.autoResponse = Ci.calIItipItem.AUTO;
-  }
-  if (!decide) {
-    alertUser("Alias Buddy is not ready, so this calendar email was not sent.");
-    return false;
   }
   const { identity } = this.getIdentityAndAccount(itipItem);
   const [item] = itipItem.getItemList();
@@ -121,7 +121,9 @@ function sendRewritten(transport, send, { identityId, to }, subject, body, itipI
   const rerouted = Object.create(transport, { getIdentityAndAccount: { value: () => ({ identity, account }) } });
   // The transport adds the identity's automatic Cc/Bcc, which SimpleLogin
   // drops the message for, and writes its Reply-To as Return-path. It reads
-  // them synchronously, so they are off only during this call.
+  // them synchronously, so they are off only during this call. They are
+  // identity prefs: should Thunderbird crash inside this call, the identity
+  // keeps them off until the user sets them again.
   const saved = {};
   try {
     for (const [key, off] of [["doCc", false], ["doBcc", false], ["replyTo", ""]]) {
