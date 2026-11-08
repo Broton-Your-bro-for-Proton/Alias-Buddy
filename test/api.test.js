@@ -112,3 +112,37 @@ test("suffixes and createAlias use the documented fields", async () => {
   assert.deepEqual(sent, { alias_prefix: "shop.ab12c", signed_suffix: "@mine.example.sig", mailbox_ids: [1], note: "n" });
   assert.equal(alias.email, "shop.ab12c@mine.example");
 });
+
+test("alias management calls use the documented routes and fields", async () => {
+  const calls = [];
+  fake((method, path, body) => {
+    calls.push([method, path, body ?? null]);
+    if (path.startsWith("/api/v2/aliases")) {
+      return [200, { aliases: [{ id: 3, email: "A@x.example", pinned: true, nb_forward: 4, latest_activity: { action: "reply", timestamp: 9, contact: { email: "C@y.example" } } }] }];
+    }
+    if (path.endsWith("/toggle") && path.includes("aliases")) return [200, { enabled: false }];
+    if (path.endsWith("/toggle")) return [200, { block_forward: true }];
+    if (path.includes("/contacts?")) {
+      return [200, { contacts: [{ id: 8, contact: "c@y.example", reverse_alias_address: "RA@sl.example", block_forward: false, last_email_sent_timestamp: 5 }] }];
+    }
+    return [200, { deleted: true }];
+  });
+  const [alias] = await sl.listAliases({ page: 1, query: "x", filter: "disabled" });
+  assert.deepEqual([alias.email, alias.pinned, alias.forwards, alias.latest], ["a@x.example", true, 4, { action: "reply", at: 9, contact: "c@y.example" }]);
+  assert.equal(await sl.toggleAlias(3), false);
+  await sl.updateAlias(3, { note: "n", pinned: false });
+  await sl.deleteAlias(3);
+  assert.deepEqual(await sl.contactsPage(3), [{ id: 8, email: "c@y.example", reverse: "ra@sl.example", blocked: false, lastSent: 5 }]);
+  assert.equal(await sl.toggleContact(8), true);
+  await sl.deleteContact(8);
+  assert.deepEqual(calls.map(c => c[0] + " " + c[1]), [
+    "POST /api/v2/aliases?page_id=1&disabled",
+    "POST /api/aliases/3/toggle",
+    "PATCH /api/aliases/3",
+    "DELETE /api/aliases/3",
+    "GET /api/aliases/3/contacts?page_id=0",
+    "POST /api/contacts/8/toggle",
+    "DELETE /api/contacts/8",
+  ]);
+  assert.deepEqual(calls[2][2], { note: "n", pinned: false });
+});

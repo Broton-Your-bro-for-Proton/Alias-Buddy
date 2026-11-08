@@ -788,6 +788,69 @@ const ALIAS_ACTIONS = {
     useAlias(ctx, m.tabId, await createAlias(ctx, m.site, { prefix: m.prefix, domain: m.domain, mailboxId: m.mailboxId })),
 };
 
+// ---- alias overview -------------------------------------------------------------
+
+/** Drops what the cache knows about an alias after it changed in SimpleLogin. */
+function forgetAlias(ctx, email, id) {
+  delete ctx.cache.aliases[email];
+  for (const [site, entry] of Object.entries(ctx.cache.sites ?? {})) {
+    if (entry.value?.email == email) {
+      delete ctx.cache.sites[site];
+    }
+  }
+  delete ctx.cache.contacts[id];
+  delete ctx.cache.contactsAt[id];
+}
+
+/** Turns an API error into a message the page can show. */
+async function api(action) {
+  try {
+    return await action();
+  } catch (e) {
+    throw new Blocked(`SimpleLogin: ${e.message}`);
+  }
+}
+
+Object.assign(ALIAS_ACTIONS, {
+  listAliases: (ctx, m) => api(() => ctx.sl.listAliases({ page: m.page, query: m.query, filter: m.filter })),
+  toggleAlias: async (ctx, m) => {
+    const enabled = await api(() => ctx.sl.toggleAlias(m.id));
+    forgetAlias(ctx, m.email, m.id);
+    return enabled;
+  },
+  updateAlias: async (ctx, m) => {
+    await api(() => ctx.sl.updateAlias(m.id, m.fields));
+    forgetAlias(ctx, m.email, m.id);
+  },
+  deleteAlias: async (ctx, m) => {
+    await api(() => ctx.sl.deleteAlias(m.id));
+    forgetAlias(ctx, m.email, m.id);
+  },
+  listContacts: (ctx, m) => api(() => ctx.sl.contactsPage(m.aliasId, m.page)),
+  toggleContact: (ctx, m) => api(() => ctx.sl.toggleContact(m.contactId)),
+  deleteContact: async (ctx, m) => {
+    await api(() => ctx.sl.deleteContact(m.contactId));
+    const contacts = ctx.cache.contacts[m.aliasId] ?? {};
+    for (const [email, reverse] of Object.entries(contacts)) {
+      if (email == m.email || reverse == m.reverse) {
+        delete contacts[email];
+      }
+    }
+  },
+  /** Opens a new message with the alias as sender. */
+  composeAs: async (ctx, m) => {
+    const alias = await aliasFor(ctx, core.norm(m.email));
+    if (!alias) {
+      throw new Blocked(`${m.email} is not one of your aliases.`);
+    }
+    const identity = await ensureIdentity(ctx, alias, undefined);
+    await messenger.compose.beginNew({ identityId: identity.id });
+  },
+});
+
+const openOverview = () => messenger.tabs.create({ url: messenger.runtime.getURL("overview/overview.html") });
+messenger.browserAction.onClicked.addListener(openOverview);
+
 // A reply to a message that came through an alias goes out as that alias.
 messenger.tabs.onCreated.addListener(async tab => {
   if (tab.type != "messageCompose") {
@@ -843,6 +906,9 @@ messenger.runtime.onMessage.addListener(async message => {
     } catch (e) {
       return { ok: false, error: e.message };
     }
+  }
+  if (message.type == "openOverview") {
+    await openOverview();
   }
   if (message.type == "sendOnce") {
     overrides.set(tabId, core.fingerprint(await messenger.compose.getComposeDetails(tabId)));

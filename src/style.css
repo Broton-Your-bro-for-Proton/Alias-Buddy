@@ -234,3 +234,55 @@ a:hover {
 [hidden] {
   display: none !important;
 }
+
+main.wide {
+  max-width: 1280px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.alias {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+tr.disabled .alias {
+  color: var(--aio-muted);
+  text-decoration: line-through;
+}
+
+.row-actions {
+  white-space: nowrap;
+}
+
+.row-actions .btn {
+  margin: 2px;
+}
+
+.btn.pin {
+  min-height: 28px;
+  padding: 0 8px;
+  color: var(--aio-accent);
+}
+
+.btn-danger {
+  color: var(--aio-danger);
+}
+
+tr.contacts > td {
+  background: var(--aio-bg);
+}
+
+table.inner {
+  margin: 0;
+}
+
+.nav-link {
+  margin-left: auto;
+}
