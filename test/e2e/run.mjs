@@ -92,10 +92,13 @@ const api = {
   forbid: false, // contact creation answers 403, as for a plan without reverse aliases
   posts: 0,
   searches: [], // alias search queries, to see which addresses reached SimpleLogin
+  created: [], // aliases created through the API
   aliases: [
     { id: 1, email: "shop@alias.example", mailboxes: [{ id: 1, email: MINE }, { id: 2, email: PLAIN }] },
     { id: 2, email: "other@alias.example", mailboxes: [{ id: 1, email: MINE }, { id: 2, email: PLAIN }] },
     { id: 3, email: "keyed@alias.example", mailboxes: [{ id: 3, email: KEYED }] },
+    // An alias on an own domain that has no Thunderbird identity yet.
+    { id: 4, email: "promo@mine.example", mailboxes: [{ id: 1, email: MINE }, { id: 2, email: PLAIN }] },
   ],
   contacts: {
     1: [
@@ -107,6 +110,7 @@ const api = {
       { id: 2, contact: "anna@y.example", reverse_alias_address: "ra-other@sl.example" },
       { id: 5, contact: "bea@y.example", reverse_alias_address: "ra-bea@sl.example" },
     ],
+    4: [{ id: 6, contact: "dan@d.example", reverse_alias_address: "ra-dan@sl.example" }],
   },
 };
 let nextContact = 10;
@@ -141,7 +145,33 @@ const apiServer = http.createServer(async (req, res) => {
   }
   if (req.method == "POST" && url.pathname == "/api/v2/aliases") {
     api.searches.push(body.query);
-    return send(200, { aliases: paged(api.aliases.filter(a => a.email.includes(body.query ?? ""))) });
+    const query = body.query ?? "";
+    return send(200, { aliases: paged(api.aliases.filter(a => a.email.includes(query) || (a.note ?? "").includes(query))) });
+  }
+  if (req.method == "GET" && url.pathname == "/api/v5/alias/options") {
+    return send(200, {
+      can_create: true,
+      suffixes: [".cat@aleeas.example", "@me.aleeas.example", "@mine.example"].map(suffix => ({
+        suffix,
+        signed_suffix: suffix + ".sig",
+        is_custom: suffix.startsWith("@"),
+        is_premium: false,
+      })),
+    });
+  }
+  if (req.method == "POST" && url.pathname == "/api/v3/alias/custom/new") {
+    if (!body.signed_suffix?.endsWith(".sig")) {
+      return send(400, { error: "invalid suffix" });
+    }
+    const email = body.alias_prefix + body.signed_suffix.slice(0, -4);
+    if (api.aliases.some(a => a.email == email)) {
+      return send(409, { error: email + " already exists" });
+    }
+    const all = [MINE, PLAIN, KEYED];
+    const alias = { id: api.aliases.length + 10, email, note: body.note, mailboxes: body.mailbox_ids.map(id => ({ id, email: all[id - 1] })) };
+    api.aliases.push(alias);
+    api.created.push(alias);
+    return send(201, alias);
   }
   if ((m = /^\/api\/aliases\/(\d+)\/contacts$/.exec(url.pathname))) {
     const list = (api.contacts[m[1]] ??= []);
@@ -269,6 +299,17 @@ fs.writeFileSync(
     "To: me2@real.example",
     "X-SimpleLogin-Envelope-To: shop@alias.example",
     "Subject: Pretends to come through SimpleLogin",
+    "",
+    "Hi.",
+    "",
+    "",
+    "From - Mon Jan 05 13:00:00 2026",
+    "Message-ID: <sl-2@d.example>",
+    "Date: Mon, 05 Jan 2026 13:00:00 +0000",
+    "From: Dan <ra-dan@sl.example>",
+    "To: promo@mine.example",
+    "X-SimpleLogin-Envelope-To: promo@mine.example",
+    "Subject: Through an alias without an identity",
     "",
     "Hi.",
     "",
@@ -901,6 +942,133 @@ try {
     await calendarSend({ invited: "work@other.example", attendee: "work@other.example", organizer: "bob@x.example", to: ["bob@x.example"] });
     const sent = await mail;
     expect([sent?.from, sent?.to], ["work@other.example", ["bob@x.example"]], "envelope");
+  });
+
+  // ---- alias configurator (autoSwitch is turned on here, so it runs after the blocking checks)
+
+  const identitiesFor = email =>
+    client.run(chrome(`return MailServices.accounts.allIdentities.filter(i => i.email == ${JSON.stringify(email)}).map(i => [i.key, i.label]);`));
+  const openPopup = () =>
+    client.run(
+      chrome(`
+        const win = composeWindows()[0];
+        win.document.querySelector('[id$="-composeAction-toolbarbutton"]').click();
+        await until(() => win.document.querySelector(".webextension-popup-browser"), "popup opened");
+      `)
+    );
+  const composeIdentity = () => client.run(chrome(`return composeWindows()[0].getCurrentIdentityKey();`));
+
+  await check("settings: alias creation lists own domains, subdomains and SimpleLogin domains and saves the choices", async () => {
+    await client.run(
+      chrome(`
+        const url = WebExtensionPolicy.getByID(args[0]).getURL("options/options.html");
+        window.document.getElementById("tabmail").openTab("contentTab", { url });
+        await sleep(1500);
+      `),
+      addon
+    );
+    const labels = await client.run(
+      inPage(
+        `window.document.getElementById("tabmail").currentTabInfo.browser`,
+        `
+        await until(() => doc.getElementById("domain").length > 1, "domains loaded");
+        const labels = [...doc.getElementById("domain").options].slice(1).map(o => o.textContent);
+        doc.getElementById("domain").value = "mine.example";
+        doc.getElementById("autoSwitch").checked = true;
+        doc.getElementById("form").requestSubmit();
+        await until(() => doc.getElementById("result").textContent.startsWith("Saved. Connected"), "saved");
+        doc.getElementById("domain").closest("section").scrollIntoView();
+        return labels;
+        `
+      )
+    );
+    expect(
+      labels,
+      ["me.aleeas.example (your domain)", "mine.example (your domain)", "aleeas.example (SimpleLogin, adds a random word)"],
+      "domain choices"
+    );
+  });
+  await screenshot(client, "settings-creation");
+
+  await check("popup: a new alias for the recipient's site is created, gets an identity and sends the message", async () => {
+    const created = api.created.length;
+    await client.run(chrome(`await compose("id5", { to: "news@shop.example" });`));
+    await openPopup();
+    const text = await client.run(
+      inPage(popup, `await until(() => !doc.getElementById("suggestion").hidden, "suggestion shown"); return doc.getElementById("suggestionText").textContent + " " + doc.getElementById("useSuggestion").textContent;`)
+    );
+    if (!/No alias for shop\.example yet/.test(text) || !/shop\.[a-z0-9]{5}@mine\.example/.test(text)) throw new Error("suggestion: " + text);
+    const names = await client.run(
+      inPage(popup, `return [doc.getElementById("summary").textContent, doc.getElementById("useSuggestion").textContent, doc.getElementById("prefix").value].map(t => /shop\.[a-z0-9]{5}/.exec(t)?.[0]);`)
+    );
+    if (new Set(names).size != 1) throw new Error("the popup shows different planned names: " + names.join(", "));
+    await popupShot("popup-configurator");
+    // Switching the sender may close the popup, so the result is checked in the compose window.
+    await client.run(inPage(popup, `doc.getElementById("useSuggestion").click();`));
+    await client.run(
+      chrome(`await until(() => /^shop\.[a-z0-9]{5}@mine\.example$/.test(MailServices.accounts.getIdentity(composeWindows()[0].getCurrentIdentityKey()).email), "switched to the new alias");`)
+    );
+    const alias = api.created[created];
+    expect([api.created.length - created, alias?.note, alias?.mailboxes.map(m => m.email)], [1, "Alias Buddy: shop.example", [MINE]], "created alias");
+    expect((await identitiesFor(alias.email)).map(i => i[1]), ["Alias Buddy"], "identity created");
+    const mail = nextMail();
+    await client.run(chrome(`composeWindows()[0].goDoCommand("cmd_sendNow");`));
+    const sent = await mail;
+    const contact = (api.contacts[alias.id] ?? []).find(c => c.contact == "news@shop.example");
+    expect([sent?.from, sent?.to], [MINE, [contact?.reverse_alias_address]], "sent as the new alias");
+  });
+
+  await check("popup: an existing alias is found by search and used", async () => {
+    const before = (await identitiesFor("shop@alias.example")).length;
+    await client.run(chrome(`await compose("id5", { to: "x@other.example" });`));
+    await openPopup();
+    await client.run(
+      inPage(
+        popup,
+        `
+        await until(() => !doc.getElementById("aliasPanel").hidden, "panel shown");
+        const search = doc.getElementById("search");
+        search.value = "shop@alias";
+        search.dispatchEvent(new content.Event("input"));
+        await until(() => doc.querySelector("#results button"), "results");
+        doc.querySelector("#results button").click();
+        `
+      )
+    );
+    await client.run(chrome(`await until(() => composeWindows()[0].getCurrentIdentityKey() == "id2", "switched to the alias");`));
+    expect([await composeIdentity(), (await identitiesFor("shop@alias.example")).length], ["id2", before], "existing identity used, none added");
+  });
+
+  await check("automatic: from the real mailbox to the same site, the message goes out as that site's alias", async () => {
+    const created = api.created.length;
+    const mail = nextMail();
+    await client.run(chrome(`await send("id5", { to: "info@shop.example" });`));
+    const sent = await mail;
+    const alias = api.aliases.find(a => a.note == "Alias Buddy: shop.example");
+    const contact = Object.values(api.contacts[alias.id] ?? {}).find(c => c.contact == "info@shop.example");
+    expect([sent?.from, sent?.to, api.created.length - created], [MINE, [contact?.reverse_alias_address], 0], "reused alias");
+  });
+
+  await check("automatic: a reply goes out as the alias the message came through, its identity is created", async () => {
+    const mail = nextMail();
+    const key = await client.run(
+      chrome(`
+        const inbox = MailServices.accounts.getAccount("account1").incomingServer.rootFolder.getChildNamed("Inbox");
+        await until(() => inbox.msgDatabase?.getMsgHdrForMessageID("sl-2@d.example"), "message parsed");
+        const hdr = inbox.msgDatabase.getMsgHdrForMessageID("sl-2@d.example");
+        for (const w of composeWindows()) w.close();
+        await until(() => !composeWindows().length, "old compose windows closed");
+        MailServices.compose.OpenComposeWindow(null, hdr, inbox.getUriForMsg(hdr), Ci.nsIMsgCompType.Reply, Ci.nsIMsgCompFormat.Default, MailServices.accounts.getIdentity("id5"), null, null);
+        await until(() => composeWindows()[0]?.composeEditorReady, "reply window ready", 30000);
+        const win = composeWindows()[0];
+        await until(() => MailServices.accounts.getIdentity(win.getCurrentIdentityKey()).email == "promo@mine.example", "sender switched to the alias");
+        win.goDoCommand("cmd_sendNow");
+        return win.getCurrentIdentityKey();
+      `)
+    );
+    const sent = await mail;
+    expect([sent?.from, sent?.to], [MINE, ["ra-dan@sl.example"]], "sent through SimpleLogin");
+    expect((await identitiesFor("promo@mine.example")).map(i => i[0]), [key], "one identity created");
   });
 
   await check("API down: an unknown identity is blocked", async () => {

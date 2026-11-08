@@ -35,12 +35,41 @@
           <label class="field" for="allowlist">Allowed to see your real address</label>
           <textarea id="allowlist"></textarea>
           <p class="muted">One address or @domain per line, for example family.</p>
-
-          <div class="actions">
-            <button class="btn btn-primary" type="submit">Save and test</button>
-          </div>
-          <p id="result"></p>
         </section>
+
+        <section class="panel">
+          <h2>Alias creation</h2>
+          <p class="muted" id="creationState">Save the connection first to load your domains and mailboxes.</p>
+
+          <label class="field" for="domain">Domain for new aliases</label>
+          <select id="domain">
+            <option value="">Your first own domain, else a SimpleLogin domain</option>
+          </select>
+          <p class="muted">Own domains and subdomains use the name as it is. SimpleLogin domains add a random word.</p>
+
+          <label class="field" for="mailboxId">Mailbox for new aliases</label>
+          <select id="mailboxId">
+            <option value="">The default mailbox in SimpleLogin</option>
+          </select>
+
+          <label class="field" for="template">Name template</label>
+          <input id="template" type="text" spellcheck="false" />
+          <p class="muted">
+            {domain} is the recipient's site without its ending, {random} five random characters, {word} a random word.
+            Example for news@shop.amazon.de: <strong id="example"></strong>
+          </p>
+
+          <h3>Automatic</h3>
+          <label class="row"><input id="perDomain" type="checkbox" /> One alias per recipient site, reused on every device (kept in the alias note)</label>
+          <label class="row"><input id="autoSwitch" type="checkbox" /> Sending from your real address to a new recipient switches to that alias instead of blocking</label>
+          <label class="row"><input id="replyFromAlias" type="checkbox" /> A reply goes out as the alias the message came through</label>
+          <label class="row"><input id="autoIdentity" type="checkbox" /> Create the Thunderbird identity for an alias when it is needed</label>
+        </section>
+
+        <div class="actions">
+          <button class="btn btn-primary" type="submit">Save and test</button>
+        </div>
+        <p id="result" role="status"></p>
       </form>
     </main>
     <script type="module" src="options.js"></script>

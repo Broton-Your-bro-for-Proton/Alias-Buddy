@@ -1,0 +1,14 @@
+[
+  {
+    "namespace": "aliasBuddyCompose",
+    "functions": [
+      {
+        "name": "refreshIdentities",
+        "type": "function",
+        "async": true,
+        "description": "Rebuilds the sender menu of open compose windows, so a newly created identity can be selected.",
+        "parameters": []
+      }
+    ]
+  }
+]

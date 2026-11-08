@@ -40,7 +40,7 @@ async function cached(entry, fetchValue) {
 
 async function context() {
   const settings = await getSettings();
-  const owner = `v2\n${settings.apiUrl}\n${settings.apiKey}`;
+  const owner = `v3\n${settings.apiUrl}\n${settings.apiKey}`;
   let cache = (await messenger.storage.local.get("cache")).cache ?? {};
   if (cache.owner != owner) {
     cache = { owner };
@@ -66,7 +66,7 @@ async function protectedAddresses(ctx) {
   }
   try {
     ctx.cache.mailboxes = await cached(ctx.cache.mailboxes, async () =>
-      (await ctx.sl.mailboxes()).map(m => ({ email: core.norm(m.email), verified: m.verified !== false }))
+      (await ctx.sl.mailboxes()).map(m => ({ id: m.id, email: core.norm(m.email), verified: m.verified !== false, default: !!m.default }))
     );
   } catch (e) {
     throw new Blocked(`SimpleLogin: ${e.message}. Without the mailbox list the add-on cannot tell which addresses are yours.`);
@@ -275,7 +275,9 @@ async function checkMailbox(tab, details, ctx, { sender, recipients, mine, overr
         true
       );
     }
-    throw new Blocked(`Your real address ${sender} would be visible to ${who}. Choose an alias as sender.`, true);
+    const blocked = new Blocked(`Your real address ${sender} would be visible to ${who}. Choose an alias as sender.`, true);
+    blocked.exposed = result.exposed;
+    throw blocked;
   }
   if (result.viaAlias.length) {
     const hard = core.sendProblems(details);
@@ -398,7 +400,22 @@ async function check(tab, details, ctx, { override = false, apply = true } = {})
   const earlier = rewritten.get(tab.id);
   const resumed = earlier?.mailboxId == details.identityId;
   if (!resumed && isMine(sender)) {
-    return checkMailbox(tab, details, ctx, { ...options, sender });
+    try {
+      return await checkMailbox(tab, details, ctx, { ...options, sender });
+    } catch (e) {
+      if (!e.exposed || !ctx.sl || !ctx.settings.creation.autoSwitch) {
+        throw e;
+      }
+      // Instead of blocking, send as the alias for the first exposed recipient's site.
+      const site = core.siteOf(e.exposed[0].email);
+      if (!apply) {
+        const plan = await planForSite(ctx, site);
+        return { state: "switch", sender, alias: plan.email, existing: plan.existing, rows: recipients.map(r => ({ ...r, via: null })) };
+      }
+      const alias = await aliasForSite(ctx, site);
+      const aliasIdentity = await ensureIdentity(ctx, alias, identity.accountId);
+      return checkAlias(tab, details, ctx, { ...options, identity: aliasIdentity, alias, resumed: false });
+    }
   }
   const alias = await aliasFor(ctx, resumed ? earlier.alias : sender);
   if (alias) {
@@ -534,6 +551,193 @@ messenger.aliasBuddyItip.onSend.addListener(async request => {
   }
 });
 
+// ---- alias creation and choice ---------------------------------------------------
+
+const creationNote = site => (site ? core.siteNote(site) : "Created by Alias Buddy");
+
+// The generated name per site and template, so the popup, the preview and the
+// creation all show and use the same name until it is created.
+const plannedNames = new Map();
+
+/** The default mailbox for new aliases: the one from the settings, else SimpleLogin's default. */
+async function creationMailboxId(ctx) {
+  await protectedAddresses(ctx);
+  const verified = ctx.cache.mailboxes.value.filter(m => m.verified);
+  const chosen = verified.find(m => m.id == ctx.settings.creation.mailboxId) ?? verified.find(m => m.default) ?? verified[0];
+  if (!chosen) {
+    throw new Blocked("SimpleLogin lists no verified mailbox for new aliases.");
+  }
+  return chosen.id;
+}
+
+/** The existing alias tied to a site, if aliases per site are on. */
+async function siteAlias(ctx, site) {
+  if (!site || !ctx.settings.creation.perDomain) {
+    return null;
+  }
+  ctx.cache.sites ??= {};
+  try {
+    ctx.cache.sites[site] = await cached(ctx.cache.sites[site], () => ctx.sl.findSiteAlias(site));
+  } catch (e) {
+    throw new Blocked(`SimpleLogin: ${e.message}. The add-on cannot tell whether an alias for ${site} exists.`);
+  }
+  const alias = ctx.cache.sites[site].value;
+  if (alias) {
+    ctx.cache.aliases[alias.email] = { at: Date.now(), value: alias };
+  }
+  return alias;
+}
+
+/** Prefix and suffix for a new alias, from the given choices or the settings. */
+async function newAliasPlan(ctx, site, { prefix, domain } = {}) {
+  let suffixes;
+  try {
+    suffixes = await ctx.sl.suffixes();
+  } catch (e) {
+    throw new Blocked(`SimpleLogin: ${e.message}`);
+  }
+  const suffix = core.pickSuffix(suffixes, domain ?? ctx.settings.creation.domain) ?? core.pickSuffix(suffixes, "");
+  if (!suffix) {
+    throw new Blocked("SimpleLogin offers no domain for new aliases.");
+  }
+  const key = `${site}\n${ctx.settings.creation.template}`;
+  const chosen = prefix ? core.prefixFrom(prefix, site) : (plannedNames.get(key) ?? core.prefixFrom(ctx.settings.creation.template, site));
+  if (!prefix) {
+    plannedNames.set(key, chosen);
+  }
+  return { prefix: chosen, suffix, email: chosen + suffix.suffix, key };
+}
+
+/** What sending to this site would use, without creating anything. */
+async function planForSite(ctx, site) {
+  const existing = await siteAlias(ctx, site);
+  return existing ? { email: existing.email, existing: true } : { email: (await newAliasPlan(ctx, site)).email, existing: false };
+}
+
+async function createAlias(ctx, site, choices = {}) {
+  const mailboxId = choices.mailboxId ?? (await creationMailboxId(ctx));
+  const randomName = !choices.prefix && /\{(random|word)\}/.test(ctx.settings.creation.template);
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const plan = await newAliasPlan(ctx, site, choices);
+    try {
+      const alias = await ctx.sl.createAlias({
+        prefix: plan.prefix,
+        signed: plan.suffix.signed,
+        mailboxIds: [mailboxId],
+        note: creationNote(ctx.settings.creation.perDomain ? site : null),
+      });
+      plannedNames.delete(plan.key);
+      ctx.cache.aliases[alias.email] = { at: Date.now(), value: alias };
+      if (site && ctx.settings.creation.perDomain) {
+        (ctx.cache.sites ??= {})[site] = { at: Date.now(), value: alias };
+      }
+      return alias;
+    } catch (e) {
+      // A taken name is retried while the template has random parts.
+      if (!(randomName && e instanceof ApiError && e.status == 409)) {
+        throw new Blocked(`SimpleLogin could not create ${plan.email}: ${e.message}`);
+      }
+      plannedNames.delete(plan.key);
+    }
+  }
+  throw new Blocked("SimpleLogin could not create an alias, every generated name was taken.");
+}
+
+/** The alias for a site: the one tied to it, else a new one. */
+async function aliasForSite(ctx, site) {
+  return (await siteAlias(ctx, site)) ?? createAlias(ctx, site);
+}
+
+/** The Thunderbird identity for an alias, created next to its mailbox identity if allowed. */
+async function ensureIdentity(ctx, alias, accountId) {
+  const identities = await messenger.identities.list();
+  const existing = identities.find(i => core.norm(i.email) == alias.email);
+  if (existing) {
+    return existing;
+  }
+  if (!ctx.settings.creation.autoIdentity) {
+    throw new Blocked(`Thunderbird has no identity for ${alias.email}. Add one, or let the add-on create identities in the settings.`);
+  }
+  const mailbox = core.pickMailboxIdentity(identities, verifiedMailboxes(ctx, alias), accountId).candidates[0];
+  if (!mailbox) {
+    throw new Blocked(`No Thunderbird identity uses a verified mailbox of ${alias.email}, so the add-on cannot tell which account it belongs to.`);
+  }
+  const created = await messenger.identities.create(mailbox.accountId, { email: alias.email, name: mailbox.name, label: "Alias Buddy" });
+  // Open compose windows list their senders from when they opened.
+  await messenger.aliasBuddyCompose.refreshIdentities();
+  return created;
+}
+
+async function useAlias(ctx, tabId, alias) {
+  const details = await messenger.compose.getComposeDetails(tabId);
+  const current = await messenger.identities.get(details.identityId);
+  const identity = await ensureIdentity(ctx, alias, current.accountId);
+  await messenger.compose.setComposeDetails(tabId, { identityId: identity.id });
+  return alias.email;
+}
+
+/** What the popup offers for choosing or creating the sender alias. */
+async function aliasPanel(ctx, tabId) {
+  if (!ctx.sl) {
+    return null;
+  }
+  const details = await messenger.compose.getComposeDetails(tabId);
+  const [first] = await recipientsOf(details).catch(() => []);
+  const site = first ? core.siteOf(first.email) : "";
+  const plan = await newAliasPlan(ctx, site);
+  return {
+    site,
+    suggestion: site ? await planForSite(ctx, site) : null,
+    prefix: plan.prefix,
+    domains: core.creationDomains(await ctx.sl.suffixes()),
+    domain: plan.suffix.suffix.slice(plan.suffix.suffix.lastIndexOf("@") + 1),
+    mailboxId: await creationMailboxId(ctx),
+    mailboxes: ctx.cache.mailboxes.value.filter(m => m.verified).map(m => ({ id: m.id, email: m.email })),
+  };
+}
+
+const ALIAS_ACTIONS = {
+  aliasPanel: (ctx, m) => aliasPanel(ctx, m.tabId),
+  searchAliases: async (ctx, m) =>
+    (await ctx.sl.searchAliases(m.query)).filter(a => a.enabled).map(a => ({ email: a.email, note: a.note })),
+  useAlias: async (ctx, m) => {
+    const alias = await aliasFor(ctx, core.norm(m.email));
+    if (!alias) {
+      throw new Blocked(`${m.email} is not one of your aliases.`);
+    }
+    return useAlias(ctx, m.tabId, alias);
+  },
+  useSuggestion: async (ctx, m) => useAlias(ctx, m.tabId, await aliasForSite(ctx, m.site)),
+  createAlias: async (ctx, m) =>
+    useAlias(ctx, m.tabId, await createAlias(ctx, m.site, { prefix: m.prefix, domain: m.domain, mailboxId: m.mailboxId })),
+};
+
+// A reply to a message that came through an alias goes out as that alias.
+messenger.tabs.onCreated.addListener(async tab => {
+  if (tab.type != "messageCompose") {
+    return;
+  }
+  try {
+    const details = await messenger.compose.getComposeDetails(tab.id);
+    if (details.type != "reply" || !details.relatedMessageId) {
+      return;
+    }
+    await serialized(async ctx => {
+      if (!ctx.sl || !ctx.settings.creation.replyFromAlias) {
+        return;
+      }
+      const alias = await arrivedThrough(ctx, details.relatedMessageId);
+      const current = await messenger.identities.get(details.identityId);
+      if (alias && core.norm(current.email) != alias.email) {
+        const identity = await ensureIdentity(ctx, alias, current.accountId);
+        await messenger.compose.setComposeDetails(tab.id, { identityId: identity.id });
+      }
+    });
+  } catch (e) {
+    console.warn("Alias Buddy: could not set the reply's alias", e);
+  }
+});
+
 messenger.tabs.onRemoved.addListener(tabId => {
   status.delete(tabId);
   overrides.delete(tabId);
@@ -551,6 +755,13 @@ messenger.runtime.onMessage.addListener(async message => {
       preview = blockedResult(e);
     }
     return { preview, last: status.get(tabId) };
+  }
+  if (ALIAS_ACTIONS[message.type]) {
+    try {
+      return { ok: true, value: await serialized(ctx => ALIAS_ACTIONS[message.type](ctx, message)) };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    }
   }
   if (message.type == "sendOnce") {
     overrides.set(tabId, core.fingerprint(await messenger.compose.getComposeDetails(tabId)));

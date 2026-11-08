@@ -192,3 +192,70 @@ export function fingerprint(details) {
   const { identityId, from, to, cc, bcc, replyTo, subject, body, plainTextBody, isPlainText } = details;
   return JSON.stringify([identityId, from, to, cc, bcc, replyTo, subject, isPlainText ? plainTextBody : body]);
 }
+
+// ---- alias creation ------------------------------------------------------------
+
+/**
+ * The registrable part of an address's domain, as a stand-in for "the site":
+ * shop.amazon.de gives amazon.de, mail.bbc.co.uk gives bbc.co.uk.
+ */
+export function siteOf(email) {
+  const labels = norm(email).split("@").pop().split(".").filter(Boolean);
+  const secondLevel = labels.length > 2 && labels.at(-1).length == 2 && labels.at(-2).length <= 3;
+  return labels.slice(secondLevel ? -3 : -2).join(".");
+}
+
+const WORDS = ["amber", "brook", "cedar", "dune", "ember", "fern", "grove", "harbor", "isle", "juniper", "kite", "lark",
+  "meadow", "nova", "orbit", "pine", "quartz", "river", "stone", "tide", "umber", "vale", "willow", "zephyr"];
+
+/**
+ * An alias prefix from a template. {domain} is the site's name without its
+ * ending, {random} five random letters and digits, {word} a random word.
+ * The result only uses what SimpleLogin accepts: a-z, 0-9, dot, dash, underscore.
+ */
+export function prefixFrom(template, site, random = Math.random) {
+  const pick = chars => chars[Math.floor(random() * chars.length)];
+  const name = site.split(".")[0] ?? "";
+  const filled = String(template || "{domain}.{random}")
+    .replaceAll("{domain}", name)
+    .replace(/\{random\}/g, () => Array.from({ length: 5 }, () => pick("abcdefghijkmnpqrstuvwxyz23456789")).join(""))
+    .replace(/\{word\}/g, () => pick(WORDS));
+  const clean = filled
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, "")
+    .replace(/[._-]{2,}/g, m => m[0])
+    .replace(/^[._-]+|[._-]+$/g, "")
+    .slice(0, 40);
+  return clean || Array.from({ length: 8 }, () => pick("abcdefghijkmnpqrstuvwxyz23456789")).join("");
+}
+
+const domainOfSuffix = suffix => suffix.slice(suffix.lastIndexOf("@") + 1);
+
+/**
+ * The suffix to create an alias with: the one for `domain` (the plain
+ * "@domain" of an own domain first), or without a choice the first own domain,
+ * else the first SimpleLogin domain.
+ */
+export function pickSuffix(suffixes, domain) {
+  if (domain) {
+    const matching = suffixes.filter(s => domainOfSuffix(s.suffix) == norm(domain));
+    return matching.find(s => s.suffix.startsWith("@")) ?? matching[0] ?? null;
+  }
+  return suffixes.find(s => s.custom) ?? suffixes[0] ?? null;
+}
+
+/** The domains offered for new aliases, own ones first, each once. */
+export function creationDomains(suffixes) {
+  const seen = new Map();
+  for (const s of suffixes) {
+    const domain = domainOfSuffix(s.suffix);
+    if (!seen.has(domain)) {
+      seen.set(domain, { domain, custom: s.custom, random: !s.suffix.startsWith("@") });
+    }
+  }
+  return [...seen.values()].sort((a, b) => b.custom - a.custom);
+}
+
+/** The line in an alias note that ties it to a site. */
+export const siteNote = site => `Alias Buddy: ${site}`;
+export const noteNamesSite = (note, site) => String(note ?? "").split(/\r?\n/).some(line => line.trim() == siteNote(site));

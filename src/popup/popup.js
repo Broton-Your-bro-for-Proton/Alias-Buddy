@@ -6,12 +6,14 @@ const SUMMARY = {
   other: p => `${p.sender} is not a SimpleLogin address. The add-on leaves this message alone.`,
   mailbox: p => `Sending from your real address ${p.sender}.`,
   alias: p => `Sending as ${p.sender}. SimpleLogin receives it from ${p.mailbox}.`,
+  switch: p =>
+    `Sending from ${p.sender} would show your real address. On send it switches to the alias ${p.alias}${p.existing ? "" : " (new)"}.`,
   blocked: p => `This message would be blocked: ${p.reason}`,
 };
 
 function render({ preview, last }) {
   $("summary").textContent = SUMMARY[preview.state](preview);
-  $("summary").className = { alias: "state-ok", blocked: "state-blocked" }[preview.state] ?? "";
+  $("summary").className = { alias: "state-ok", switch: "state-ok", blocked: "state-blocked" }[preview.state] ?? "";
   const body = $("rows").tBodies[0];
   body.replaceChildren();
   for (const row of preview.rows ?? []) {
@@ -29,8 +31,76 @@ function render({ preview, last }) {
   $("sendOnce").hidden = !(preview.state == "blocked" && preview.overridable);
 }
 
-render(await messenger.runtime.sendMessage({ type: "preview", tabId: tab.id }));
+const refresh = async () => render(await messenger.runtime.sendMessage({ type: "preview", tabId: tab.id }));
 
+/** Runs an alias action in the background, shows its error, refreshes the summary on success. */
+async function act(type, args = {}) {
+  $("aliasError").hidden = true;
+  const answer = await messenger.runtime.sendMessage({ type, tabId: tab.id, ...args });
+  if (!answer?.ok) {
+    $("aliasError").textContent = answer?.error ?? "No answer from the add-on.";
+    $("aliasError").hidden = false;
+    return null;
+  }
+  return answer.value;
+}
+
+async function choose(type, args) {
+  if ((await act(type, args)) != null) {
+    await refresh();
+    await loadPanel();
+  }
+}
+
+let panel = null;
+async function loadPanel() {
+  panel = await act("aliasPanel");
+  $("aliasPanel").hidden = !panel;
+  if (!panel) {
+    return;
+  }
+  $("suggestion").hidden = !panel.suggestion;
+  if (panel.suggestion) {
+    $("suggestionText").textContent = panel.suggestion.existing
+      ? `Your alias for ${panel.site}:`
+      : `No alias for ${panel.site} yet. A new one would be:`;
+    $("useSuggestion").textContent = `${panel.suggestion.existing ? "Use" : "Create and use"} ${panel.suggestion.email}`;
+  }
+  $("prefix").value = panel.prefix;
+  $("domain").replaceChildren(
+    ...panel.domains.map(d => new Option(d.random ? `${d.domain} (adds a random word)` : d.domain, d.domain, false, d.domain == panel.domain))
+  );
+  $("mailbox").replaceChildren(...panel.mailboxes.map(m => new Option(`to ${m.email}`, m.id, false, m.id == panel.mailboxId)));
+}
+
+let searchTimer;
+$("search").addEventListener("input", () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(async () => {
+    const query = $("search").value.trim();
+    const found = query.length < 2 ? [] : (await act("searchAliases", { query })) ?? [];
+    $("results").replaceChildren(
+      ...found.slice(0, 8).map(alias => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "btn choice";
+        button.textContent = alias.note ? `${alias.email}  (${alias.note.split("\n")[0]})` : alias.email;
+        button.addEventListener("click", () => choose("useAlias", { email: alias.email }));
+        return button;
+      })
+    );
+  }, 300);
+});
+
+$("useSuggestion").addEventListener("click", () => choose("useSuggestion", { site: panel.site }));
+$("create").addEventListener("click", () =>
+  choose("createAlias", {
+    site: panel.site,
+    prefix: $("prefix").value.trim(),
+    domain: $("domain").value,
+    mailboxId: Number($("mailbox").value),
+  })
+);
 $("sendOnce").addEventListener("click", async () => {
   await messenger.runtime.sendMessage({ type: "sendOnce", tabId: tab.id });
   window.close();
@@ -39,3 +109,6 @@ $("options").addEventListener("click", event => {
   event.preventDefault();
   messenger.runtime.openOptionsPage();
 });
+
+await refresh();
+await loadPanel();

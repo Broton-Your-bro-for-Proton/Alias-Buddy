@@ -1,7 +1,16 @@
 // Minimal SimpleLogin API client. Paging stops at the first empty page, because
 // page sizes differ between servers.
 // Docs: https://github.com/simple-login/app/blob/master/docs/api.md
-import { addressOf, norm } from "./core.js";
+import { addressOf, noteNamesSite, norm } from "./core.js";
+
+/** The parts of an alias the add-on uses. */
+const aliasInfo = a => ({
+  id: a.id,
+  email: norm(a.email),
+  mailboxes: (a.mailboxes ?? []).map(m => norm(m.email)),
+  note: a.note ?? "",
+  enabled: a.enabled !== false,
+});
 
 export class ApiError extends Error {
   constructor(status, message) {
@@ -55,7 +64,7 @@ export class SimpleLogin {
       const { aliases } = await this.call("POST", `/api/v2/aliases?page_id=${page}`, { query: email });
       const alias = aliases.find(a => norm(a.email) == norm(email));
       if (alias) {
-        return { id: alias.id, email: norm(alias.email), mailboxes: alias.mailboxes.map(m => norm(m.email)) };
+        return aliasInfo(alias);
       }
       if (!aliases.length) {
         return null;
@@ -84,6 +93,35 @@ export class SimpleLogin {
       }
     }
     throw new ApiError(TOO_MANY, "too many contacts to search");
+  }
+
+  /** Aliases matching a search (address, note or name), one page. */
+  async searchAliases(query, page = 0) {
+    const { aliases } = await this.call("POST", `/api/v2/aliases?page_id=${page}`, { query });
+    return aliases.map(aliasInfo);
+  }
+
+  /** The enabled alias whose note ties it to the site, or null. */
+  async findSiteAlias(site) {
+    for (let page = 0; page < MAX_PAGES; page++) {
+      const aliases = await this.searchAliases(site, page);
+      const alias = aliases.find(a => a.enabled && noteNamesSite(a.note, site));
+      if (alias || !aliases.length) {
+        return alias ?? null;
+      }
+    }
+    throw new ApiError(TOO_MANY, `too many search results for ${site}`);
+  }
+
+  /** Suffixes the user may create aliases with: own domains, subdomains and SimpleLogin domains. */
+  async suffixes() {
+    const { suffixes } = await this.call("GET", "/api/v5/alias/options");
+    return suffixes.map(s => ({ suffix: norm(s.suffix), signed: s.signed_suffix, custom: !!s.is_custom }));
+  }
+
+  async createAlias({ prefix, signed, mailboxIds, note }) {
+    const body = { alias_prefix: prefix, signed_suffix: signed, mailbox_ids: mailboxIds, note };
+    return aliasInfo(await this.call("POST", "/api/v3/alias/custom/new", body));
   }
 
   /** Creates the contact, or returns the existing one. */
