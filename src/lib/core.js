@@ -103,6 +103,29 @@ export function rewriteForAlias(recipients, alias, contacts) {
   return { fields, rows, missing };
 }
 
+/**
+ * Checks the reverse aliases a real mailbox writes to. They must belong to one
+ * alias (otherwise each contact sees the others' real addresses) and the
+ * mailbox must be one of that alias's mailboxes (otherwise SimpleLogin rejects
+ * it). Returns the reason to block, or null.
+ */
+export function ownerProblem(viaAlias, ownerIdOf, aliasById, sender) {
+  const ids = new Set(viaAlias.map(r => ownerIdOf(norm(r.email))));
+  if (ids.size > 1) {
+    return "The reverse aliases belong to different aliases, and each contact would see the others' real addresses. Send one message per alias.";
+  }
+  const owner = ids.size ? aliasById([...ids][0]) : null;
+  if (owner && !owner.mailboxes.some(m => canonical(m) == canonical(sender))) {
+    return `${sender} is not a mailbox of ${owner.email}, so SimpleLogin would reject the message. Send it from ${owner.mailboxes.join(" or ")}.`;
+  }
+  return null;
+}
+
+/** The alias's mailboxes SimpleLogin lists as verified; all of them while the list is unknown. */
+export function verifiedOf(aliasMailboxes, knownMailboxes) {
+  return knownMailboxes ? aliasMailboxes.filter(m => knownMailboxes.some(k => k.email == m && k.verified)) : aliasMailboxes;
+}
+
 /** Images Thunderbird embeds at send time. Their Content-ID carries the sender's domain. */
 export function hasEmbeddedImages(body) {
   return /<img\b(?![^>]*\bmoz-do-not-send="true")[^>]*\bsrc\s*=\s*(?:"(?!https?:)|'(?!https?:)|(?!["']|https?:))/i.test(String(body ?? ""));

@@ -163,3 +163,20 @@ test("checkMailboxSend ignores Bcc for mixing, SimpleLogin never sees it", () =>
   ]);
   assert.deepEqual([result.exposed, result.mixed], [[], false]);
 });
+
+test("ownerProblem requires one owning alias that the mailbox belongs to", () => {
+  const owners = { "ra1@sl.example": 1, "ra2@sl.example": 1, "ra9@sl.example": 2 };
+  const aliases = { 1: { email: "shop@alias.example", mailboxes: ["me@real.example"] }, 2: { email: "b@alias.example", mailboxes: ["me@real.example"] } };
+  const check = (emails, sender) =>
+    core.ownerProblem(emails.map(e => r("to", e)), ra => owners[ra], id => aliases[id], sender);
+  assert.equal(check(["ra1@sl.example", "ra2@sl.example"], "Me+x@real.example"), null);
+  assert.match(check(["ra1@sl.example", "ra9@sl.example"], "me@real.example"), /different aliases/);
+  assert.match(check(["ra1@sl.example"], "other@real.example"), /not a mailbox of shop@alias\.example/);
+  assert.equal(check([], "other@real.example"), null);
+});
+
+test("verifiedOf keeps verified mailboxes, all while unknown", () => {
+  const known = [{ email: "a@x.example", verified: true }, { email: "b@x.example", verified: false }];
+  assert.deepEqual(core.verifiedOf(["a@x.example", "b@x.example"], known), ["a@x.example"]);
+  assert.deepEqual(core.verifiedOf(["a@x.example"], undefined), ["a@x.example"]);
+});

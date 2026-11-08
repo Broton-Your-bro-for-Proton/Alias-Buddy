@@ -21,7 +21,7 @@ The Alias Buddy button in the compose window shows what will happen to each reci
 
 Every send goes through the guard:
 
-- **From a real mailbox** (your SimpleLogin mailboxes and any address you add in the settings, also with a +tag, for Gmail with other dots, and for Proton under proton.me, protonmail.com, protonmail.ch or pm.me): only reverse aliases and allowlisted addresses are accepted. Mixing both in To and Cc is blocked too, because SimpleLogin drops such messages. Bcc does not count, SimpleLogin never sees it. The alias that owns the reverse aliases may stay in Cc, as in a reply to all.
+- **From a real mailbox** (your SimpleLogin mailboxes and any address you add in the settings, also with a +tag, for Gmail with other dots, and for Proton under proton.me, protonmail.com, protonmail.ch or pm.me): only reverse aliases and allowlisted addresses are accepted. Mixing both in To and Cc is blocked too, because SimpleLogin drops such messages. Bcc does not count, SimpleLogin never sees it. The alias that owns the reverse aliases may stay in Cc, as in a reply to all. The reverse aliases must belong to one alias, and the mailbox must be one of that alias's mailboxes. In a reply, the alias the message came through is read from SimpleLogin's X-SimpleLogin-Envelope-To header, and only trusted when the sender is a reverse alias of that alias.
 - **On the way through SimpleLogin**, from an alias or a mailbox: a vCard, an attached OpenPGP key, signing or encryption, newsgroups, your real address in the subject, text or a text attachment (for example a forwarded message, up to 10 MB; a larger one blocks), embedded images (their Content-ID carries the mailbox domain), and a reply to a message whose Message-ID ends in the mailbox domain, such as your own sent message (SimpleLogin keeps In-Reply-To as it is), block the message.
 - **As an alias**: the message is rewritten as above. Your real address as a recipient (for example the identity's automatic Cc), a reverse alias that belongs to another alias, or a failed final check blocks it.
 - **Other identities** are left alone once SimpleLogin confirmed they are not aliases, unless their From or Reply-To shows a real address.
@@ -34,7 +34,7 @@ A blocked message stays open. For a leak you may accept, the popup offers to sen
 
 Thunderbird sends invitations, replies and cancellations without a compose window, from the identity set for the calendar, straight to the other side's real address. The add-on hooks into that through an Experiment API, which is why Thunderbird asks for full access when you install it.
 
-- A calendar email that acts for an alias (you accept an invitation sent to your alias) goes from a mailbox identity to the reverse alias of each recipient, so SimpleLogin delivers it as the alias.
+- A calendar email that acts for an alias (you accept an invitation sent to your alias) goes from a mailbox identity to the reverse alias of each recipient, so SimpleLogin delivers it as the alias. The mailbox identity must not add automatic Cc/Bcc or a Reply-To, because the calendar transport adds them unchecked. While Thunderbird is offline such a calendar email is not sent.
 - From a real mailbox the rules of a message apply. A blocked calendar email is dropped, and a notification says why. Answer by email instead, or add an identity for the alias.
 - The iCalendar part, the text and the identity's automatic Cc/Bcc are checked too.
 - In "ask me" mode Thunderbird's question comes first, as without the add-on.
@@ -54,7 +54,7 @@ Read receipts need nothing: SimpleLogin removes the request header from every fo
 
 1. Create an API key in the SimpleLogin dashboard under API Keys.
 2. Open the add-on settings, paste the key and save. The test lists your protected mailboxes.
-3. Add a Thunderbird identity for each alias you want to send as (Account Settings > Manage Identities), in the account whose identity uses the alias's mailbox.
+3. Add a Thunderbird identity for each alias you want to send as (Account Settings > Manage Identities), in the account whose identity uses the alias's mailbox. Only mailboxes SimpleLogin lists as verified are used as senders.
 4. If your mailbox identity has an OpenPGP key or S/MIME certificate, add a second identity with the same address and no keys. The add-on sends alias messages from that one.
 
 Creating reverse aliases needs a SimpleLogin plan that allows it.
@@ -65,7 +65,7 @@ Creating reverse aliases needs a SimpleLogin plan that allows it.
 - Address books: only to expand mailing lists among the recipients.
 - Messages: to read the message you reply to (its recipients and Message-ID).
 - Full access (Experiment API): for calendar emails, see above.
-- SimpleLogin receives the addresses the add-on looks up: your identities, recipients that need a reverse alias, and in a reply the recipients of the original message.
+- SimpleLogin receives the addresses the add-on looks up: your identities, recipients that need a reverse alias, and in a reply the alias SimpleLogin named in the original message.
 
 ## Development
 

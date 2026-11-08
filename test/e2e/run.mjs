@@ -91,17 +91,22 @@ const api = {
   down: false,
   forbid: false, // contact creation answers 403, as for a plan without reverse aliases
   posts: 0,
+  searches: [], // alias search queries, to see which addresses reached SimpleLogin
   aliases: [
-    { id: 1, email: "shop@alias.example", mailboxes: [{ id: 1, email: MINE }] },
-    { id: 2, email: "other@alias.example", mailboxes: [{ id: 1, email: MINE }] },
+    { id: 1, email: "shop@alias.example", mailboxes: [{ id: 1, email: MINE }, { id: 2, email: PLAIN }] },
+    { id: 2, email: "other@alias.example", mailboxes: [{ id: 1, email: MINE }, { id: 2, email: PLAIN }] },
     { id: 3, email: "keyed@alias.example", mailboxes: [{ id: 3, email: KEYED }] },
   ],
   contacts: {
     1: [
       { id: 1, contact: "known@x.example", reverse_alias_address: "ra-known@sl.example" },
       { id: 3, contact: "known2@x.example", reverse_alias_address: "ra-known2@sl.example" },
+      { id: 4, contact: "anna3@y.example", reverse_alias_address: "ra-anna3@sl.example" },
     ],
-    2: [{ id: 2, contact: "anna@y.example", reverse_alias_address: "ra-other@sl.example" }],
+    2: [
+      { id: 2, contact: "anna@y.example", reverse_alias_address: "ra-other@sl.example" },
+      { id: 5, contact: "bea@y.example", reverse_alias_address: "ra-bea@sl.example" },
+    ],
   },
 };
 let nextContact = 10;
@@ -135,6 +140,7 @@ const apiServer = http.createServer(async (req, res) => {
     });
   }
   if (req.method == "POST" && url.pathname == "/api/v2/aliases") {
+    api.searches.push(body.query);
     return send(200, { aliases: paged(api.aliases.filter(a => a.email.includes(body.query ?? ""))) });
   }
   if ((m = /^\/api\/aliases\/(\d+)\/contacts$/.exec(url.pathname))) {
@@ -242,6 +248,29 @@ fs.writeFileSync(
     "Subject: Question",
     "",
     "Hello.",
+    "",
+    "",
+    "From - Mon Jan 05 11:00:00 2026",
+    "Message-ID: <sl-1@y.example>",
+    "Date: Mon, 05 Jan 2026 11:00:00 +0000",
+    "From: Bea <ra-bea@sl.example>",
+    "To: other@alias.example",
+    "Cc: Carol <ra-carol@sl.example>",
+    "X-SimpleLogin-Envelope-To: other@alias.example",
+    "Subject: Forwarded by SimpleLogin",
+    "",
+    "Hi.",
+    "",
+    "",
+    "From - Mon Jan 05 12:00:00 2026",
+    "Message-ID: <forged-1@evil.example>",
+    "Date: Mon, 05 Jan 2026 12:00:00 +0000",
+    "From: attacker@evil.example",
+    "To: me2@real.example",
+    "X-SimpleLogin-Envelope-To: shop@alias.example",
+    "Subject: Pretends to come through SimpleLogin",
+    "",
+    "Hi.",
     "",
     "",
   ].join("\n")
@@ -395,6 +424,30 @@ const helpers = `
       : new CalItipEmailTransport(MailServices.accounts.getAccount("account1"), MailServices.accounts.getIdentity(identity));
     const sender = method == "REPLY" ? me : organizerAttendee;
     return new CalItipOutgoingMessage(method, to.map(e => person(e)), event, sender, { mode: Ci.calIItipItem.AUTO }).send(transport);
+  }
+  /** Opens a reply to an Inbox message from the identity \`key\` and sends it. */
+  async function reply(messageId, key) {
+    const inbox = MailServices.accounts.getAccount("account1").incomingServer.rootFolder.getChildNamed("Inbox");
+    let parsed = false;
+    try {
+      inbox.QueryInterface(Ci.nsIMsgLocalMailFolder).getDatabaseWithReparse({ QueryInterface: ChromeUtils.generateQI(["nsIUrlListener"]), OnStartRunningUrl() {}, OnStopRunningUrl() { parsed = true; } }, null);
+      parsed = true;
+    } catch {}
+    await until(() => parsed || inbox.msgDatabase?.getMsgHdrForMessageID(messageId), "inbox parsed");
+    const hdr = inbox.msgDatabase.getMsgHdrForMessageID(messageId);
+    for (const w of composeWindows()) w.close();
+    await until(() => !composeWindows().length, "old compose windows closed");
+    MailServices.compose.OpenComposeWindow(null, hdr, inbox.getUriForMsg(hdr), Ci.nsIMsgCompType.Reply, Ci.nsIMsgCompFormat.Default, MailServices.accounts.getIdentity(key), null, null);
+    await until(() => composeWindows()[0]?.composeEditorReady, "reply window ready", 30000);
+    await sleep(500);
+    const win = composeWindows()[0];
+    if (win.getCurrentIdentityKey() != key) {
+      const menu = win.document.getElementById("msgIdentity");
+      menu.selectedItem = [...menu.menupopup.children].find(i => i.getAttribute("identitykey") == key);
+      win.LoadIdentity(false);
+    }
+    win.goDoCommand("cmd_sendNow");
+    return win;
   }
   const state = win => ({
     open: !win.closed,
@@ -747,7 +800,7 @@ try {
     await calendarSend({ invited: "shop@alias.example", attendee: "shop@alias.example", organizer: "org@x.example", to: ["org@x.example"] });
     const sent = await mail;
     if (!sent) throw new Error("nothing was sent");
-    expect(sent.from, MINE, "envelope sender");
+    expect(sent.from, PLAIN, "envelope sender: the mailbox identity without automatic Cc/Bcc and Reply-To");
     expect(sent.to, [reverseOf("org@x.example")], "only the organizer's reverse alias, no automatic Cc");
     if (!/ATTENDEE[^\r\n]*shop@alias\.example/i.test(sent.data)) throw new Error("calendar part lost the alias attendee");
     expectClean(sent);
@@ -759,7 +812,7 @@ try {
     const mail = nextMail();
     await calendarSend({ method: "REQUEST", identity: "id5", organizer: "shop@alias.example", attendee: "bob2@x.example", to: ["bob2@x.example"] });
     const sent = await mail;
-    expect([sent?.from, sent?.to], [MINE, [reverseOf("bob2@x.example")]], "envelope");
+    expect([sent?.from, sent?.to], [PLAIN, [reverseOf("bob2@x.example")]], "envelope");
     expectClean(sent);
   });
 
@@ -799,28 +852,48 @@ try {
 
   await check("alias: a reply that refers to a Message-ID with the mailbox domain is blocked", async () => {
     const mail = nextMail(4000);
-    const after = await client.run(
-      chrome(`
-        const inbox = MailServices.accounts.getAccount("account1").incomingServer.rootFolder.getChildNamed("Inbox");
-        let parsed = false;
-        try {
-          inbox.QueryInterface(Ci.nsIMsgLocalMailFolder).getDatabaseWithReparse({ QueryInterface: ChromeUtils.generateQI(["nsIUrlListener"]), OnStartRunningUrl() {}, OnStopRunningUrl() { parsed = true; } }, null);
-          parsed = true;
-        } catch {}
-        await until(() => parsed || inbox.msgDatabase?.getMsgHdrForMessageID("own-1@real.example"), "inbox parsed");
-        const hdr = inbox.msgDatabase.getMsgHdrForMessageID("own-1@real.example");
-        for (const w of composeWindows()) w.close();
-        MailServices.compose.OpenComposeWindow(null, hdr, inbox.getUriForMsg(hdr), Ci.nsIMsgCompType.Reply, Ci.nsIMsgCompFormat.Default, MailServices.accounts.getIdentity("id2"), null, null);
-        await until(() => composeWindows()[0]?.composeEditorReady, "reply window ready", 30000);
-        await sleep(500);
-        const win = composeWindows()[0];
-        win.goDoCommand("cmd_sendNow");
-        await sleep(3000);
-        return state(win);
-      `)
-    );
+    const after = await client.run(chrome(`const win = await reply("own-1@real.example", "id2"); await sleep(3000); return state(win);`));
     expect(await mail, null, "sent message");
     if (!/message whose ID ends in your mailbox domain/.test(after.reason ?? "")) throw new Error(`blocked for another reason: ${after.reason}`);
+  });
+
+  await check("mailbox: a reverse alias of an alias the mailbox does not own is blocked", () =>
+    expectBlocked(`await send("id7", { to: "ra-known@sl.example" })`, /keyed@real\.example is not a mailbox of shop@alias\.example/)
+  );
+
+  await check("mailbox: a reply to a message SimpleLogin forwarded finds its reverse alias", async () => {
+    const mail = nextMail();
+    await client.run(chrome(`await reply("sl-1@y.example", "id5");`));
+    expect((await mail)?.to, ["ra-bea@sl.example"], "envelope recipients");
+    if (api.searches.includes("ra-carol@sl.example")) throw new Error("other recipients of the original were sent to the alias search");
+  });
+
+  await check("mailbox: a faked SimpleLogin header does not make a direct sender safe", async () => {
+    const mail = nextMail(4000);
+    const after = await client.run(chrome(`const win = await reply("forged-1@evil.example", "id5"); await sleep(3000); return state(win);`));
+    expect(await mail, null, "sent message");
+    if (!/would be visible to attacker@evil\.example/.test(after.reason ?? "")) throw new Error(`blocked for another reason: ${after.reason}`);
+  });
+
+  await check("alias: a mailing list with a description is expanded", async () => {
+    const mail = nextMail();
+    await client.run(
+      chrome(`
+        const book = MailServices.ab.getDirectory("jsaddrbook://abook.sqlite");
+        const list = Cc["@mozilla.org/addressbook/directoryproperty;1"].createInstance(Ci.nsIAbDirectory);
+        list.isMailList = true;
+        list.dirName = "Team";
+        list.listNickName = "team";
+        list.description = "Team members";
+        const added = book.addMailList(list);
+        const card = Cc["@mozilla.org/addressbook/cardproperty;1"].createInstance(Ci.nsIAbCard);
+        card.primaryEmail = "ml1@x.example";
+        card.displayName = "List Member";
+        added.addCard(card);
+        await send("id2", { to: "Team <Team members>" });
+      `)
+    );
+    expect((await mail)?.to, [reverseOf("ml1@x.example")], "the member's reverse alias");
   });
 
   await check("calendar: other identities send unchanged", async () => {

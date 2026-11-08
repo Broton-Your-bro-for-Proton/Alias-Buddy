@@ -4,6 +4,7 @@ import { getSettings } from "./lib/settings.js";
 
 const TTL = 10 * 60 * 1000;
 const MAX_STALE = 24 * 60 * 60 * 1000;
+const CONTACTS_TTL = 24 * 60 * 60 * 1000;
 const MAX_ATTACHMENT_SCAN = 10 * 1024 * 1024;
 const status = new Map(); // tab id: last result, shown in the popup
 const overrides = new Map(); // tab id: fingerprint of the blocked message the user sends once anyway
@@ -16,7 +17,8 @@ class Blocked extends Error {
   }
 }
 
-// ---- cache: { owner, mailboxes: {at, value}, aliases: {email: {at, value}}, contacts: {aliasId: {address: reverse}} }
+// ---- cache: { owner, mailboxes: {at, value: [{email, verified}]}, aliases: {email: {at, value}},
+//               contacts: {aliasId: {address: reverse}}, contactsAt: {aliasId: time} }
 
 /**
  * A fresh value, or during an outage (no connection, rate limit, server
@@ -38,13 +40,21 @@ async function cached(entry, fetchValue) {
 
 async function context() {
   const settings = await getSettings();
-  const owner = `${settings.apiUrl}\n${settings.apiKey}`;
+  const owner = `v2\n${settings.apiUrl}\n${settings.apiKey}`;
   let cache = (await messenger.storage.local.get("cache")).cache ?? {};
   if (cache.owner != owner) {
     cache = { owner };
   }
   cache.aliases ??= {};
   cache.contacts ??= {};
+  cache.contactsAt ??= {};
+  // Contacts can be deleted or regenerated in SimpleLogin, so they are refetched after a day.
+  for (const [id, at] of Object.entries(cache.contactsAt)) {
+    if (Date.now() - at > CONTACTS_TTL) {
+      delete cache.contacts[id];
+      delete cache.contactsAt[id];
+    }
+  }
   return { settings, cache, sl: settings.apiKey ? new SimpleLogin(settings.apiUrl, settings.apiKey) : null };
 }
 
@@ -56,12 +66,12 @@ async function protectedAddresses(ctx) {
   }
   try {
     ctx.cache.mailboxes = await cached(ctx.cache.mailboxes, async () =>
-      (await ctx.sl.mailboxes()).map(m => core.norm(m.email))
+      (await ctx.sl.mailboxes()).map(m => ({ email: core.norm(m.email), verified: m.verified !== false }))
     );
   } catch (e) {
     throw new Blocked(`SimpleLogin: ${e.message}. Without the mailbox list the add-on cannot tell which addresses are yours.`);
   }
-  return new Set([...ctx.cache.mailboxes.value.map(core.canonical), ...manual]);
+  return new Set([...ctx.cache.mailboxes.value.map(m => core.canonical(m.email)), ...manual]);
 }
 
 async function aliasFor(ctx, email) {
@@ -76,7 +86,16 @@ async function aliasFor(ctx, email) {
   return ctx.cache.aliases[email].value;
 }
 
-const contactsOf = (ctx, alias) => new Map(Object.entries((ctx.cache.contacts[alias.id] ??= {})));
+/** The cached contacts of an alias, created on first use with its fill time. */
+function contactMap(ctx, alias) {
+  ctx.cache.contactsAt[alias.id] ??= Date.now();
+  return (ctx.cache.contacts[alias.id] ??= {});
+}
+const contactsOf = (ctx, alias) => new Map(Object.entries(contactMap(ctx, alias)));
+const aliasById = (ctx, id) => Object.values(ctx.cache.aliases).find(e => e.value?.id == id)?.value ?? null;
+/** The id of the alias a cached reverse alias belongs to. */
+const ownerIdOf = (ctx, reverse) =>
+  Object.keys(ctx.cache.contacts).find(id => Object.values(ctx.cache.contacts[id]).includes(reverse));
 const knownReverseAliases = ctx => new Set(Object.values(ctx.cache.contacts).flatMap(Object.values));
 
 /** Aliases that own one of the reverse aliases among the recipients. */
@@ -93,7 +112,7 @@ function ownersOf(ctx, recipients) {
 
 async function refreshContacts(ctx, alias, wanted) {
   try {
-    Object.assign((ctx.cache.contacts[alias.id] ??= {}), await ctx.sl.contacts(alias.id, wanted));
+    Object.assign(contactMap(ctx, alias), await ctx.sl.contacts(alias.id, wanted));
   } catch (e) {
     throw new Blocked(`SimpleLogin: ${e.message}`);
   }
@@ -101,7 +120,7 @@ async function refreshContacts(ctx, alias, wanted) {
 
 async function addContact(ctx, alias, email) {
   try {
-    (ctx.cache.contacts[alias.id] ??= {})[email] = await ctx.sl.createContact(alias.id, email);
+    contactMap(ctx, alias)[email] = await ctx.sl.createContact(alias.id, email);
   } catch (e) {
     if (!(e instanceof ApiError) || e.status == 0) {
       throw new Blocked(`SimpleLogin: ${e.message}`);
@@ -120,19 +139,41 @@ async function addContact(ctx, alias, email) {
   }
 }
 
-/** Learns the reverse aliases of the aliases a replied-to message was sent to. */
-async function learnFromOriginal(ctx, messageId, wanted) {
-  const message = await messenger.messages.get(messageId).catch(() => null);
-  if (!message) {
-    return;
+/**
+ * The alias a message arrived through: SimpleLogin names it in
+ * X-SimpleLogin-Envelope-To, added after it removed all other headers. A
+ * direct message could fake the header, so it counts only when the sender is
+ * a reverse alias of that very alias.
+ */
+async function arrivedThrough(ctx, messageId) {
+  const full = ctx.sl ? await messenger.messages.getFull(messageId).catch(() => null) : null;
+  const named = full?.headers?.["x-simplelogin-envelope-to"]?.[0];
+  const alias = named ? await aliasFor(ctx, core.addressOf(named)).catch(() => null) : null;
+  if (!alias) {
+    return null;
   }
-  const addresses = [...message.recipients, ...message.ccList].map(core.addressOf);
-  for (const email of new Set(addresses)) {
-    const alias = await aliasFor(ctx, email).catch(() => null);
-    if (alias) {
-      await refreshContacts(ctx, alias, wanted);
+  const sender = core.addressOf(full.headers.from?.[0]);
+  await refreshContacts(ctx, alias, [sender]);
+  return Object.values(contactMap(ctx, alias)).includes(sender) ? alias : null;
+}
+
+/** Learns the reverse aliases of the alias a replied-to message arrived through. */
+async function learnFromOriginal(ctx, messageId, wanted) {
+  const alias = await arrivedThrough(ctx, messageId);
+  if (alias) {
+    await refreshContacts(ctx, alias, wanted);
+  }
+}
+
+/** Members of an address book mailing list, or null if there is none with this name. */
+async function mailingListMembers(name) {
+  for (const book of await messenger.addressBooks.list(true)) {
+    const list = book.mailingLists?.find(l => l.name == name);
+    if (list) {
+      return (await messenger.mailingLists.listMembers(list.id)).map(c => c.properties.PrimaryEmail).filter(Boolean);
     }
   }
+  return null;
 }
 
 async function recipientsOf(details, fields = ["to", "cc", "bcc"]) {
@@ -143,11 +184,17 @@ async function recipientsOf(details, fields = ["to", "cc", "bcc"]) {
         throw new Blocked("A recipient is an address book entry the add-on cannot read.");
       }
       const parsed = await messenger.messengerUtilities.parseMailboxString(entry, { expandMailingLists: true });
-      for (const { email } of parsed) {
-        if (!email?.includes("@")) {
+      for (const { name, email } of parsed) {
+        if (email?.includes("@")) {
+          list.push({ field, email: core.norm(email) });
+          continue;
+        }
+        // A list with a description shows as "Name <Description>", which Thunderbird does not expand here.
+        const members = await mailingListMembers(name ?? email);
+        if (!members) {
           throw new Blocked(`Cannot read the address "${entry}".`);
         }
-        list.push({ field, email: core.norm(email) });
+        list.push(...members.map(m => ({ field, email: core.norm(m) })));
       }
     }
   }
@@ -198,6 +245,9 @@ async function softLeaks(tabId, details, mine, domain) {
   return found;
 }
 
+/** The alias's mailboxes that SimpleLogin lists as verified, so it accepts mail from them. */
+const verifiedMailboxes = (ctx, alias) => core.verifiedOf(alias.mailboxes, ctx.cache.mailboxes?.value);
+
 const bodyOf = details => (details.isPlainText ? { plainTextBody: details.plainTextBody } : { body: details.body });
 const domainOf = email => email.slice(email.lastIndexOf("@") + 1);
 
@@ -211,6 +261,10 @@ async function checkMailbox(tab, details, ctx, { sender, recipients, mine, overr
   }
   if (result.mixed) {
     throw new Blocked("SimpleLogin drops a message that mixes reverse aliases with other addresses. Send two messages.");
+  }
+  const ownership = core.ownerProblem(result.viaAlias, ra => ownerIdOf(ctx, ra), id => aliasById(ctx, id), sender);
+  if (ownership) {
+    throw new Blocked(ownership);
   }
   if (result.exposed.length && !override) {
     const who = result.exposed.map(r => r.email).join(", ");
@@ -239,9 +293,9 @@ async function checkMailbox(tab, details, ctx, { sender, recipients, mine, overr
 async function checkAlias(tab, details, ctx, { identity, alias, resumed, recipients, mine, isMine, override, apply }) {
   let mailbox = identity;
   if (!resumed) {
-    const pick = core.pickMailboxIdentity(await messenger.identities.list(), alias.mailboxes, identity.accountId);
+    const pick = core.pickMailboxIdentity(await messenger.identities.list(), verifiedMailboxes(ctx, alias), identity.accountId);
     if (!pick.candidates.length) {
-      throw new Blocked(`No Thunderbird identity uses a mailbox of ${alias.email} (${alias.mailboxes.join(", ")}). Add one.`);
+      throw new Blocked(`No Thunderbird identity uses a verified mailbox of ${alias.email} (${alias.mailboxes.join(", ")}). Add one.`);
     }
     if (!pick.identity) {
       throw new Blocked(
@@ -382,11 +436,16 @@ async function checkItip(ctx, { sender, actor, to, cc = [], bcc = [], subject, b
     if (leaked.length) {
       throw new Blocked(`The calendar email contains your real address ${leaked.join(", ")}.`);
     }
-    // Thunderbird does not sign calendar emails, so a mailbox identity with keys is fine here.
-    const pick = core.pickMailboxIdentity(await messenger.identities.list(), alias.mailboxes, null);
+    // Thunderbird does not sign calendar emails, so keys do not matter here. The
+    // transport adds the identity's automatic Cc/Bcc and Reply-To, so it has to be without them.
+    const plain = new Set(await messenger.aliasBuddyItip.plainIdentityIds());
+    const identities = (await messenger.identities.list()).filter(i => plain.has(i.id));
+    const pick = core.pickMailboxIdentity(identities, verifiedMailboxes(ctx, alias), null);
     const mailbox = pick.identity ?? pick.candidates[0];
     if (!mailbox) {
-      throw new Blocked(`No Thunderbird identity uses a mailbox of ${alias.email} (${alias.mailboxes.join(", ")}). Add one.`);
+      throw new Blocked(
+        `No identity for a verified mailbox of ${alias.email} is free of automatic Cc/Bcc and Reply-To. Add one for ${alias.mailboxes[0]} without them.`
+      );
     }
     for (const r of core.rewriteForAlias(recipients, alias.email, contactsOf(ctx, alias)).missing) {
       await addContact(ctx, alias, r.email);
