@@ -217,3 +217,16 @@ test("noteNamesSite matches the whole note line only", () => {
   assert.ok(!core.noteNamesSite("Alias Buddy: amazon.de.evil", "amazon.de"));
   assert.ok(!core.noteNamesSite(null, "amazon.de"));
 });
+
+test("siteOf handles subdomains, country endings and IP addresses", () => {
+  assert.equal(core.siteOf("a@news.dhl.de"), "dhl.de");
+  assert.equal(core.siteOf("a@mail.ing.nl"), "ing.nl");
+  assert.equal(core.siteOf("a@shop.example.com.au"), "example.com.au");
+  assert.equal(core.siteOf("a@[1.2.3.4]"), "1.2.3.4");
+  assert.equal(core.siteOf("a@localhost"), "localhost");
+});
+
+test("prefixFrom never ends in a dot after cutting at 40 characters", () => {
+  const prefix = core.prefixFrom("amazon." + "x".repeat(32) + ".tail", "amazon.de", () => 0);
+  assert.ok(prefix.length <= 40 && !/[._-]$/.test(prefix), prefix);
+});

@@ -195,14 +195,26 @@ export function fingerprint(details) {
 
 // ---- alias creation ------------------------------------------------------------
 
+// Endings registered below a country code. A short list instead of the full
+// public suffix list: a miss only splits one company into two sites.
+const MULTI_PART = new Set([
+  "co.uk", "org.uk", "ac.uk", "gov.uk", "me.uk", "ltd.uk", "plc.uk",
+  "com.au", "net.au", "org.au", "co.nz", "org.nz", "co.jp", "ne.jp", "or.jp",
+  "co.kr", "co.in", "co.za", "co.il", "com.br", "com.mx", "com.ar", "com.tr",
+  "com.cn", "com.hk", "com.tw", "com.sg", "com.my", "co.at", "or.at",
+]);
+
 /**
  * The registrable part of an address's domain, as a stand-in for "the site":
- * shop.amazon.de gives amazon.de, mail.bbc.co.uk gives bbc.co.uk.
+ * news.dhl.de gives dhl.de, mail.bbc.co.uk gives bbc.co.uk.
  */
 export function siteOf(email) {
-  const labels = norm(email).split("@").pop().split(".").filter(Boolean);
-  const secondLevel = labels.length > 2 && labels.at(-1).length == 2 && labels.at(-2).length <= 3;
-  return labels.slice(secondLevel ? -3 : -2).join(".");
+  const host = norm(email).split("@").pop().replace(/^\[|\]$/g, "");
+  if (/^[\d.]+$|:/.test(host)) {
+    return host; // an IP address has no site
+  }
+  const labels = host.split(".").filter(Boolean);
+  return labels.slice(MULTI_PART.has(labels.slice(-2).join(".")) ? -3 : -2).join(".");
 }
 
 const WORDS = ["amber", "brook", "cedar", "dune", "ember", "fern", "grove", "harbor", "isle", "juniper", "kite", "lark",
@@ -224,8 +236,8 @@ export function prefixFrom(template, site, random = Math.random) {
     .toLowerCase()
     .replace(/[^a-z0-9._-]+/g, "")
     .replace(/[._-]{2,}/g, m => m[0])
-    .replace(/^[._-]+|[._-]+$/g, "")
-    .slice(0, 40);
+    .slice(0, 40)
+    .replace(/^[._-]+|[._-]+$/g, "");
   return clean || Array.from({ length: 8 }, () => pick("abcdefghijkmnpqrstuvwxyz23456789")).join("");
 }
 

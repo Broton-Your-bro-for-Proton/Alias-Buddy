@@ -93,12 +93,16 @@ const api = {
   posts: 0,
   searches: [], // alias search queries, to see which addresses reached SimpleLogin
   created: [], // aliases created through the API
+  createDelay: 0, // milliseconds alias creation takes
+  createStarted: 0, // creation requests received
   aliases: [
     { id: 1, email: "shop@alias.example", mailboxes: [{ id: 1, email: MINE }, { id: 2, email: PLAIN }] },
     { id: 2, email: "other@alias.example", mailboxes: [{ id: 1, email: MINE }, { id: 2, email: PLAIN }] },
     { id: 3, email: "keyed@alias.example", mailboxes: [{ id: 3, email: KEYED }] },
     // An alias on an own domain that has no Thunderbird identity yet.
     { id: 4, email: "promo@mine.example", mailboxes: [{ id: 1, email: MINE }, { id: 2, email: PLAIN }] },
+    // Created by hand in the user's own scheme, without an Alias Buddy note.
+    { id: 5, email: "shop.otto@mine.example", mailboxes: [{ id: 1, email: MINE }] },
   ],
   contacts: {
     1: [
@@ -160,6 +164,8 @@ const apiServer = http.createServer(async (req, res) => {
     });
   }
   if (req.method == "POST" && url.pathname == "/api/v3/alias/custom/new") {
+    api.createStarted++;
+    await sleep(api.createDelay);
     if (!body.signed_suffix?.endsWith(".sig")) {
       return send(400, { error: "invalid suffix" });
     }
@@ -1069,6 +1075,103 @@ try {
     const sent = await mail;
     expect([sent?.from, sent?.to], [MINE, ["ra-dan@sl.example"]], "sent through SimpleLogin");
     expect((await identitiesFor("promo@mine.example")).map(i => i[0]), [key], "one identity created");
+  });
+
+  await check("automatic: a switch that would be blocked creates no alias", async () => {
+    const created = api.created.length;
+    await expectBlocked(
+      `await send("id5", { to: "z@newsite.example", body: '<p>Hi</p><img src="data:image/png;base64,iVBORw0KGgo=">' })`,
+      /Sending as the alias for newsite\.example failed: .*embedded images/
+    );
+    expect(api.created.length, created, "aliases created");
+  });
+
+  await check("automatic: a recipient of a new site gets a new alias on send", async () => {
+    const created = api.created.length;
+    const mail = nextMail();
+    await client.run(chrome(`await send("id5", { to: "hello@fresh.example" });`));
+    const sent = await mail;
+    const alias = api.created[created];
+    const contact = (api.contacts[alias?.id] ?? []).find(c => c.contact == "hello@fresh.example");
+    expect([api.created.length - created, alias?.note, sent?.to], [1, "Alias Buddy: fresh.example", [contact?.reverse_alias_address]], "new site alias");
+  });
+
+  await check("automatic: recipients of two sites are blocked, not switched", async () => {
+    const created = api.created.length;
+    await expectBlocked(`await send("id5", { to: "a@one.example", cc: "b@two.example" })`, /would be visible to a@one\.example, b@two\.example/);
+    expect(api.created.length, created, "aliases created");
+  });
+
+  await check("popup: a planned switch is shown, sending from the real address stays possible", async () => {
+    const created = api.created.length;
+    await client.run(chrome(`await compose("id5", { to: "q@another.example" });`));
+    await openPopup();
+    const [summary, button] = await client.run(
+      inPage(
+        popup,
+        `await until(() => !doc.getElementById("sendOnce").hidden, "button shown"); return [doc.getElementById("summary").textContent, doc.getElementById("sendOnce").textContent];`
+      )
+    );
+    if (!/would show your real address\. On send it switches to the alias another\.[a-z0-9]{5}@mine\.example \(new\)/.test(summary)) throw new Error("summary: " + summary);
+    expect([button, api.created.length - created], ["Send from my real address instead", 0], "button and nothing created");
+  });
+
+  await check("a send while a popup action is still running is not checked against the old state", async () => {
+    api.createDelay = 3000;
+    const started = api.createStarted;
+    await client.run(chrome(`await compose("id3", { to: "r@race.example" });`));
+    await openPopup();
+    await client.run(inPage(popup, `await until(() => !doc.getElementById("aliasPanel").hidden, "panel"); doc.getElementById("create").click();`));
+    for (let i = 0; i < 50 && api.createStarted == started; i++) await sleep(100);
+    const mail = nextMail(6000);
+    const after = await client.run(chrome(`const win = composeWindows()[0]; win.goDoCommand("cmd_sendNow"); await sleep(5000); return state(win);`));
+    api.createDelay = 0;
+    expect(await mail, null, "sent message");
+    if (!/changed while it was checked/.test(after.reason ?? "")) throw new Error(`blocked for another reason: ${after.reason}`);
+  });
+
+  await check("automatic: a faked SimpleLogin header does not change the reply's sender", async () => {
+    const key = await client.run(
+      chrome(`
+        const inbox = MailServices.accounts.getAccount("account1").incomingServer.rootFolder.getChildNamed("Inbox");
+        const hdr = inbox.msgDatabase.getMsgHdrForMessageID("forged-1@evil.example");
+        for (const w of composeWindows()) w.close();
+        await until(() => !composeWindows().length, "old compose windows closed");
+        MailServices.compose.OpenComposeWindow(null, hdr, inbox.getUriForMsg(hdr), Ci.nsIMsgCompType.Reply, Ci.nsIMsgCompFormat.Default, MailServices.accounts.getIdentity("id5"), null, null);
+        await until(() => composeWindows()[0]?.composeEditorReady, "reply window ready", 30000);
+        await sleep(3000);
+        return composeWindows()[0].getCurrentIdentityKey();
+      `)
+    );
+    expect(key, "id5", "sender unchanged");
+  });
+
+  await check("a template without random parts finds the alias the user created by hand", async () => {
+    await client.run(
+      chrome(`
+        const url = WebExtensionPolicy.getByID(args[0]).getURL("options/options.html");
+        window.document.getElementById("tabmail").openTab("contentTab", { url });
+        await sleep(1500);
+      `),
+      addon
+    );
+    await client.run(
+      inPage(
+        `window.document.getElementById("tabmail").currentTabInfo.browser`,
+        `
+        await until(() => doc.getElementById("domain").length > 1, "domains loaded");
+        doc.getElementById("template").value = "shop.{domain}";
+        doc.getElementById("form").requestSubmit();
+        await until(() => doc.getElementById("result").textContent.startsWith("Saved. Connected"), "saved");
+        `
+      )
+    );
+    const created = api.created.length;
+    const mail = nextMail();
+    await client.run(chrome(`await send("id5", { to: "info@otto.example" });`));
+    const sent = await mail;
+    const contact = (api.contacts[5] ?? []).find(c => c.contact == "info@otto.example");
+    expect([sent?.to, api.created.length - created], [[contact?.reverse_alias_address], 0], "sent as shop.otto, nothing created");
   });
 
   await check("API down: an unknown identity is blocked", async () => {

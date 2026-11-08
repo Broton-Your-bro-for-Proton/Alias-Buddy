@@ -75,8 +75,8 @@ $("form").addEventListener("submit", async event => {
     $("result").textContent = `Not saved: access to ${next.apiUrl} was not granted.`;
     return;
   }
-  const accountChanged = next.apiUrl != settings.apiUrl || next.apiKey != settings.apiKey;
-  await messenger.storage.local.set(accountChanged ? { settings: next, cache: {} } : { settings: next });
+  // Saving also refreshes what the add-on knows, for example a mailbox added in SimpleLogin.
+  await messenger.storage.local.set({ settings: next, cache: {} });
   Object.assign(settings, next);
   $("result").textContent = "Saved. Testing...";
   try {

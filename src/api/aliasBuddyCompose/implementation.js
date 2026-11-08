@@ -13,14 +13,19 @@ this.aliasBuddyCompose = class extends ExtensionCommon.ExtensionAPI {
         async refreshIdentities() {
           for (const win of Services.wm.getEnumerator("msgcompose")) {
             const menu = win.document.getElementById("msgIdentity");
-            if (!menu || typeof win.FillIdentityList != "function") {
+            // A window still starting up fills its menu itself.
+            if (!menu || !win.composeEditorReady || typeof win.FillIdentityList != "function") {
               continue;
             }
             const key = menu.getAttribute("identitykey");
+            const customFrom = menu.editable ? menu.value : null;
             menu.menupopup.replaceChildren();
             win.FillIdentityList(menu);
             menu.selectedItem = menu.getElementsByAttribute("identitykey", key)[0];
             win.LoadIdentity(true);
+            if (customFrom) {
+              menu.value = customFrom;
+            }
           }
         },
       },

@@ -28,7 +28,8 @@ function render({ preview, last }) {
   const lastBlocked = last?.state == "blocked" && last.reason != preview.reason;
   $("last").hidden = !lastBlocked;
   $("last").textContent = lastBlocked ? `Last send was blocked: ${last.reason}` : "";
-  $("sendOnce").hidden = !(preview.state == "blocked" && preview.overridable);
+  $("sendOnce").hidden = !((preview.state == "blocked" && preview.overridable) || preview.state == "switch");
+  $("sendOnce").textContent = preview.state == "switch" ? "Send from my real address instead" : "Send this message unchanged";
 }
 
 const refresh = async () => render(await messenger.runtime.sendMessage({ type: "preview", tabId: tab.id }));
@@ -36,7 +37,9 @@ const refresh = async () => render(await messenger.runtime.sendMessage({ type: "
 /** Runs an alias action in the background, shows its error, refreshes the summary on success. */
 async function act(type, args = {}) {
   $("aliasError").hidden = true;
-  const answer = await messenger.runtime.sendMessage({ type, tabId: tab.id, ...args });
+  const buttons = [...document.querySelectorAll("#aliasPanel button")];
+  buttons.forEach(b => (b.disabled = true));
+  const answer = await messenger.runtime.sendMessage({ type, tabId: tab.id, ...args }).finally(() => buttons.forEach(b => (b.disabled = false)));
   if (!answer?.ok) {
     $("aliasError").textContent = answer?.error ?? "No answer from the add-on.";
     $("aliasError").hidden = false;

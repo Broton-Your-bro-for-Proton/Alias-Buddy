@@ -25,18 +25,20 @@ The Alias Buddy popup in the compose window offers:
 - **An existing alias**, found by searching its address or note.
 - **A new alias** with a name, a domain and a mailbox of your choice.
 
-The chosen alias becomes the sender. If Thunderbird has no identity for it yet, the add-on creates one next to the mailbox's identity, labeled "Alias Buddy".
+The chosen alias becomes the sender. If Thunderbird has no identity for it yet, the add-on creates one next to the mailbox's identity, labeled "Alias Buddy". These identities stay when the add-on is disabled or removed. Without the add-on, sending from them goes out directly through Thunderbird's default server, with no reverse alias, so delete them (Account Settings > Manage Identities) before you disable the add-on.
+
+Pressing Send while a popup action is still running (for example while a new alias is created) stops the send with a note to send again, because the sender may have changed meanwhile.
 
 The settings set the defaults:
 
 - **Domain for new aliases**: your own domains and subdomains (used as they are, for example shop.k7f2@yourdomain.com) or SimpleLogin's shared domains (SimpleLogin adds a random word).
 - **Mailbox for new aliases**: by default SimpleLogin's default mailbox.
-- **Name template**: {domain} is the recipient's site without its ending, {random} five random characters, {word} a random word. The default {domain}.{random} gives readable names that cannot be guessed.
+- **Name template**: {domain} is the recipient's site without its ending, {random} five random characters, {word} a random word. The default {domain}.{random} gives readable names that cannot be guessed. A template without random parts, such as shop.{domain}, gives one fixed name per site; an alias with that name that you created yourself is used as it is.
 
 And the automatic behavior, each one can be turned off:
 
 - **One alias per recipient site.** The add-on writes "Alias Buddy: amazon.de" into the alias note in SimpleLogin and finds the alias by it, so it works on every device. On by default.
-- **Switch instead of block.** Sending from your real address to a new recipient makes the add-on create or reuse the alias for that recipient's site and send as it. Off by default, because it replaces the block.
+- **Switch instead of block.** Sending from your real address to a new recipient makes the add-on create or reuse the alias for that recipient's site and send as it. Off by default, because it replaces the block. It switches only when all such recipients belong to one site and no allowlisted recipient is in the message, and it checks the message against the planned alias first, so nothing is created for a message that would be blocked anyway. The popup still offers to send from your real address instead.
 - **Reply as the alias.** A reply to a message that came through an alias gets that alias as sender. On by default.
 - **Create identities.** On by default. Without it, the add-on only uses identities you added yourself.
 
@@ -90,7 +92,7 @@ Creating reverse aliases needs a SimpleLogin plan that allows it.
 - Messages: to read the message you reply to (its recipients and Message-ID).
 - Full access (Experiment API): for calendar emails, see above, and to show a newly created identity in open compose windows.
 - Identities: to create the Thunderbird identity of an alias.
-- SimpleLogin receives the addresses the add-on looks up: your identities, recipients that need a reverse alias, and in a reply the alias SimpleLogin named in the original message.
+- SimpleLogin receives the addresses the add-on looks up: your identities, recipients that need a reverse alias, in a reply the alias SimpleLogin named in the original message, and for messages from a mailbox or an alias the site of the first recipient (to find its alias).
 
 ## Development
 
