@@ -21,7 +21,7 @@ The Alias Buddy button in the compose window shows what will happen to each reci
 
 The Alias Buddy popup in the compose window offers:
 
-- **The alias for the recipient's site**, for example for news@shop.amazon.de the alias tied to amazon.de, or a new one.
+- **The alias for the recipient's site**, for example for news@shop.amazon.de the alias tied to amazon.de, or a new one. With several name templates, a choice of the template (the category) comes first.
 - **An existing alias**, found by searching its address or note.
 - **A new alias** with a name, a domain and a mailbox of your choice.
 
@@ -33,11 +33,11 @@ The settings set the defaults:
 
 - **Domain for new aliases**: your own domains and subdomains (used as they are, for example shop.k7f2@yourdomain.com) or SimpleLogin's shared domains (SimpleLogin adds a random word).
 - **Mailbox for new aliases**: by default SimpleLogin's default mailbox.
-- **Name template**: {domain} is the recipient's site without its ending, {random} five random characters, {word} a random word. The default {domain}.{random} gives readable names that cannot be guessed. A template without random parts, such as shop.{domain}, gives one fixed name per site; an alias with that name that you created yourself is used as it is.
+- **Name templates**, one per line, for example one per category: shop.{domain}, news.{domain}, account.{domain}. Each needs at least one placeholder. {domain} is the recipient's site without its ending, {random} five random characters, {word} a random word. The first template is the default for the automatic behavior; the popup offers all of them. The default {domain}.{random} gives readable names that cannot be guessed. A template without random parts gives one fixed name per site; an alias with that name that you created yourself is used as it is, so an existing scheme like shop.amazon@yourdomain.com keeps working.
 
 And the automatic behavior, each one can be turned off:
 
-- **One alias per recipient site.** The add-on writes "Alias Buddy: amazon.de" into the alias note in SimpleLogin and finds the alias by it, so it works on every device. On by default.
+- **One alias per recipient site and template.** The add-on writes "Alias Buddy: amazon.de (shop.{domain})" into the alias note in SimpleLogin and finds the alias by it, so it works on every device and each category keeps its own alias, whatever the order of the templates. Notes from version 0.3 ("Alias Buddy: amazon.de") count for {domain}.{random}. On by default.
 - **Switch instead of block.** Sending from your real address to a new recipient makes the add-on create or reuse the alias for that recipient's site and send as it. Off by default, because it replaces the block. It switches only when all such recipients belong to one site and no allowlisted recipient is in the message, and it checks the message against the planned alias first, so nothing is created for a message that would be blocked anyway. The popup still offers to send from your real address instead.
 - **Reply as the alias.** A reply to a message that came through an alias gets that alias as sender. On by default.
 - **Create identities.** On by default. Without it, the add-on only uses identities you added yourself.

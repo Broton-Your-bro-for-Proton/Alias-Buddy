@@ -84,17 +84,18 @@ test("isOutage covers network, rate limit and server errors only", () => {
   }
 });
 
-test("findSiteAlias finds the enabled alias whose note names the site", async () => {
+test("findSiteAlias finds the enabled alias whose note names the site and template", async () => {
   fake((m, p, body) => {
     const page = Number(/page_id=(\d+)/.exec(p)[1]);
     assert.equal(body.query, "amazon.de");
     const aliases = [
-      { id: 1, email: "a@x.example", note: "Alias Buddy: amazon.de", enabled: false, mailboxes: [] },
-      { id: 2, email: "B@x.example", note: "old\nAlias Buddy: amazon.de", enabled: true, mailboxes: [{ email: "Me@real.example" }] },
+      { id: 1, email: "a@x.example", note: "Alias Buddy: amazon.de (shop.{domain})", enabled: false, mailboxes: [] },
+      { id: 4, email: "c@x.example", note: "Alias Buddy: amazon.de (news.{domain})", enabled: true, mailboxes: [] },
+      { id: 2, email: "B@x.example", note: "old\nAlias Buddy: amazon.de (shop.{domain})", enabled: true, mailboxes: [{ email: "Me@real.example" }] },
     ];
     return [200, { aliases: page == 0 ? aliases : [] }];
   });
-  const alias = await sl.findSiteAlias("amazon.de");
+  const alias = await sl.findSiteAlias("amazon.de", "shop.{domain}");
   assert.deepEqual([alias.id, alias.email, alias.mailboxes], [2, "b@x.example", ["me@real.example"]]);
 });
 

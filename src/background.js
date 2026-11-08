@@ -567,7 +567,7 @@ const IDENTITY_LABEL = "Alias Buddy";
 /** Addresses of aliases deleted in the overview. Kept outside the cache, which saving the settings clears. */
 const goneAliases = async () => (await messenger.storage.local.get("goneAliases")).goneAliases ?? [];
 
-const creationNote = site => (site ? core.siteNote(site) : "Created by Alias Buddy");
+const creationNote = (site, template) => (site ? core.siteNote(site, template) : "Created by Alias Buddy");
 
 // A signed suffix from SimpleLogin is valid for 10 minutes; it is reused for 5.
 const SUFFIX_REUSE = 5 * 60 * 1000;
@@ -587,31 +587,32 @@ async function creationMailbox(ctx) {
   return chosen;
 }
 
-/** The existing alias tied to a site through its note, if aliases per site are on. */
-async function siteAlias(ctx, site) {
+/** The existing alias tied to a site and template through its note, if aliases per site are on. */
+async function siteAlias(ctx, site, template) {
   if (!site || !ctx.settings.creation.perDomain) {
     return null;
   }
   ctx.cache.sites ??= {};
+  const key = `${site}\n${template}`;
   let entry;
   try {
-    entry = await cached(ctx.cache.sites[site], () => ctx.sl.findSiteAlias(site));
+    entry = await cached(ctx.cache.sites[key], () => ctx.sl.findSiteAlias(site, template));
   } catch (e) {
     throw new Blocked(`SimpleLogin: ${e.message}. The add-on cannot tell whether an alias for ${site} exists.`);
   }
   // Only a found alias is kept: one created on another device must be found next time.
   if (!entry.value) {
-    delete ctx.cache.sites[site];
+    delete ctx.cache.sites[key];
     return null;
   }
-  ctx.cache.sites[site] = entry;
+  ctx.cache.sites[key] = entry;
   ctx.cache.aliases[entry.value.email] = { at: Date.now(), value: entry.value };
   return entry.value;
 }
 
 /** Name and suffix for a new alias, from the given choices or the settings. */
-async function newAliasPlan(ctx, site, { prefix, domain } = {}) {
-  const template = ctx.settings.creation.template;
+async function newAliasPlan(ctx, site, { prefix, domain, template: chosen } = {}) {
+  const template = chosen ?? ctx.settings.creation.template;
   const wanted = domain ?? ctx.settings.creation.domain;
   const key = `${site}\n${template}\n${wanted}`;
   const pinned = prefix ? null : plannedNames.get(key);
@@ -646,12 +647,14 @@ async function newAliasPlan(ctx, site, { prefix, domain } = {}) {
  * the alias tied to the site, an existing alias with the planned name (for a
  * template without random parts, such as shop.{domain}), or a new one.
  */
-async function planForSite(ctx, site) {
-  const tied = await siteAlias(ctx, site);
+async function planForSite(ctx, site, template = ctx.settings.creation.template) {
+  // The note names site and template, so each category keeps its own alias
+  // whatever the order of the templates.
+  const tied = await siteAlias(ctx, site, template);
   if (tied) {
     return { alias: tied, email: tied.email, existing: true };
   }
-  const plan = await newAliasPlan(ctx, site);
+  const plan = await newAliasPlan(ctx, site, { template });
   const named = plan.random ? null : await aliasFor(ctx, plan.email);
   if (named && !named.enabled) {
     throw new Blocked(`${named.email} exists but is turned off. Turn it on in the alias overview, or change the name template.`);
@@ -665,6 +668,8 @@ async function planForSite(ctx, site) {
 
 async function createAlias(ctx, site, choices = {}) {
   const mailboxId = choices.mailboxId ?? (await creationMailbox(ctx)).id;
+  const template = choices.template ?? ctx.settings.creation.template;
+  const tie = ctx.settings.creation.perDomain && site ? site : null;
   for (let attempt = 0; attempt < 3; attempt++) {
     const plan = await newAliasPlan(ctx, site, choices);
     try {
@@ -672,12 +677,12 @@ async function createAlias(ctx, site, choices = {}) {
         prefix: plan.prefix,
         signed: plan.suffix.signed,
         mailboxIds: [mailboxId],
-        note: creationNote(ctx.settings.creation.perDomain ? site : null),
+        note: creationNote(tie, template),
       });
       plannedNames.delete(plan.key);
       ctx.cache.aliases[alias.email] = { at: Date.now(), value: alias };
-      if (site && ctx.settings.creation.perDomain) {
-        (ctx.cache.sites ??= {})[site] = { at: Date.now(), value: alias };
+      if (tie) {
+        (ctx.cache.sites ??= {})[`${site}\n${template}`] = { at: Date.now(), value: alias };
       }
       return alias;
     } catch (e) {
@@ -699,9 +704,9 @@ async function createAlias(ctx, site, choices = {}) {
 }
 
 /** The alias for a site: the one tied to it or named like the plan, else a new one. */
-async function aliasForSite(ctx, site) {
-  const plan = await planForSite(ctx, site);
-  return plan.alias ?? createAlias(ctx, site);
+async function aliasForSite(ctx, site, template) {
+  const plan = await planForSite(ctx, site, template);
+  return plan.alias ?? createAlias(ctx, site, { template });
 }
 
 /**
@@ -760,10 +765,12 @@ async function useAlias(ctx, tabId, alias) {
 }
 
 /** What the popup offers for choosing or creating the sender alias. */
-async function aliasPanel(ctx, tabId) {
+async function aliasPanel(ctx, tabId, wanted) {
   if (!ctx.sl) {
     return null;
   }
+  const { templates } = ctx.settings.creation;
+  const template = templates.includes(wanted) ? wanted : templates[0];
   const details = await messenger.compose.getComposeDetails(tabId);
   const current = core.norm((await messenger.identities.get(details.identityId)).email);
   const [first] = await recipientsOf(details).catch(() => []);
@@ -771,11 +778,22 @@ async function aliasPanel(ctx, tabId) {
   // The recipient's site is only looked up for messages from a mailbox or an alias.
   const mine = await protectedAddresses(ctx);
   const relevant = site && (mine.has(core.canonical(current)) || (await aliasFor(ctx, current).catch(() => null)));
-  const plan = await newAliasPlan(ctx, site);
+  const plan = await newAliasPlan(ctx, site, { template });
   const mailbox = await creationMailbox(ctx);
+  // A failing suggestion (for example an alias that is turned off) must not hide the other choices.
+  let suggestion = null;
+  if (relevant) {
+    try {
+      suggestion = await planForSite(ctx, site, template);
+    } catch (e) {
+      suggestion = { error: e.message };
+    }
+  }
   return {
     site,
-    suggestion: relevant ? await planForSite(ctx, site) : null,
+    templates,
+    template,
+    suggestion,
     prefix: plan.prefix,
     domains: core.creationDomains(await ctx.sl.suffixes()),
     domain: plan.suffix.suffix.slice(plan.suffix.suffix.lastIndexOf("@") + 1),
@@ -784,8 +802,11 @@ async function aliasPanel(ctx, tabId) {
   };
 }
 
+/** A template the popup sent, if it is still in the settings (they may have changed meanwhile). */
+const knownTemplate = (ctx, template) => (ctx.settings.creation.templates.includes(template) ? template : undefined);
+
 const ALIAS_ACTIONS = {
-  aliasPanel: (ctx, m) => aliasPanel(ctx, m.tabId),
+  aliasPanel: (ctx, m) => aliasPanel(ctx, m.tabId, m.template),
   searchAliases: async (ctx, m) =>
     (await ctx.sl.searchAliases(m.query)).filter(a => a.enabled).map(a => ({ email: a.email, note: a.note })),
   useAlias: async (ctx, m) => {
@@ -795,9 +816,13 @@ const ALIAS_ACTIONS = {
     }
     return useAlias(ctx, m.tabId, alias);
   },
-  useSuggestion: async (ctx, m) => useAlias(ctx, m.tabId, await aliasForSite(ctx, m.site)),
+  useSuggestion: async (ctx, m) => useAlias(ctx, m.tabId, await aliasForSite(ctx, m.site, knownTemplate(ctx, m.template))),
   createAlias: async (ctx, m) =>
-    useAlias(ctx, m.tabId, await createAlias(ctx, m.site, { prefix: m.prefix, domain: m.domain, mailboxId: m.mailboxId })),
+    useAlias(
+      ctx,
+      m.tabId,
+      await createAlias(ctx, m.site, { prefix: m.prefix, domain: m.domain, mailboxId: m.mailboxId, template: knownTemplate(ctx, m.template) })
+    ),
 };
 
 // ---- alias overview -------------------------------------------------------------

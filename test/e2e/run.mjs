@@ -107,6 +107,8 @@ const api = {
     { id: 6, email: "old.trash@mine.example", mailboxes: [{ id: 1, email: MINE }], note: "to delete", nb_forward: 3 },
     // Deleted in the overview while the user has an identity of their own for it.
     { id: 7, email: "gone@mine.example", mailboxes: [{ id: 1, email: MINE }] },
+    // The user's own news category alias for heise.
+    { id: 8, email: "news.heise@mine.example", mailboxes: [{ id: 1, email: MINE }] },
   ],
   contacts: {
     1: [
@@ -1055,7 +1057,7 @@ try {
       chrome(`await until(() => /^shop\.[a-z0-9]{5}@mine\.example$/.test(MailServices.accounts.getIdentity(composeWindows()[0].getCurrentIdentityKey()).email), "switched to the new alias");`)
     );
     const alias = api.created[created];
-    expect([api.created.length - created, alias?.note, alias?.mailboxes.map(m => m.email)], [1, "Alias Buddy: shop.example", [MINE]], "created alias");
+    expect([api.created.length - created, alias?.note, alias?.mailboxes.map(m => m.email)], [1, "Alias Buddy: shop.example ({domain}.{random})", [MINE]], "created alias");
     expect((await identitiesFor(alias.email)).map(i => i[1]), ["Alias Buddy"], "identity created");
     const mail = nextMail();
     await client.run(chrome(`composeWindows()[0].goDoCommand("cmd_sendNow");`));
@@ -1090,7 +1092,7 @@ try {
     const mail = nextMail();
     await client.run(chrome(`await send("id5", { to: "info@shop.example" });`));
     const sent = await mail;
-    const alias = api.aliases.find(a => a.note == "Alias Buddy: shop.example");
+    const alias = api.aliases.find(a => a.note == "Alias Buddy: shop.example ({domain}.{random})");
     const contact = Object.values(api.contacts[alias.id] ?? {}).find(c => c.contact == "info@shop.example");
     expect([sent?.from, sent?.to, api.created.length - created], [MINE, [contact?.reverse_alias_address], 0], "reused alias");
   });
@@ -1133,7 +1135,7 @@ try {
     const sent = await mail;
     const alias = api.created[created];
     const contact = (api.contacts[alias?.id] ?? []).find(c => c.contact == "hello@fresh.example");
-    expect([api.created.length - created, alias?.note, sent?.to], [1, "Alias Buddy: fresh.example", [contact?.reverse_alias_address]], "new site alias");
+    expect([api.created.length - created, alias?.note, sent?.to], [1, "Alias Buddy: fresh.example ({domain}.{random})", [contact?.reverse_alias_address]], "new site alias");
   });
 
   await check("automatic: recipients of two sites are blocked, not switched", async () => {
@@ -1200,7 +1202,7 @@ try {
         `window.document.getElementById("tabmail").currentTabInfo.browser`,
         `
         await until(() => doc.getElementById("domain").length > 1, "domains loaded");
-        doc.getElementById("template").value = "shop.{domain}";
+        doc.getElementById("templates").value = "shop.{domain}\\nnews.{domain}\\npromo.{random}";
         doc.getElementById("form").requestSubmit();
         await until(() => doc.getElementById("result").textContent.startsWith("Saved. Connected"), "saved");
         `
@@ -1212,6 +1214,64 @@ try {
     const sent = await mail;
     const contact = (api.contacts[5] ?? []).find(c => c.contact == "info@otto.example");
     expect([sent?.to, api.created.length - created], [[contact?.reverse_alias_address], 0], "sent as shop.otto, nothing created");
+  });
+
+  await check("popup: another template finds the user's own alias of that category", async () => {
+    const created = api.created.length;
+    await client.run(chrome(`await compose("id5", { to: "x@heise.example" });`));
+    await openPopup();
+    const [before, after] = await client.run(
+      inPage(
+        popup,
+        `
+        await until(() => !doc.getElementById("templateRow").hidden, "templates offered");
+        const suggestion = () => doc.getElementById("useSuggestion").textContent;
+        const before = suggestion();
+        const select = doc.getElementById("template");
+        select.value = "news.{domain}";
+        select.dispatchEvent(new content.Event("change"));
+        await until(() => suggestion() != before, "suggestion for the news template");
+        return [before, suggestion() + " / " + doc.getElementById("prefix").value];
+        `
+      )
+    );
+    await popupShot("popup-templates");
+    expect([before, after], ["Create and use shop.heise@mine.example", "Use news.heise@mine.example / news.heise"], "suggestions per template");
+    await client.run(inPage(popup, `doc.getElementById("useSuggestion").click();`));
+    await client.run(
+      chrome(`await until(() => MailServices.accounts.getIdentity(composeWindows()[0].getCurrentIdentityKey()).email == "news.heise@mine.example", "switched to the news alias");`)
+    );
+    expect(api.created.length - created, 0, "nothing created");
+  });
+
+  await check("popup: an alias of a template with random parts is found again for its site", async () => {
+    const suggestionFor = async to => {
+      await client.run(chrome(`await compose("id5", { to: ${JSON.stringify(to)} });`));
+      await openPopup();
+      return client.run(
+        inPage(
+          popup,
+          `
+          await until(() => !doc.getElementById("templateRow").hidden, "templates offered");
+          const select = doc.getElementById("template");
+          const before = doc.getElementById("useSuggestion").textContent;
+          select.value = "promo.{random}";
+          select.dispatchEvent(new content.Event("change"));
+          await until(() => doc.getElementById("useSuggestion").textContent != before, "promo suggestion");
+          return doc.getElementById("useSuggestion").textContent;
+          `
+        )
+      );
+    };
+    const created = api.created.length;
+    const first = await suggestionFor("y@tiedsite.example");
+    if (!/^Create and use promo\.[a-z0-9]{5}@mine\.example$/.test(first)) throw new Error("first: " + first);
+    await client.run(inPage(popup, `doc.getElementById("useSuggestion").click();`));
+    await client.run(chrome(`await until(() => /^promo\./.test(MailServices.accounts.getIdentity(composeWindows()[0].getCurrentIdentityKey()).email), "switched");`));
+    const alias = api.created[created];
+    expect(alias?.note, "Alias Buddy: tiedsite.example (promo.{random})", "note names site and template");
+    const second = await suggestionFor("z@tiedsite.example");
+    expect([second, api.created.length - created], [`Use ${alias.email}`, 1], "found again, nothing more created");
   });
 
   // ---- alias overview
@@ -1349,6 +1409,7 @@ try {
   await screenshot(client, "overview-contacts");
 
   await check("overview: a double click does not delete, a deliberate second click deletes the alias and its identity", async () => {
+    await client.run(chrome(`for (const w of composeWindows()) w.close(); await until(() => !composeWindows().length, "closed");`));
     await client.run(inPage(overview, `${buttonOf("old.trash@mine.example", "Write")}.click();`));
     await client.run(chrome(`await until(() => composeWindows()[0]?.composeEditorReady, "compose opened", 30000); for (const w of composeWindows()) w.close();`));
     expect((await identitiesFor("old.trash@mine.example")).map(i => i[1]), ["Alias Buddy"], "identity created by Write");

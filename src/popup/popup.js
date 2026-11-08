@@ -7,7 +7,7 @@ const SUMMARY = {
   mailbox: p => `Sending from your real address ${p.sender}.`,
   alias: p => `Sending as ${p.sender}. SimpleLogin receives it from ${p.mailbox}.`,
   switch: p =>
-    `Sending from ${p.sender} would show your real address. On send it switches to the alias ${p.alias}${p.existing ? "" : " (new)"}.`,
+    `Sending from ${p.sender} would show your real address. On send it switches to the alias ${p.alias}${p.existing ? "" : " (new)"}, from your default template.`,
   blocked: p => `This message would be blocked: ${p.reason}`,
 };
 
@@ -37,7 +37,7 @@ const refresh = async () => render(await messenger.runtime.sendMessage({ type: "
 /** Runs an alias action in the background, shows its error, refreshes the summary on success. */
 async function act(type, args = {}) {
   $("aliasError").hidden = true;
-  const buttons = [...document.querySelectorAll("#aliasPanel button")];
+  const buttons = [...document.querySelectorAll("#aliasPanel button, #aliasPanel select")];
   buttons.forEach(b => (b.disabled = true));
   const answer = await messenger.runtime.sendMessage({ type, tabId: tab.id, ...args }).finally(() => buttons.forEach(b => (b.disabled = false)));
   if (!answer?.ok) {
@@ -51,24 +51,35 @@ async function act(type, args = {}) {
 async function choose(type, args) {
   if ((await act(type, args)) != null) {
     await refresh();
-    await loadPanel();
+    await loadPanel(panel?.template);
   }
 }
 
 let panel = null;
-async function loadPanel() {
-  panel = await act("aliasPanel");
-  $("aliasPanel").hidden = !panel;
-  if (!panel) {
+async function loadPanel(template) {
+  const loaded = await act("aliasPanel", { template });
+  if (!loaded) {
+    // Keep what was shown, so the other choices stay usable.
+    if (panel) {
+      $("template").value = panel.template;
+    }
+    $("aliasPanel").hidden = !panel;
     return;
   }
+  panel = loaded;
+  $("aliasPanel").hidden = false;
   $("suggestion").hidden = !panel.suggestion;
-  if (panel.suggestion) {
+  $("useSuggestion").hidden = !!panel.suggestion?.error;
+  if (panel.suggestion?.error) {
+    $("suggestionText").textContent = panel.suggestion.error;
+  } else if (panel.suggestion) {
     $("suggestionText").textContent = panel.suggestion.existing
       ? `Your alias for ${panel.site}:`
       : `No alias for ${panel.site} yet. A new one would be:`;
     $("useSuggestion").textContent = `${panel.suggestion.existing ? "Use" : "Create and use"} ${panel.suggestion.email}`;
   }
+  $("templateRow").hidden = panel.templates.length < 2;
+  $("template").replaceChildren(...panel.templates.map(t => new Option(t, t, false, t == panel.template)));
   $("prefix").value = panel.prefix;
   $("domain").replaceChildren(
     ...panel.domains.map(d => new Option(d.random ? `${d.domain} (adds a random word)` : d.domain, d.domain, false, d.domain == panel.domain))
@@ -95,11 +106,13 @@ $("search").addEventListener("input", () => {
   }, 300);
 });
 
-$("useSuggestion").addEventListener("click", () => choose("useSuggestion", { site: panel.site }));
+$("template").addEventListener("change", () => loadPanel($("template").value));
+$("useSuggestion").addEventListener("click", () => choose("useSuggestion", { site: panel.site, template: panel.template }));
 $("create").addEventListener("click", () =>
   choose("createAlias", {
     site: panel.site,
     prefix: $("prefix").value.trim(),
+    template: panel.template,
     domain: $("domain").value,
     mailboxId: Number($("mailbox").value),
   })
