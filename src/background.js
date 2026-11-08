@@ -314,13 +314,69 @@ async function check(tab, details, ctx, { override = false, apply = true } = {})
   return ctx.sl ? { state: "other", sender } : { state: "unconfigured" };
 }
 
+/**
+ * Calendar emails (invitations, replies) that Thunderbird sends without a
+ * compose window. Sent as an alias they are rerouted through SimpleLogin like
+ * a message, from a real mailbox they follow the same rules.
+ */
+async function checkItip(ctx, { sender, actor, to, cc = [], bcc = [], subject, body, calendar }) {
+  const mine = await protectedAddresses(ctx);
+  const isMine = email => mine.has(core.canonical(email));
+  const recipients = to.map(email => ({ field: "to", email: core.norm(email) }));
+  // As in a message, the identity decides first: an invitation to an alias
+  // makes Thunderbird answer from the alias identity. A calendar acting for
+  // an alias from a mailbox identity is found through the attendee or organizer.
+  let alias = sender && !isMine(sender) ? await aliasFor(ctx, core.norm(sender)) : null;
+  alias ??= actor ? await aliasFor(ctx, core.norm(actor)) : null;
+  if (alias) {
+    const leaked = core.leaks([subject, body, calendar], mine);
+    if (leaked.length) {
+      throw new Blocked(`The calendar email contains your real address ${leaked.join(", ")}.`);
+    }
+    // Thunderbird does not sign calendar emails, so a mailbox identity with keys is fine here.
+    const pick = core.pickMailboxIdentity(await messenger.identities.list(), alias.mailboxes, null);
+    const mailbox = pick.identity ?? pick.candidates[0];
+    if (!mailbox) {
+      throw new Blocked(`No Thunderbird identity uses a mailbox of ${alias.email} (${alias.mailboxes.join(", ")}). Add one.`);
+    }
+    for (const r of core.rewriteForAlias(recipients, alias.email, contactsOf(ctx, alias)).missing) {
+      await addContact(ctx, alias, r.email);
+    }
+    const plan = core.rewriteForAlias(recipients, alias.email, contactsOf(ctx, alias));
+    if (plan.missing.length) {
+      throw new Blocked(`No reverse alias for ${plan.missing.map(r => r.email).join(", ")}.`);
+    }
+    return { action: "rewrite", identityId: mailbox.id, to: plan.fields.to };
+  }
+  const shown = [sender, actor].find(email => email && isMine(email));
+  if (shown) {
+    const all = [
+      ...recipients,
+      ...cc.map(e => ({ field: "cc", email: core.addressOf(e) })),
+      ...bcc.map(e => ({ field: "bcc", email: core.addressOf(e) })),
+    ];
+    const result = core.checkMailboxSend(all, knownReverseAliases(ctx), ctx.settings.allowlist, ownersOf(ctx, all));
+    if (result.exposed.length || result.mixed) {
+      const who = (result.exposed.length ? result.exposed : all).map(r => r.email).join(", ");
+      throw new Blocked(
+        `A calendar email from your real address ${shown} would go to ${who}. Answer from an alias: add an identity for the alias the invitation was sent to, or allow the organizer in the settings.`
+      );
+    }
+    const leaked = result.viaAlias.length ? core.leaks([subject, body, calendar], mine) : [];
+    if (leaked.length) {
+      throw new Blocked(`The calendar email names your real address ${leaked.join(", ")}.`);
+    }
+  }
+  return { action: "send" };
+}
+
 // One check at a time, so concurrent sends and previews do not overwrite each other's cache.
 let queue = Promise.resolve();
-function run(tab, details, options) {
+function serialized(work) {
   const next = queue.then(async () => {
     const ctx = await context();
     try {
-      return await check(tab, details, ctx, options);
+      return await work(ctx);
     } finally {
       await messenger.storage.local.set({ cache: ctx.cache });
     }
@@ -328,6 +384,7 @@ function run(tab, details, options) {
   queue = next.catch(() => {});
   return next;
 }
+const run = (tab, details, options) => serialized(ctx => check(tab, details, ctx, options));
 
 function show(tabId, result) {
   status.set(tabId, result);
@@ -356,6 +413,16 @@ messenger.compose.onBeforeSend.addListener(async (tab, details) => {
     show(tab.id, result);
     messenger.notifications.create({ type: "basic", title: "Alias Buddy: message not sent", message: result.reason });
     return { cancel: true };
+  }
+});
+
+messenger.aliasBuddyItip.onSend.addListener(async request => {
+  try {
+    return await serialized(ctx => checkItip(ctx, request));
+  } catch (e) {
+    const { reason } = blockedResult(e);
+    messenger.notifications.create({ type: "basic", title: "Alias Buddy: calendar email not sent", message: reason });
+    return { action: "drop" };
   }
 });
 
