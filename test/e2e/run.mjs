@@ -180,6 +180,7 @@ const identity = (key, email, extra = {}) => ({
 const prefs = {
   "marionette.port": marionettePort,
   "xpinstall.signatures.required": false,
+  "extensions.experiments.enabled": true,
   "mail.shell.checkDefaultClient": false,
   "mail.provider.suppress_dialog_on_startup": true,
   "mail.spotlight.firstRunDone": true,
@@ -341,6 +342,25 @@ const helpers = `
     const win = await compose(key, options);
     win.goDoCommand("cmd_sendNow");
     return win;
+  }
+  /** Sends a calendar reply the way Thunderbird does it, without a compose window. */
+  function itip(calendarIdentity, actor, organizer) {
+    const { CalItipEmailTransport } = ChromeUtils.importESModule("resource:///modules/CalItipEmailTransport.sys.mjs");
+    const { CalItipItem } = ChromeUtils.importESModule("resource:///modules/CalItipItem.sys.mjs");
+    const { CalAttendee } = ChromeUtils.importESModule("resource:///modules/CalAttendee.sys.mjs");
+    const item = new CalItipItem();
+    item.init([
+      "BEGIN:VCALENDAR", "PRODID:e2e", "VERSION:2.0", "METHOD:REPLY", "BEGIN:VEVENT", "UID:e2e-" + Date.now(),
+      "DTSTAMP:20261108T100000Z", "DTSTART:20261110T100000Z", "DTEND:20261110T110000Z", "SUMMARY:Meeting",
+      "ORGANIZER:mailto:" + organizer, "ATTENDEE;PARTSTAT=ACCEPTED:mailto:" + actor, "END:VEVENT", "END:VCALENDAR", "",
+    ].join("\\r\\n"));
+    item.autoResponse = Ci.calIItipItem.AUTO;
+    item.responseMethod = "REPLY";
+    item.identity = actor;
+    const attendee = new CalAttendee();
+    attendee.id = "mailto:" + organizer;
+    const transport = new CalItipEmailTransport(MailServices.accounts.getAccount("account1"), MailServices.accounts.getIdentity(calendarIdentity));
+    return transport._sendXpcomMail([attendee], "Accepted: Meeting", actor + " has accepted.", item);
   }
   const state = win => ({
     open: !win.closed,
@@ -677,6 +697,35 @@ try {
   await check("other identity: a customized From with the real address is blocked", () =>
     expectBlocked(`await send("id3", { to: "bob@x.example", from: "Tester <${PLAIN}>" })`, /me2@real.example would be visible to bob/)
   );
+
+  await check("calendar: a reply as an alias goes through SimpleLogin from the mailbox", async () => {
+    const mail = nextMail();
+    await client.run(chrome(`itip("id5", "shop@alias.example", "org@x.example");`));
+    const sent = await mail;
+    if (!sent) throw new Error("nothing was sent");
+    expect(sent.from, MINE, "envelope sender");
+    expect(sent.to, [Object.values(api.contacts[1]).at(-1).reverse_alias_address], "only the organizer's reverse alias, no automatic Cc");
+    if (!/ATTENDEE[^\r\n]*shop@alias\.example/i.test(sent.data)) throw new Error("calendar part lost the alias attendee");
+  });
+
+  await check("calendar: a reply from the real mailbox to the organizer is dropped", async () => {
+    const mail = nextMail(4000);
+    await client.run(chrome(`itip("id5", "${PLAIN}", "org@x.example");`));
+    expect(await mail, null, "sent message");
+  });
+
+  await check("calendar: an allowed organizer gets the reply from the real mailbox", async () => {
+    const mail = nextMail();
+    await client.run(chrome(`itip("id5", "${PLAIN}", "mom@family.example");`));
+    expect((await mail)?.to, ["mom@family.example"], "envelope recipients");
+  });
+
+  await check("calendar: other identities send unchanged", async () => {
+    const mail = nextMail();
+    await client.run(chrome(`itip("id3", "work@other.example", "bob@x.example");`));
+    const sent = await mail;
+    expect([sent?.from, sent?.to], ["work@other.example", ["bob@x.example"]], "envelope");
+  });
 
   await check("API down: an unknown identity is blocked", async () => {
     api.down = true;

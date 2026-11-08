@@ -29,5 +29,15 @@
     "default_label": "Alias Buddy",
     "default_popup": "popup/popup.html"
   },
-  "options_ui": { "page": "options/options.html", "open_in_tab": true }
+  "options_ui": { "page": "options/options.html", "open_in_tab": true },
+  "experiment_apis": {
+    "aliasBuddyItip": {
+      "schema": "api/aliasBuddyItip/schema.json",
+      "parent": {
+        "scopes": ["addon_parent"],
+        "paths": [["aliasBuddyItip"]],
+        "script": "api/aliasBuddyItip/implementation.js"
+      }
+    }
+  }
 }

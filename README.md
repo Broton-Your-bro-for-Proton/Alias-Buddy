@@ -30,10 +30,18 @@ Every send goes through the guard:
 
 A blocked message stays open. For a leak you may accept, the popup offers to send it once unchanged. That applies only to the message exactly as it was blocked.
 
+### Calendar emails
+
+Thunderbird sends invitations, replies and cancellations without a compose window, from the identity set for the calendar, straight to the other side's real address. The add-on hooks into that through an Experiment API, which is why Thunderbird asks for full access when you install it.
+
+- A calendar email that acts for an alias (you accept an invitation sent to your alias) goes from a mailbox identity to the reverse alias of each recipient, so SimpleLogin delivers it as the alias.
+- From a real mailbox the rules of a message apply. A blocked calendar email is dropped, and a notification says why. Answer by email instead, or add an identity for the alias.
+- The iCalendar part and the text are checked for your real address too.
+
+Read receipts need nothing: SimpleLogin removes the request header from every forwarded message, and Thunderbird asks before it sends a receipt.
+
 ### What the guard cannot see
 
-- Read receipts that Thunderbird sends automatically. Turn them off under Settings > Privacy & Security, or per account.
-- Replies to calendar invitations, which do not go through the compose window.
 - Other add-ons that send mail themselves.
 - Binary attachments such as PDF or Office files, which may contain your address.
 
