@@ -319,11 +319,15 @@ async function check(tab, details, ctx, { override = false, apply = true } = {})
  * compose window. Sent as an alias they are rerouted through SimpleLogin like
  * a message, from a real mailbox they follow the same rules.
  */
-async function checkItip(ctx, { sender, actor, to, subject, body, calendar }) {
+async function checkItip(ctx, { sender, actor, to, cc = [], bcc = [], subject, body, calendar }) {
   const mine = await protectedAddresses(ctx);
   const isMine = email => mine.has(core.canonical(email));
   const recipients = to.map(email => ({ field: "to", email: core.norm(email) }));
-  const alias = actor ? await aliasFor(ctx, core.norm(actor)) : null;
+  // As in a message, the identity decides first: an invitation to an alias
+  // makes Thunderbird answer from the alias identity. A calendar acting for
+  // an alias from a mailbox identity is found through the attendee or organizer.
+  let alias = sender && !isMine(sender) ? await aliasFor(ctx, core.norm(sender)) : null;
+  alias ??= actor ? await aliasFor(ctx, core.norm(actor)) : null;
   if (alias) {
     const leaked = core.leaks([subject, body, calendar], mine);
     if (leaked.length) {
@@ -346,9 +350,14 @@ async function checkItip(ctx, { sender, actor, to, subject, body, calendar }) {
   }
   const shown = [sender, actor].find(email => email && isMine(email));
   if (shown) {
-    const result = core.checkMailboxSend(recipients, knownReverseAliases(ctx), ctx.settings.allowlist, ownersOf(ctx, recipients));
+    const all = [
+      ...recipients,
+      ...cc.map(e => ({ field: "cc", email: core.addressOf(e) })),
+      ...bcc.map(e => ({ field: "bcc", email: core.addressOf(e) })),
+    ];
+    const result = core.checkMailboxSend(all, knownReverseAliases(ctx), ctx.settings.allowlist, ownersOf(ctx, all));
     if (result.exposed.length || result.mixed) {
-      const who = (result.exposed.length ? result.exposed : recipients).map(r => r.email).join(", ");
+      const who = (result.exposed.length ? result.exposed : all).map(r => r.email).join(", ");
       throw new Blocked(
         `A calendar email from your real address ${shown} would go to ${who}. Answer from an alias: add an identity for the alias the invitation was sent to, or allow the organizer in the settings.`
       );

@@ -36,7 +36,8 @@
       "parent": {
         "scopes": ["addon_parent"],
         "paths": [["aliasBuddyItip"]],
-        "script": "api/aliasBuddyItip/implementation.js"
+        "script": "api/aliasBuddyItip/implementation.js",
+        "events": ["startup"]
       }
     }
   }
