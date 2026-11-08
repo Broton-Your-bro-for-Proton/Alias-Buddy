@@ -230,3 +230,9 @@ test("prefixFrom never ends in a dot after cutting at 40 characters", () => {
   const prefix = core.prefixFrom("amazon." + "x".repeat(32) + ".tail", "amazon.de", () => 0);
   assert.ok(prefix.length <= 40 && !/[._-]$/.test(prefix), prefix);
 });
+
+test("templatesOf keeps the list, the default first, and reads the single template of older settings", () => {
+  assert.deepEqual(core.templatesOf({ template: "shop.{domain}" }), ["shop.{domain}"]);
+  assert.deepEqual(core.templatesOf({ template: "x", templates: [" shop.{domain} ", "", "news.{domain}", "shop.{domain}"] }), ["shop.{domain}", "news.{domain}"]);
+  assert.deepEqual(core.templatesOf({ templates: [] }), ["{domain}.{random}"]);
+});

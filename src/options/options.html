@@ -53,12 +53,14 @@
             <option value="">The default mailbox in SimpleLogin</option>
           </select>
 
-          <label class="field" for="template">Name template</label>
-          <input id="template" type="text" spellcheck="false" />
+          <label class="field" for="templates">Name templates</label>
+          <textarea id="templates" spellcheck="false"></textarea>
           <p class="muted">
-            {domain} is the recipient's site without its ending, {random} five random characters, {word} a random word.
-            Example for news@shop.amazon.de: <strong id="example"></strong>
+            One per line, for example one per category such as shop.{domain} and news.{domain}. The first is the default; the
+            compose popup offers all of them. {domain} is the recipient's site without its ending, {random} five random
+            characters, {word} a random word.
           </p>
+          <p class="muted">For news@shop.amazon.de: <span id="example"></span></p>
 
           <h3>Automatic</h3>
           <label class="row"><input id="perDomain" type="checkbox" /> One alias per recipient site, reused on every device (kept in the alias note)</label>

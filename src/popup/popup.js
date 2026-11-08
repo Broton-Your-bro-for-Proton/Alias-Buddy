@@ -51,13 +51,13 @@ async function act(type, args = {}) {
 async function choose(type, args) {
   if ((await act(type, args)) != null) {
     await refresh();
-    await loadPanel();
+    await loadPanel(panel?.template);
   }
 }
 
 let panel = null;
-async function loadPanel() {
-  panel = await act("aliasPanel");
+async function loadPanel(template) {
+  panel = await act("aliasPanel", { template });
   $("aliasPanel").hidden = !panel;
   if (!panel) {
     return;
@@ -69,6 +69,8 @@ async function loadPanel() {
       : `No alias for ${panel.site} yet. A new one would be:`;
     $("useSuggestion").textContent = `${panel.suggestion.existing ? "Use" : "Create and use"} ${panel.suggestion.email}`;
   }
+  $("templateRow").hidden = panel.templates.length < 2;
+  $("template").replaceChildren(...panel.templates.map(t => new Option(t, t, false, t == panel.template)));
   $("prefix").value = panel.prefix;
   $("domain").replaceChildren(
     ...panel.domains.map(d => new Option(d.random ? `${d.domain} (adds a random word)` : d.domain, d.domain, false, d.domain == panel.domain))
@@ -95,11 +97,13 @@ $("search").addEventListener("input", () => {
   }, 300);
 });
 
-$("useSuggestion").addEventListener("click", () => choose("useSuggestion", { site: panel.site }));
+$("template").addEventListener("change", () => loadPanel($("template").value));
+$("useSuggestion").addEventListener("click", () => choose("useSuggestion", { site: panel.site, template: panel.template }));
 $("create").addEventListener("click", () =>
   choose("createAlias", {
     site: panel.site,
     prefix: $("prefix").value.trim(),
+    template: panel.template,
     domain: $("domain").value,
     mailboxId: Number($("mailbox").value),
   })

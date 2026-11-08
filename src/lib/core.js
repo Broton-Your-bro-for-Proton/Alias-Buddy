@@ -271,3 +271,12 @@ export function creationDomains(suffixes) {
 /** The line in an alias note that ties it to a site. */
 export const siteNote = site => `Alias Buddy: ${site}`;
 export const noteNamesSite = (note, site) => String(note ?? "").split(/\r?\n/).some(line => line.trim() == siteNote(site));
+
+/**
+ * The name templates of the creation settings, the default first. Settings
+ * from before the list kept a single template.
+ */
+export function templatesOf(creation) {
+  const list = (creation.templates ?? [creation.template]).map(t => String(t ?? "").trim()).filter(Boolean);
+  return list.length ? [...new Set(list)] : ["{domain}.{random}"];
+}

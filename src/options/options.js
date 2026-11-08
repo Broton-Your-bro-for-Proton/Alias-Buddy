@@ -1,5 +1,5 @@
 import { SimpleLogin } from "../lib/api.js";
-import { creationDomains, prefixFrom } from "../lib/core.js";
+import { creationDomains, prefixFrom, templatesOf } from "../lib/core.js";
 import { getSettings } from "../lib/settings.js";
 
 const $ = id => document.getElementById(id);
@@ -11,13 +11,16 @@ $("apiUrl").value = settings.apiUrl;
 $("apiKey").value = settings.apiKey;
 $("protected").value = settings.protected.join("\n");
 $("allowlist").value = settings.allowlist.join("\n");
-$("template").value = settings.creation.template;
+$("templates").value = settings.creation.templates.join("\n");
 for (const flag of FLAGS) {
   $(flag).checked = settings.creation[flag];
 }
 
-const showExample = () => ($("example").textContent = prefixFrom($("template").value, "amazon.de"));
-$("template").addEventListener("input", showExample);
+const showExample = () =>
+  ($("example").textContent = templatesOf({ templates: lines($("templates").value) })
+    .map(t => prefixFrom(t, "amazon.de"))
+    .join(", "));
+$("templates").addEventListener("input", showExample);
 showExample();
 
 function fill(select, items, chosen) {
@@ -58,7 +61,7 @@ $("form").addEventListener("submit", async event => {
     creation: {
       domain: $("domain").length > 1 ? $("domain").value : settings.creation.domain,
       mailboxId: $("mailboxId").length > 1 ? Number($("mailboxId").value) || null : settings.creation.mailboxId,
-      template: $("template").value.trim() || "{domain}.{random}",
+      templates: templatesOf({ templates: lines($("templates").value) }),
       ...Object.fromEntries(FLAGS.map(flag => [flag, $(flag).checked])),
     },
   };
