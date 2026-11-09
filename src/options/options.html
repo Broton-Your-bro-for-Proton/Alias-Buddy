@@ -24,11 +24,20 @@
 
           <label class="field" for="apiKey">API key</label>
           <input id="apiKey" type="password" autocomplete="off" />
-          <p class="muted">Create one in the SimpleLogin dashboard under API Keys.</p>
+          <p class="muted">
+            Create one in the SimpleLogin dashboard under
+            <a href="https://app.simplelogin.io/dashboard/api_key" target="_blank" rel="noopener">API Keys</a>.
+          </p>
         </section>
 
         <section class="panel">
           <h2>Guard</h2>
+          <p class="muted">
+            Before every send, the guard checks that the message cannot reveal your real address. From a real address you
+            can only write to reverse aliases and to the addresses allowed below. From an alias, your real address in the
+            recipients, subject, text or attachments blocks the message. A blocked message stays open, and the Alias Buddy
+            button in the compose window says why.
+          </p>
           <label class="field" for="protected">More real addresses to protect</label>
           <textarea id="protected"></textarea>
           <p class="muted">One per line. Your SimpleLogin mailboxes are always protected.</p>
