@@ -741,13 +741,13 @@ try {
 
   const popup = `[...Services.wm.getEnumerator("msgcompose")][0].document.querySelector(".webextension-popup-browser")`;
   // A popup is its own window that closes on focus loss, so its content is drawn directly.
-  const popupShot = async name => {
+  const popupShot = async (name, browserExpr = popup) => {
     if (!shots) {
       return;
     }
     const url = await client.run(
       chrome(`
-        const browser = ${popup};
+        const browser = ${browserExpr};
         await sleep(800); // the popup resizes to its content first
         const bitmap = await browser.browsingContext.currentWindowGlobal.drawSnapshot(null, 1, "white");
         const canvas = window.document.createElementNS("http://www.w3.org/1999/xhtml", "canvas");
@@ -1351,6 +1351,67 @@ try {
     expect(alias?.note, "Alias Buddy: tiedsite.example (promo.{random})", "note names site and template");
     const second = await suggestionFor("z@tiedsite.example");
     expect([second, api.created.length - created], [`Use ${alias.email}`, 1], "found again, nothing more created");
+  });
+
+  // ---- received messages
+
+  /** Opens an Inbox message in a tab and returns the add-on's button state once it settled. */
+  const showMessage = (messageId, label) =>
+    client.run(
+      chrome(`
+        const inbox = MailServices.accounts.getAccount("account1").incomingServer.rootFolder.getChildNamed("Inbox");
+        await until(() => inbox.msgDatabase?.getMsgHdrForMessageID(args[0]), "message parsed");
+        const hdr = inbox.msgDatabase.getMsgHdrForMessageID(args[0]);
+        const tabmail = window.document.getElementById("tabmail");
+        tabmail.openTab("mailMessageTab", { messageURI: inbox.getUriForMsg(hdr), background: false });
+        const button = () => tabmail.currentTabInfo.chromeBrowser?.contentDocument?.querySelector('[id$="-messageDisplayAction-toolbarbutton"]');
+        await until(() => button()?.getAttribute("label") == args[1], "button labeled " + args[1]);
+        return { label: button().getAttribute("label"), disabled: button().disabled };
+      `),
+      messageId,
+      label
+    );
+  const messagePopup = `(window.document.querySelector(".webextension-popup-browser") ?? window.document.getElementById("tabmail").currentTabInfo.chromeBrowser.contentDocument.querySelector(".webextension-popup-browser"))`;
+
+  await check("message: the button names the alias, blocks the sender and turns the alias off and on", async () => {
+    expect(await showMessage("sl-1@y.example", "other@alias.example"), { label: "other@alias.example", disabled: false }, "button");
+    await screenshot(client, "message-tab");
+    await client.run(
+      chrome(`
+        window.document.getElementById("tabmail").currentTabInfo.chromeBrowser.contentDocument.querySelector('[id$="-messageDisplayAction-toolbarbutton"]').click();
+        await until(() => ${messagePopup}, "popup opened");
+      `)
+    );
+    const summary = () => `doc.getElementById("summary").textContent`;
+    const click = (id, wanted) => `doc.getElementById("${id}").click(); await until(() => ${summary()}.includes(${JSON.stringify(wanted)}), ${JSON.stringify(wanted)});`;
+    const first = await client.run(
+      inPage(messagePopup, `await until(() => ${summary()}.startsWith("Came through"), "origin shown"); return ${summary()};`)
+    );
+    expect(first, "Came through your alias other@alias.example from bea@y.example.", "summary");
+    await client.run(inPage(messagePopup, click("toggleContact", "(blocked)")));
+    const bea = api.contacts[2].find(c => c.contact == "bea@y.example");
+    const other = api.aliases.find(a => a.email == "other@alias.example");
+    expect(bea.block_forward, true, "contact blocked in SimpleLogin");
+    await client.run(inPage(messagePopup, click("toggleAlias", "(turned off)")));
+    expect(other.enabled, false, "alias turned off in SimpleLogin");
+    await popupShot("message-popup", messagePopup);
+    const buttons = await client.run(
+      inPage(messagePopup, `return [doc.getElementById("toggleContact").textContent, doc.getElementById("toggleAlias").textContent];`)
+    );
+    expect(buttons, ["Unblock bea@y.example", "Turn on other@alias.example"], "buttons offer the way back");
+    await client.run(inPage(messagePopup, `${click("toggleContact", "@y.example.")} ${click("toggleAlias", "other@alias.example from")}`));
+    expect([bea.block_forward, other.enabled], [false, true], "unblocked and on again");
+  });
+
+  await check("message: a faked SimpleLogin header is not confirmed, a direct message has no alias", async () => {
+    expect(await showMessage("forged-1@evil.example", "Unconfirmed alias"), { label: "Unconfirmed alias", disabled: false }, "forged");
+    expect(await showMessage("own-1@real.example", "No alias"), { label: "No alias", disabled: true }, "direct");
+    await client.run(
+      chrome(`
+        const tabmail = window.document.getElementById("tabmail");
+        for (const info of [...tabmail.tabInfo]) if (info.mode.name == "mailMessageTab") tabmail.closeTab(info);
+      `)
+    );
   });
 
   // ---- alias overview
