@@ -233,6 +233,12 @@ export function recipientSites(emails, { isMine, contactOf, reverseDomains }) {
   return [...sites].filter(Boolean);
 }
 
+/** The address book card of a reverse alias: Thunderbird shows its name instead of the reverse alias. */
+export const reverseAliasCard = (contact, alias) => ({
+  DisplayName: `${contact} via ${alias}`,
+  Notes: `Reverse alias for ${contact} through your alias ${alias}. Kept by Alias Buddy.`,
+});
+
 const WORDS = ["amber", "brook", "cedar", "dune", "ember", "fern", "grove", "harbor", "isle", "juniper", "kite", "lark",
   "meadow", "nova", "orbit", "pine", "quartz", "river", "stone", "tide", "umber", "vale", "willow", "zephyr"];
 

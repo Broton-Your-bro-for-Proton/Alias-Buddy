@@ -1472,6 +1472,38 @@ try {
     );
   });
 
+  await check("address book: reverse aliases of sends and received messages are named after contact and alias", async () => {
+    const cardOf = email =>
+      client.run(
+        chrome(`
+          const find = () => MailServices.ab.directories.find(d => d.dirName == "Alias Buddy")?.childCards.find(c => c.primaryEmail == args[0]);
+          await until(find, "card of " + args[0]);
+          return find().displayName;
+        `),
+        email
+      );
+    // Shown in the message checks above.
+    expect(await cardOf("ra-bea@sl.example"), "bea@y.example via other@alias.example", "received message");
+    const mail = nextMail();
+    await client.run(chrome(`await send("id2", { to: "carl@c.example" });`));
+    const sent = await mail;
+    const carl = api.contacts[1].find(c => c.contact == "carl@c.example").reverse_alias_address;
+    expect([sent?.to, await cardOf(carl)], [[carl], "carl@c.example via shop@alias.example"], "alias send");
+    const names = await client.run(
+      chrome(`return MailServices.ab.directories.find(d => d.dirName == "Alias Buddy").childCards.map(c => c.displayName + " " + c.primaryEmail);`)
+    );
+    const leaked = names.filter(n => /real\.example/.test(n));
+    expect(leaked, [], "cards that name a real address");
+    await showMessage("sl-1@y.example", "other@alias.example");
+    await screenshot(client, "message-named");
+    await client.run(
+      chrome(`
+        const tabmail = window.document.getElementById("tabmail");
+        for (const info of [...tabmail.tabInfo]) if (info.mode.name == "mailMessageTab") tabmail.closeTab(info);
+      `)
+    );
+  });
+
   // ---- alias overview
 
   const overview = `window.document.getElementById("tabmail").currentTabInfo.browser`;

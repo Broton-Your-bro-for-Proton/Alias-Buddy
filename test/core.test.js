@@ -258,3 +258,10 @@ test("recipientSites lists each site once, maps known reverse aliases and leaves
   );
   assert.deepEqual(sites, ["shop.example", "heise.example", "other.co.uk"]);
 });
+
+test("reverseAliasCard names contact and alias, never more", () => {
+  assert.deepEqual(core.reverseAliasCard("bea@y.example", "other@alias.example"), {
+    DisplayName: "bea@y.example via other@alias.example",
+    Notes: "Reverse alias for bea@y.example through your alias other@alias.example. Kept by Alias Buddy.",
+  });
+});

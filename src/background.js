@@ -288,7 +288,7 @@ const domainOf = email => email.slice(email.lastIndexOf("@") + 1);
 
 // ---- the check that runs before every send ----------------------------------------
 
-async function checkMailbox(tab, details, ctx, { sender, recipients, mine, override }) {
+async function checkMailbox(tab, details, ctx, { sender, recipients, mine, override, apply }) {
   let result = core.checkMailboxSend(recipients, knownReverseAliases(ctx), ctx.settings.allowlist, ownersOf(ctx, recipients));
   if (result.exposed.length && details.relatedMessageId && ctx.sl) {
     await learnFromOriginal(ctx, details.relatedMessageId, result.exposed.map(r => r.email));
@@ -323,6 +323,9 @@ async function checkMailbox(tab, details, ctx, { sender, recipients, mine, overr
     if (soft.length) {
       throw new Blocked(`Not sent through SimpleLogin: ${soft.join("; ")}.`, true);
     }
+  }
+  if (apply) {
+    bindContacts(ctx, result.viaAlias.map(r => r.email));
   }
   return { state: "mailbox", sender, rows: recipients.map(r => ({ ...r, via: r.email })) };
 }
@@ -412,6 +415,7 @@ async function checkAlias(tab, details, ctx, { identity, alias, resumed, recipie
     throw new Blocked(`Not sent, the final check failed: ${problems.join("; ")}.`);
   }
   rewritten.set(tab.id, { alias: alias.email, mailboxId: mailbox.id });
+  bindContacts(ctx, plan.rows.map(r => r.via));
   return { state: "alias", sender: alias.email, mailbox: mailbox.email, rows: plan.rows, sent: true };
 }
 
@@ -983,6 +987,50 @@ Object.assign(ALIAS_ACTIONS, {
   },
 });
 
+// ---- address book ------------------------------------------------------------------
+
+const BOOK_NAME = "Alias Buddy";
+let binding = Promise.resolve(); // one write at a time, so the book and its cards are not created twice
+
+/**
+ * Keeps the given reverse aliases as cards in the address book "Alias Buddy",
+ * named after their contact and alias, so Thunderbird shows that name instead
+ * of the reverse alias in message lists, the Sent folder and the message
+ * header. Runs after the check and never holds up a send.
+ */
+function bindContacts(ctx, reverses) {
+  if (!ctx.settings.creation.addressBook) {
+    return;
+  }
+  const cards = [];
+  for (const [id, contacts] of Object.entries(ctx.cache.contacts)) {
+    const alias = aliasById(ctx, id);
+    for (const [contact, reverse] of Object.entries(contacts)) {
+      if (alias && reverses.includes(reverse)) {
+        cards.push({ reverse, properties: core.reverseAliasCard(contact, alias.email) });
+      }
+    }
+  }
+  if (!cards.length) {
+    return;
+  }
+  binding = binding
+    .then(async () => {
+      const books = await messenger.addressBooks.list();
+      const bookId = books.find(b => b.name == BOOK_NAME && !b.readOnly && !b.remote)?.id ?? (await messenger.addressBooks.create({ name: BOOK_NAME }));
+      for (const { reverse, properties } of cards) {
+        const found = await messenger.contacts.quickSearch(bookId, { searchString: reverse, includeRemote: false });
+        const card = found.find(c => core.norm(c.properties.PrimaryEmail) == reverse);
+        if (!card) {
+          await messenger.contacts.create(bookId, { PrimaryEmail: reverse, ...properties });
+        } else if (card.properties.DisplayName != properties.DisplayName) {
+          await messenger.contacts.update(card.id, properties);
+        }
+      }
+    })
+    .catch(e => console.warn("Alias Buddy: could not keep the reverse aliases in the address book", e));
+}
+
 // ---- received messages ------------------------------------------------------------
 
 const displayedMessages = async tabId => {
@@ -1035,7 +1083,15 @@ async function showOrigin(tabId, messages) {
   try {
     // Messages without SimpleLogin's header do not wait in the queue of the send checks.
     const envelope = messages.length == 1 ? await envelopeOf(messages[0].id) : undefined;
-    origin = envelope && (await serialized(ctx => originOf(ctx, messages[0].id, envelope)));
+    origin =
+      envelope &&
+      (await serialized(async ctx => {
+        const found = await originOf(ctx, messages[0].id, envelope);
+        if (found.alias) {
+          bindContacts(ctx, [found.sender]);
+        }
+        return found;
+      }));
   } catch (e) {
     origin = { error: e.message };
   }
