@@ -936,14 +936,14 @@ Object.assign(ALIAS_ACTIONS, {
 const openOverview = () => messenger.tabs.create({ url: messenger.runtime.getURL("overview/overview.html") });
 messenger.browserAction.onClicked.addListener(openOverview);
 
-// A reply to a message that came through an alias goes out as that alias.
+// A reply to or forward of a message that came through an alias goes out as that alias.
 messenger.tabs.onCreated.addListener(async tab => {
   if (tab.type != "messageCompose") {
     return;
   }
   try {
     const details = await messenger.compose.getComposeDetails(tab.id);
-    if (details.type != "reply" || !details.relatedMessageId) {
+    if (!["reply", "forward"].includes(details.type) || !details.relatedMessageId) {
       return;
     }
     await serialized(async ctx => {
@@ -963,7 +963,7 @@ messenger.tabs.onCreated.addListener(async tab => {
       }
     });
   } catch (e) {
-    console.warn("Alias Buddy: could not set the reply's alias", e);
+    console.warn("Alias Buddy: could not set the alias of the reply or forward", e);
   }
 });
 
