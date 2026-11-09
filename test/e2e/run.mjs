@@ -109,6 +109,8 @@ const api = {
     { id: 7, email: "gone@mine.example", mailboxes: [{ id: 1, email: MINE }] },
     // The user's own news category alias for heise.
     { id: 8, email: "news.heise@mine.example", mailboxes: [{ id: 1, email: MINE }] },
+    // Only on the second mailbox, so a typed From on that mailbox's identity keeps the identity.
+    { id: 9, email: "plain@mine.example", mailboxes: [{ id: 2, email: PLAIN }] },
   ],
   contacts: {
     1: [
@@ -946,6 +948,22 @@ try {
     if (!sent) throw new Error("nothing was sent");
     expect(api.created.at(-1)?.email, "privat.eve@mine.example", "created alias");
     expect(sent.to.length == 1 && sent.to[0].startsWith("ra-"), true, "envelope recipient is a reverse alias");
+  });
+
+  await check("typed From: a new name is not created for a message that is blocked", async () => {
+    const created = api.created.length;
+    await expectBlocked(`await send("id5", { to: "eve@e.example", from: "privat.tim@mine.example", body: "<p>Reach me at ${MINE}</p>" })`, /contains me@real.example/);
+    expect(api.created.length, created, "aliases created");
+  });
+
+  await check("typed From: on the mailbox identity itself the From header still becomes the mailbox", async () => {
+    const mail = nextMail();
+    await client.run(chrome(`await send("id5", { to: "eve@e.example", from: "plain@mine.example" });`));
+    const sent = await mail;
+    if (!sent) throw new Error("nothing was sent");
+    expect(sent.from, PLAIN, "envelope sender");
+    expect(sent.to.length == 1 && sent.to[0].startsWith("ra-"), true, "envelope recipient is a reverse alias, no automatic Cc");
+    expect(header(sent, "From"), `Tester <${PLAIN}>`, "From header names the mailbox, which SimpleLogin replaces");
   });
 
   await check("typed From: an address on a domain that is not yours stays guarded", () =>
