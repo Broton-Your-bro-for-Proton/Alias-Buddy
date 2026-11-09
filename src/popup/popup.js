@@ -7,7 +7,7 @@ const SUMMARY = {
   mailbox: p => `Sending from your real address ${p.sender}.`,
   alias: p => `Sending as ${p.sender}. SimpleLogin receives it from ${p.mailbox}.`,
   switch: p =>
-    `Sending from ${p.sender} would show your real address. On send it switches to the alias ${p.alias}${p.existing ? "" : " (new)"}, from your default template.`,
+    `Sending from ${p.sender} would show your real address. On send it switches to the alias ${p.alias}${p.existing ? "" : " (new)"}, from the template ${p.template}.`,
   blocked: p => `This message would be blocked: ${p.reason}`,
 };
 
@@ -106,7 +106,11 @@ $("search").addEventListener("input", () => {
   }, 300);
 });
 
-$("template").addEventListener("change", () => loadPanel($("template").value));
+// The chosen template also decides the switch on send, so the summary follows it.
+$("template").addEventListener("change", async () => {
+  await loadPanel($("template").value);
+  await refresh();
+});
 $("useSuggestion").addEventListener("click", () => choose("useSuggestion", { site: panel.site, template: panel.template }));
 $("create").addEventListener("click", () =>
   choose("createAlias", {

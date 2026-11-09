@@ -1244,6 +1244,35 @@ try {
     expect(api.created.length - created, 0, "nothing created");
   });
 
+  await check("popup: the chosen template also decides the switch on send", async () => {
+    const created = api.created.length;
+    await client.run(chrome(`await compose("id5", { to: "y@heise.example" });`));
+    await openPopup();
+    const summary = await client.run(
+      inPage(
+        popup,
+        `
+        await until(() => !doc.getElementById("templateRow").hidden, "templates offered");
+        const select = doc.getElementById("template");
+        select.value = "news.{domain}";
+        select.dispatchEvent(new content.Event("change"));
+        await until(() => /news\\.heise/.test(doc.getElementById("summary").textContent), "summary follows the template");
+        return doc.getElementById("summary").textContent;
+        `
+      )
+    );
+    expect(
+      summary,
+      `Sending from ${PLAIN} would show your real address. On send it switches to the alias news.heise@mine.example, from the template news.{domain}.`,
+      "summary"
+    );
+    const mail = nextMail();
+    await client.run(chrome(`composeWindows()[0].goDoCommand("cmd_sendNow");`));
+    const sent = await mail;
+    const contact = (api.contacts[8] ?? []).find(c => c.contact == "y@heise.example");
+    expect([sent?.to, api.created.length - created], [[contact?.reverse_alias_address], 0], "sent as news.heise");
+  });
+
   await check("popup: an alias of a template with random parts is found again for its site", async () => {
     const suggestionFor = async to => {
       await client.run(chrome(`await compose("id5", { to: ${JSON.stringify(to)} });`));
