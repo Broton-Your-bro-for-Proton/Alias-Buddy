@@ -9,6 +9,7 @@ const MAX_ATTACHMENT_SCAN = 10 * 1024 * 1024;
 const status = new Map(); // tab id: last result, shown in the popup
 const overrides = new Map(); // tab id: fingerprint of the blocked message the user sends once anyway
 const rewritten = new Map(); // tab id: { alias, mailboxId } after a rewrite, in case the send does not finish
+const chosenTemplates = new Map(); // tab id: the template picked in the popup, also used by the switch on send
 
 class Blocked extends Error {
   constructor(message, overridable = false) {
@@ -722,14 +723,15 @@ async function switchToSiteAlias(tab, details, ctx, options, blocked) {
     throw blocked;
   }
   const [site] = sites;
+  const template = knownTemplate(ctx, chosenTemplates.get(tab.id)) ?? ctx.settings.creation.template;
   try {
-    const plan = await planForSite(ctx, site);
+    const plan = await planForSite(ctx, site, template);
     const planned = plan.alias ?? { id: null, email: plan.email, mailboxes: [plan.mailbox] };
     const preview = await checkAlias(tab, details, ctx, { ...options, alias: planned, resumed: false, apply: false });
     if (!options.apply) {
-      return { ...preview, state: "switch", sender: options.sender, alias: plan.email, existing: plan.existing };
+      return { ...preview, state: "switch", sender: options.sender, alias: plan.email, existing: plan.existing, template };
     }
-    const alias = plan.alias ?? (await createAlias(ctx, site));
+    const alias = plan.alias ?? (await createAlias(ctx, site, { template }));
     return await checkAlias(tab, details, ctx, { ...options, alias, resumed: false });
   } catch (e) {
     throw new Blocked(`Sending as the alias for ${site} failed: ${e.message}`, true);
@@ -770,7 +772,8 @@ async function aliasPanel(ctx, tabId, wanted) {
     return null;
   }
   const { templates } = ctx.settings.creation;
-  const template = templates.includes(wanted) ? wanted : templates[0];
+  const template = knownTemplate(ctx, wanted) ?? knownTemplate(ctx, chosenTemplates.get(tabId)) ?? templates[0];
+  chosenTemplates.set(tabId, template);
   const details = await messenger.compose.getComposeDetails(tabId);
   const current = core.norm((await messenger.identities.get(details.identityId)).email);
   const [first] = await recipientsOf(details).catch(() => []);
@@ -959,6 +962,7 @@ messenger.tabs.onRemoved.addListener(tabId => {
   status.delete(tabId);
   overrides.delete(tabId);
   rewritten.delete(tabId);
+  chosenTemplates.delete(tabId);
 });
 
 messenger.runtime.onMessage.addListener(async message => {
