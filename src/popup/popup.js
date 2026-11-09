@@ -51,17 +51,18 @@ async function act(type, args = {}) {
 async function choose(type, args) {
   if ((await act(type, args)) != null) {
     await refresh();
-    await loadPanel(panel?.template);
+    await loadPanel(panel?.template, panel?.site);
   }
 }
 
 let panel = null;
-async function loadPanel(template) {
-  const loaded = await act("aliasPanel", { template });
+async function loadPanel(template, site) {
+  const loaded = await act("aliasPanel", { template, site });
   if (!loaded) {
     // Keep what was shown, so the other choices stay usable.
     if (panel) {
       $("template").value = panel.template;
+      $("site").value = panel.site;
     }
     $("aliasPanel").hidden = !panel;
     return;
@@ -78,6 +79,8 @@ async function loadPanel(template) {
       : `No alias for ${panel.site} yet. A new one would be:`;
     $("useSuggestion").textContent = `${panel.suggestion.existing ? "Use" : "Create and use"} ${panel.suggestion.email}`;
   }
+  $("siteRow").hidden = panel.sites.length < 2;
+  $("site").replaceChildren(...panel.sites.map(s => new Option(s, s, false, s == panel.site)));
   $("templateRow").hidden = panel.templates.length < 2;
   $("template").replaceChildren(...panel.templates.map(t => new Option(t, t, false, t == panel.template)));
   $("prefix").value = panel.prefix;
@@ -108,9 +111,10 @@ $("search").addEventListener("input", () => {
 
 // The chosen template also decides the switch on send, so the summary follows it.
 $("template").addEventListener("change", async () => {
-  await loadPanel($("template").value);
+  await loadPanel($("template").value, panel?.site);
   await refresh();
 });
+$("site").addEventListener("change", () => loadPanel(panel?.template, $("site").value));
 $("useSuggestion").addEventListener("click", () => choose("useSuggestion", { site: panel.site, template: panel.template }));
 $("create").addEventListener("click", () =>
   choose("createAlias", {

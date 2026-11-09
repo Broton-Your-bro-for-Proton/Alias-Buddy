@@ -217,6 +217,22 @@ export function siteOf(email) {
   return labels.slice(MULTI_PART.has(labels.slice(-2).join(".")) ? -3 : -2).join(".");
 }
 
+/**
+ * The sites a message goes to, in recipient order, to choose an alias for:
+ * a known reverse alias stands for its contact, the user's own addresses and
+ * unknown reverse aliases are left out.
+ */
+export function recipientSites(emails, { isMine, contactOf, reverseDomains }) {
+  const sites = new Set();
+  for (const email of emails) {
+    const real = contactOf(email) ?? email;
+    if (!isMine(real) && !(real == email && reverseDomains.has(email.split("@").pop()))) {
+      sites.add(siteOf(real));
+    }
+  }
+  return [...sites].filter(Boolean);
+}
+
 const WORDS = ["amber", "brook", "cedar", "dune", "ember", "fern", "grove", "harbor", "isle", "juniper", "kite", "lark",
   "meadow", "nova", "orbit", "pine", "quartz", "river", "stone", "tide", "umber", "vale", "willow", "zephyr"];
 
