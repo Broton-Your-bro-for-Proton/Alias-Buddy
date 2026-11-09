@@ -54,6 +54,10 @@ The Aliases button in Thunderbird's main toolbar (also linked from the popup and
 - **Delete** asks for a second click (a double click does not count). Depending on your SimpleLogin setting the alias goes to its trash first or is deleted right away; either way the address cannot be created again. Turning an alias off is the gentler choice.
 - After deleting, the add-on removes the identities it created for the alias. Sending from an identity of a deleted alias, or from one of the add-on's identities whose alias is gone, is blocked: it would go out directly, past SimpleLogin. An identity you created yourself stays; delete it in the account settings.
 
+## Received messages
+
+The Alias Buddy button above a message names the alias it came through. It trusts SimpleLogin's X-SimpleLogin-Envelope-To header only when the sender is a reverse alias of that alias; a message that merely names your alias says "Unconfirmed alias", and a direct message shows "No alias". Its popup blocks or unblocks the sender for this alias and turns the alias off or on, for example when a shop passed your address on.
+
 ## The guard
 
 Every send goes through the guard:
@@ -101,11 +105,11 @@ Creating reverse aliases needs a SimpleLogin plan that allows it.
 
 - The API key is stored in Thunderbird's extension storage in plain text, like other add-ons store their tokens.
 - Address books: only to expand mailing lists among the recipients.
-- Messages: to read the message you reply to (its recipients and Message-ID).
+- Messages: to read the message you reply to or forward (its recipients and Message-ID), and the sender and SimpleLogin header of a displayed message.
 - Full access (Experiment API): for calendar emails, see above, and to show a newly created identity in open compose windows.
 - Identities: to create the Thunderbird identity of an alias.
 - Clipboard (write only): for Copy in the alias overview.
-- SimpleLogin receives the addresses the add-on looks up: your identities, recipients that need a reverse alias, in a reply or forward the alias SimpleLogin named in the original message, and for messages from a mailbox or an alias the sites of the recipients (to find their aliases).
+- SimpleLogin receives the addresses the add-on looks up: your identities, recipients that need a reverse alias, in a reply, a forward or a displayed message the alias SimpleLogin named in it, and for messages from a mailbox or an alias the sites of the recipients (to find their aliases).
 
 ## Development
 

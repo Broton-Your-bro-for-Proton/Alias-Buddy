@@ -36,6 +36,12 @@
     "default_label": "Alias Buddy",
     "default_popup": "popup/popup.html"
   },
+  "message_display_action": {
+    "default_icon": "icons/icon.svg",
+    "default_title": "Alias Buddy: the alias this message came through",
+    "default_label": "Alias",
+    "default_popup": "message/message.html"
+  },
   "options_ui": { "page": "options/options.html", "open_in_tab": true },
   "experiment_apis": {
     "aliasBuddyCompose": {

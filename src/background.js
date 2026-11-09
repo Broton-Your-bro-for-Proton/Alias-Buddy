@@ -142,21 +142,54 @@ async function addContact(ctx, alias, email) {
 }
 
 /**
- * The alias a message arrived through: SimpleLogin names it in
- * X-SimpleLogin-Envelope-To, added after it removed all other headers. A
- * direct message could fake the header, so it counts only when the sender is
- * a reverse alias of that very alias.
+ * The alias SimpleLogin names in X-SimpleLogin-Envelope-To, added after it
+ * removed all other headers, and the sender; null without the header.
  */
-async function arrivedThrough(ctx, messageId) {
-  const full = ctx.sl ? await messenger.messages.getFull(messageId).catch(() => null) : null;
+async function envelopeOf(messageId) {
+  const full = await messenger.messages.getFull(messageId).catch(() => null);
   const named = full?.headers?.["x-simplelogin-envelope-to"]?.[0];
-  const alias = named ? await aliasFor(ctx, core.addressOf(named)).catch(() => null) : null;
-  if (!alias) {
-    return null;
+  return named ? { named: core.addressOf(named), sender: core.addressOf(full.headers.from?.[0]) } : null;
+}
+
+// Messages whose named alias was not confirmed, so showing them again asks SimpleLogin nothing.
+const unconfirmed = new Set();
+
+/**
+ * Where a message with SimpleLogin's header came from. A direct message could
+ * fake the header, so `alias` is set only when the sender is a reverse alias
+ * of that very alias. `error` says why SimpleLogin could not be asked.
+ */
+async function originOf(ctx, messageId, envelope) {
+  const origin = { ...envelope, alias: null };
+  const key = `${ctx.cache.owner}\n${messageId}`;
+  if (!ctx.sl) {
+    return { ...origin, error: "Add your SimpleLogin API key in the settings first." };
   }
-  const sender = core.addressOf(full.headers.from?.[0]);
-  await refreshContacts(ctx, alias, [sender]);
-  return Object.values(contactMap(ctx, alias)).includes(sender) ? alias : null;
+  if (!origin.named.includes("@") || unconfirmed.has(key)) {
+    return origin;
+  }
+  let alias;
+  try {
+    alias = await aliasFor(ctx, origin.named);
+  } catch (e) {
+    return { ...origin, error: e.message };
+  }
+  if (alias) {
+    const known = () => Object.values(contactMap(ctx, alias)).includes(origin.sender);
+    if (!known()) {
+      await refreshContacts(ctx, alias, [origin.sender]);
+    }
+    origin.alias = known() ? alias : null;
+  }
+  if (!origin.alias) {
+    unconfirmed.add(key);
+  }
+  return origin;
+}
+
+async function arrivedThrough(ctx, messageId) {
+  const envelope = ctx.sl ? await envelopeOf(messageId) : null;
+  return envelope ? (await originOf(ctx, messageId, envelope)).alias : null;
 }
 
 /** Learns the reverse aliases of the alias a replied-to message arrived through. */
@@ -933,6 +966,86 @@ Object.assign(ALIAS_ACTIONS, {
   },
 });
 
+// ---- received messages ------------------------------------------------------------
+
+const displayedMessages = async tabId => {
+  const shown = await messenger.messageDisplay.getDisplayedMessages(tabId);
+  return shown?.messages ?? shown ?? [];
+};
+
+/** The contact of an alias with this reverse alias, with its id and block state, or null. */
+async function contactByReverse(ctx, aliasId, reverse) {
+  for (let page = 0; page < 50; page++) {
+    const found = await api(ctx, () => ctx.sl.contactsPage(aliasId, page));
+    const contact = found.find(c => c.reverse == reverse);
+    if (contact || !found.length) {
+      return contact ?? null;
+    }
+  }
+  return null;
+}
+
+Object.assign(ALIAS_ACTIONS, {
+  /** The alias the displayed message came through and its sender, for the message popup. */
+  messageOrigin: async (ctx, m) => {
+    const messages = await displayedMessages(m.tabId);
+    if (messages.length != 1) {
+      return { state: "none" };
+    }
+    const envelope = await envelopeOf(messages[0].id);
+    if (!envelope) {
+      return { state: "direct" };
+    }
+    const origin = await originOf(ctx, messages[0].id, envelope);
+    if (origin.error) {
+      throw new Blocked(origin.error);
+    }
+    if (!origin.alias) {
+      return { state: "unconfirmed", named: origin.named };
+    }
+    const { id, email, enabled } = origin.alias;
+    return { state: "alias", alias: { id, email, enabled }, sender: origin.sender, contact: await contactByReverse(ctx, id, origin.sender) };
+  },
+});
+
+const displays = new Map(); // tab id: number of the latest display, so an older answer does not overwrite a newer one
+
+/** Names the alias a displayed message came through on the message toolbar button. */
+async function showOrigin(tabId, messages) {
+  const turn = (displays.get(tabId) ?? 0) + 1;
+  displays.set(tabId, turn);
+  let origin;
+  try {
+    // Messages without SimpleLogin's header do not wait in the queue of the send checks.
+    const envelope = messages.length == 1 ? await envelopeOf(messages[0].id) : undefined;
+    origin = envelope && (await serialized(ctx => originOf(ctx, messages[0].id, envelope)));
+  } catch (e) {
+    origin = { error: e.message };
+  }
+  if (displays.get(tabId) != turn) {
+    return;
+  }
+  const action = messenger.messageDisplayAction;
+  if (origin === null) {
+    await action.setLabel({ tabId, label: "No alias" });
+    await action.setTitle({ tabId, title: "Alias Buddy: this message did not come through a SimpleLogin alias" });
+    return action.disable(tabId);
+  }
+  await action.enable(tabId);
+  const [label, title] = origin?.error
+    ? ["Alias", `Alias Buddy: ${origin.error}`]
+    : origin?.alias
+      ? [origin.alias.email, `Alias Buddy: came through ${origin.alias.email} from ${origin.sender}`]
+      : origin
+        ? ["Unconfirmed alias", `Alias Buddy: names ${origin.named}, but the sender is not a contact of that alias`]
+        : ["Alias", "Alias Buddy: the alias this message came through"];
+  await action.setLabel({ tabId, label });
+  await action.setTitle({ tabId, title });
+}
+messenger.messageDisplay.onMessagesDisplayed.addListener((tab, messages) =>
+  showOrigin(tab.id, messages?.messages ?? messages ?? []).catch(e => console.warn("Alias Buddy: could not show the alias", e))
+);
+
 const openOverview = () => messenger.tabs.create({ url: messenger.runtime.getURL("overview/overview.html") });
 messenger.browserAction.onClicked.addListener(openOverview);
 
@@ -972,6 +1085,7 @@ messenger.tabs.onRemoved.addListener(tabId => {
   overrides.delete(tabId);
   rewritten.delete(tabId);
   chosenTemplates.delete(tabId);
+  displays.delete(tabId);
 });
 
 messenger.runtime.onMessage.addListener(async message => {
