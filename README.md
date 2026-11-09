@@ -39,7 +39,7 @@ And the automatic behavior, each one can be turned off:
 
 - **One alias per recipient site and template.** The add-on writes "Alias Buddy: amazon.de (shop.{domain})" into the alias note in SimpleLogin and finds the alias by it, so it works on every device and each category keeps its own alias, whatever the order of the templates. Notes from version 0.3 ("Alias Buddy: amazon.de") count for {domain}.{random}. On by default.
 - **Switch instead of block.** Sending from your real address to a new recipient makes the add-on create or reuse the alias for that recipient's site and send as it. Off by default, because it replaces the block. It switches only when all such recipients belong to one site and no allowlisted recipient is in the message, and it checks the message against the planned alias first, so nothing is created for a message that would be blocked anyway. The popup still offers to send from your real address instead.
-- **Reply as the alias.** A reply to a message that came through an alias gets that alias as sender. On by default.
+- **Reply and forward as the alias.** A reply to or forward of a message that came through an alias gets that alias as sender. On by default.
 - **Create identities.** On by default. Without it, the add-on only uses identities you added yourself.
 
 ## Alias overview
@@ -105,7 +105,7 @@ Creating reverse aliases needs a SimpleLogin plan that allows it.
 - Full access (Experiment API): for calendar emails, see above, and to show a newly created identity in open compose windows.
 - Identities: to create the Thunderbird identity of an alias.
 - Clipboard (write only): for Copy in the alias overview.
-- SimpleLogin receives the addresses the add-on looks up: your identities, recipients that need a reverse alias, in a reply the alias SimpleLogin named in the original message, and for messages from a mailbox or an alias the site of the first recipient (to find its alias).
+- SimpleLogin receives the addresses the add-on looks up: your identities, recipients that need a reverse alias, in a reply or forward the alias SimpleLogin named in the original message, and for messages from a mailbox or an alias the sites of the recipients (to find their aliases).
 
 ## Development
 

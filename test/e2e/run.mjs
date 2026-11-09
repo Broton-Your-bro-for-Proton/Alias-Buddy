@@ -1119,6 +1119,28 @@ try {
     expect((await identitiesFor("promo@mine.example")).map(i => i[0]), [key], "one identity created");
   });
 
+  await check("automatic: a forward goes out as the alias the message came through", async () => {
+    const mail = nextMail();
+    await client.run(
+      chrome(`
+        const inbox = MailServices.accounts.getAccount("account1").incomingServer.rootFolder.getChildNamed("Inbox");
+        const hdr = inbox.msgDatabase.getMsgHdrForMessageID("sl-2@d.example");
+        for (const w of composeWindows()) w.close();
+        await until(() => !composeWindows().length, "old compose windows closed");
+        MailServices.compose.OpenComposeWindow(null, hdr, inbox.getUriForMsg(hdr), Ci.nsIMsgCompType.ForwardInline, Ci.nsIMsgCompFormat.Default, MailServices.accounts.getIdentity("id5"), null, null);
+        await until(() => composeWindows()[0]?.composeEditorReady, "forward window ready", 30000);
+        const win = composeWindows()[0];
+        await until(() => MailServices.accounts.getIdentity(win.getCurrentIdentityKey()).email == "promo@mine.example", "sender switched to the alias");
+        win.SetComposeDetails({ to: "friend@z.example" });
+        await sleep(300);
+        win.goDoCommand("cmd_sendNow");
+      `)
+    );
+    const sent = await mail;
+    const contact = (api.contacts[4] ?? []).find(c => c.contact == "friend@z.example");
+    expect([sent?.from, sent?.to], [MINE, [contact?.reverse_alias_address]], "forwarded through SimpleLogin");
+  });
+
   await check("automatic: a switch that would be blocked creates no alias", async () => {
     const created = api.created.length;
     await expectBlocked(
