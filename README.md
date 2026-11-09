@@ -41,6 +41,7 @@ And the automatic behavior, each one can be turned off:
 - **Switch instead of block.** Sending from your real address to a new recipient makes the add-on create or reuse the alias for that recipient's site and send as it. Off by default, because it replaces the block. It switches only when all such recipients belong to one site and no allowlisted recipient is in the message, and it checks the message against the planned alias first, so nothing is created for a message that would be blocked anyway. The popup still offers to send from your real address instead.
 - **Reply and forward as the alias.** A reply to or forward of a message that came through an alias gets that alias as sender. On by default.
 - **Create identities.** On by default. Without it, the add-on only uses identities you added yourself.
+- **Reverse aliases in the address book.** Each reverse alias the add-on sends to, and the sender of a confirmed received message, gets a card in the address book "Alias Buddy", named like "[shop.amazon@yourdomain.com] bea@example.com". Thunderbird then shows that name instead of the reverse alias in message lists, the Sent folder and the message header. It also suggests the card when you type the contact's address; pick it only when you write from that alias or its mailbox. A contact with one of your own addresses gets no card, and a reverse alias of your own address next to other recipients in To or Cc blocks the message, because SimpleLogin would show them your address. On by default.
 
 ## Alias overview
 
@@ -105,7 +106,7 @@ Creating reverse aliases needs a SimpleLogin plan that allows it.
 ### Permissions and data
 
 - The API key is stored in Thunderbird's extension storage in plain text, like other add-ons store their tokens.
-- Address books: only to expand mailing lists among the recipients.
+- Address books: to expand mailing lists among the recipients, and to keep reverse aliases in the address book "Alias Buddy".
 - Messages: to read the message you reply to or forward (its recipients and Message-ID), and the sender and SimpleLogin header of a displayed message.
 - Full access (Experiment API): for calendar emails, see above, and to show a newly created identity in open compose windows.
 - Identities: to create the Thunderbird identity of an alias.

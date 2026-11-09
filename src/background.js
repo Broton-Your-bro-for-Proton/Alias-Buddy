@@ -75,6 +75,16 @@ async function protectedAddresses(ctx) {
   return new Set([...ctx.cache.mailboxes.value.map(m => core.canonical(m.email)), ...manual]);
 }
 
+/** Cached reverse aliases whose contact is one of your own addresses. */
+function ownReverseAliases(ctx, isMine) {
+  return new Set(
+    Object.values(ctx.cache.contacts)
+      .flatMap(Object.entries)
+      .filter(([contact]) => isMine(contact))
+      .map(([, reverse]) => reverse)
+  );
+}
+
 async function aliasFor(ctx, email) {
   if (!ctx.sl) {
     return null;
@@ -288,7 +298,7 @@ const domainOf = email => email.slice(email.lastIndexOf("@") + 1);
 
 // ---- the check that runs before every send ----------------------------------------
 
-async function checkMailbox(tab, details, ctx, { sender, recipients, mine, override }) {
+async function checkMailbox(tab, details, ctx, { sender, recipients, mine, override, apply }) {
   let result = core.checkMailboxSend(recipients, knownReverseAliases(ctx), ctx.settings.allowlist, ownersOf(ctx, recipients));
   if (result.exposed.length && details.relatedMessageId && ctx.sl) {
     await learnFromOriginal(ctx, details.relatedMessageId, result.exposed.map(r => r.email));
@@ -323,6 +333,9 @@ async function checkMailbox(tab, details, ctx, { sender, recipients, mine, overr
     if (soft.length) {
       throw new Blocked(`Not sent through SimpleLogin: ${soft.join("; ")}.`, true);
     }
+  }
+  if (apply) {
+    bindContacts(ctx, result.viaAlias.map(r => r.email));
   }
   return { state: "mailbox", sender, rows: recipients.map(r => ({ ...r, via: r.email })) };
 }
@@ -412,6 +425,7 @@ async function checkAlias(tab, details, ctx, { identity, alias, resumed, recipie
     throw new Blocked(`Not sent, the final check failed: ${problems.join("; ")}.`);
   }
   rewritten.set(tab.id, { alias: alias.email, mailboxId: mailbox.id });
+  bindContacts(ctx, plan.rows.map(r => r.via));
   return { state: "alias", sender: alias.email, mailbox: mailbox.email, rows: plan.rows, sent: true };
 }
 
@@ -428,6 +442,16 @@ async function check(tab, details, ctx, { override = false, apply = true } = {})
   const options = { identity, recipients, mine, isMine, override, apply };
   if (!ctx.sl && !mine.size) {
     return { state: "unconfigured" };
+  }
+  // A contact with your own address (you once wrote to an alias from a
+  // mailbox) has a reverse alias too. Next to other recipients in To or Cc,
+  // SimpleLogin would write your address into their copy.
+  const own = ownReverseAliases(ctx, isMine);
+  const toSelf = recipients.filter(r => r.field != "bcc" && own.has(r.email));
+  if (toSelf.length && toSelf.length < recipients.length) {
+    throw new Blocked(
+      `${toSelf.map(r => r.email).join(", ")} is the reverse alias of your own address, so the other recipients would see that address. Remove it.`
+    );
   }
 
   // A rewritten message whose send did not finish (a later prompt, an SMTP
@@ -983,6 +1007,56 @@ Object.assign(ALIAS_ACTIONS, {
   },
 });
 
+// ---- address book ------------------------------------------------------------------
+
+const BOOK_NAME = "Alias Buddy";
+let binding = Promise.resolve(); // one write at a time, so the book and its cards are not created twice
+
+/**
+ * Keeps the given reverse aliases as cards in the address book "Alias Buddy",
+ * named after their contact and alias, so Thunderbird shows that name instead
+ * of the reverse alias in message lists, the Sent folder and the message
+ * header. Runs after the check and never holds up a send. A contact with
+ * your own address gets no card, and without the mailbox list none does.
+ */
+function bindContacts(ctx, reverses) {
+  if (!ctx.settings.creation.addressBook || !ctx.cache.mailboxes) {
+    return;
+  }
+  const mine = new Set([...ctx.cache.mailboxes.value.map(m => m.email), ...ctx.settings.protected].map(core.canonical));
+  const cards = [];
+  for (const [id, contacts] of Object.entries(ctx.cache.contacts)) {
+    const alias = aliasById(ctx, id);
+    for (const [contact, reverse] of Object.entries(contacts)) {
+      if (alias && reverses.includes(reverse) && !mine.has(core.canonical(contact))) {
+        cards.push({ reverse, properties: core.reverseAliasCard(contact, alias.email) });
+      }
+    }
+  }
+  if (!cards.length) {
+    return;
+  }
+  binding = binding
+    .then(async () => {
+      // Only the book the add-on created, never another one of that name (for example a synced one).
+      let { addressBookId: bookId } = await messenger.storage.local.get("addressBookId");
+      if (!(await messenger.addressBooks.list()).some(b => b.id == bookId)) {
+        bookId = await messenger.addressBooks.create({ name: BOOK_NAME });
+        await messenger.storage.local.set({ addressBookId: bookId });
+      }
+      for (const { reverse, properties } of cards) {
+        const found = await messenger.contacts.quickSearch(bookId, { searchString: reverse, includeRemote: false });
+        const card = found.find(c => core.norm(c.properties.PrimaryEmail) == reverse);
+        if (!card) {
+          await messenger.contacts.create(bookId, { PrimaryEmail: reverse, ...properties });
+        } else if (card.properties.DisplayName != properties.DisplayName) {
+          await messenger.contacts.update(card.id, properties);
+        }
+      }
+    })
+    .catch(e => console.warn("Alias Buddy: could not keep the reverse aliases in the address book", e));
+}
+
 // ---- received messages ------------------------------------------------------------
 
 const displayedMessages = async tabId => {
@@ -1035,7 +1109,15 @@ async function showOrigin(tabId, messages) {
   try {
     // Messages without SimpleLogin's header do not wait in the queue of the send checks.
     const envelope = messages.length == 1 ? await envelopeOf(messages[0].id) : undefined;
-    origin = envelope && (await serialized(ctx => originOf(ctx, messages[0].id, envelope)));
+    origin =
+      envelope &&
+      (await serialized(async ctx => {
+        const found = await originOf(ctx, messages[0].id, envelope);
+        if (found.alias) {
+          bindContacts(ctx, [found.sender]);
+        }
+        return found;
+      }));
   } catch (e) {
     origin = { error: e.message };
   }
