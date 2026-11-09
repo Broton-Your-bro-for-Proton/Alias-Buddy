@@ -1273,6 +1273,34 @@ try {
     expect([sent?.to, api.created.length - created], [[contact?.reverse_alias_address], 0], "sent as news.heise");
   });
 
+  await check("popup: recipients of several sites offer a choice of the site", async () => {
+    const reverse = api.contacts[8].find(c => c.contact == "y@heise.example").reverse_alias_address;
+    await client.run(chrome(`await compose("id5", { to: ${JSON.stringify(`${MINE}, a@first.example, ${reverse}`)} });`));
+    await openPopup();
+    const [sites, before, after] = await client.run(
+      inPage(
+        popup,
+        `
+        await until(() => !doc.getElementById("siteRow").hidden, "sites offered");
+        const suggestion = () => doc.getElementById("useSuggestion").textContent;
+        const sites = [...doc.getElementById("site").options].map(o => o.value);
+        const before = suggestion();
+        const select = doc.getElementById("site");
+        select.value = "heise.example";
+        select.dispatchEvent(new content.Event("change"));
+        await until(() => suggestion() != before, "suggestion for the other site");
+        return [sites, before, suggestion() + " / " + doc.getElementById("prefix").value];
+        `
+      )
+    );
+    await popupShot("popup-sites");
+    expect(
+      [sites, before, after],
+      [["first.example", "heise.example"], "Create and use shop.first@mine.example", "Create and use shop.heise@mine.example / shop.heise"],
+      "sites and suggestions"
+    );
+  });
+
   await check("popup: an alias of a template with random parts is found again for its site", async () => {
     const suggestionFor = async to => {
       await client.run(chrome(`await compose("id5", { to: ${JSON.stringify(to)} });`));

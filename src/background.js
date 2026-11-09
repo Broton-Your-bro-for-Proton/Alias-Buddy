@@ -767,7 +767,7 @@ async function useAlias(ctx, tabId, alias) {
 }
 
 /** What the popup offers for choosing or creating the sender alias. */
-async function aliasPanel(ctx, tabId, wanted) {
+async function aliasPanel(ctx, tabId, wanted, wantedSite) {
   if (!ctx.sl) {
     return null;
   }
@@ -776,10 +776,18 @@ async function aliasPanel(ctx, tabId, wanted) {
   chosenTemplates.set(tabId, template);
   const details = await messenger.compose.getComposeDetails(tabId);
   const current = core.norm((await messenger.identities.get(details.identityId)).email);
-  const [first] = await recipientsOf(details).catch(() => []);
-  const site = first ? core.siteOf(first.email) : "";
-  // The recipient's site is only looked up for messages from a mailbox or an alias.
   const mine = await protectedAddresses(ctx);
+  const contacts = new Map(Object.values(ctx.cache.contacts).flatMap(c => Object.entries(c).map(([contact, reverse]) => [reverse, contact])));
+  const sites = core.recipientSites(
+    (await recipientsOf(details).catch(() => [])).map(r => r.email),
+    {
+      isMine: email => mine.has(core.canonical(email)),
+      contactOf: email => contacts.get(email),
+      reverseDomains: new Set([...contacts.keys()].map(domainOf)),
+    }
+  );
+  const site = sites.includes(wantedSite) ? wantedSite : (sites[0] ?? "");
+  // The recipient's site is only looked up for messages from a mailbox or an alias.
   const relevant = site && (mine.has(core.canonical(current)) || (await aliasFor(ctx, current).catch(() => null)));
   const plan = await newAliasPlan(ctx, site, { template });
   const mailbox = await creationMailbox(ctx);
@@ -794,6 +802,7 @@ async function aliasPanel(ctx, tabId, wanted) {
   }
   return {
     site,
+    sites,
     templates,
     template,
     suggestion,
@@ -809,7 +818,7 @@ async function aliasPanel(ctx, tabId, wanted) {
 const knownTemplate = (ctx, template) => (ctx.settings.creation.templates.includes(template) ? template : undefined);
 
 const ALIAS_ACTIONS = {
-  aliasPanel: (ctx, m) => aliasPanel(ctx, m.tabId, m.template),
+  aliasPanel: (ctx, m) => aliasPanel(ctx, m.tabId, m.template, m.site),
   searchAliases: async (ctx, m) =>
     (await ctx.sl.searchAliases(m.query)).filter(a => a.enabled).map(a => ({ email: a.email, note: a.note })),
   useAlias: async (ctx, m) => {

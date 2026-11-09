@@ -21,7 +21,7 @@ The Alias Buddy button in the compose window shows what will happen to each reci
 
 The Alias Buddy popup in the compose window offers:
 
-- **The alias for the recipient's site**, for example for news@shop.amazon.de the alias tied to amazon.de, or a new one. With several name templates, a choice of the template (the category) comes first. The chosen template also applies to the automatic switch when you send this message.
+- **The alias for the recipient's site**, for example for news@shop.amazon.de the alias tied to amazon.de, or a new one. For recipients of several sites, a choice of the site comes first; a reply's reverse alias counts as its contact's site. With several name templates, a choice of the template (the category) follows. The chosen template also applies to the automatic switch when you send this message.
 - **An existing alias**, found by searching its address or note.
 - **A new alias** with a name, a domain and a mailbox of your choice.
 

@@ -246,3 +246,15 @@ test("templatesOf keeps the list, the default first, and reads the single templa
   assert.deepEqual(core.templatesOf({ template: "x", templates: [" shop.{domain} ", "", "news.{domain}", "shop.{domain}"] }), ["shop.{domain}", "news.{domain}"]);
   assert.deepEqual(core.templatesOf({ templates: [] }), ["{domain}.{random}"]);
 });
+
+test("recipientSites lists each site once, maps known reverse aliases and leaves out own and unknown ones", () => {
+  const sites = core.recipientSites(
+    ["me@real.example", "a@news.shop.example", "ra-1@sl.example", "b@shop.example", "ra-2@sl.example", "c@other.co.uk"],
+    {
+      isMine: email => email == "me@real.example",
+      contactOf: email => ({ "ra-1@sl.example": "peter@heise.example" })[email],
+      reverseDomains: new Set(["sl.example"]),
+    }
+  );
+  assert.deepEqual(sites, ["shop.example", "heise.example", "other.co.uk"]);
+});
