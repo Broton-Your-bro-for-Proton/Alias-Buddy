@@ -1665,6 +1665,38 @@ try {
     expect(email, "shop@alias.example", "sender");
   });
 
+  await check("overview: Tidy up removes the add-on's identities that no open message uses", async () => {
+    const identities = () =>
+      client.run(chrome(`return MailServices.accounts.allIdentities.map(i => [i.email, i.label]).sort();`));
+    await client.run(chrome(`for (const w of composeWindows()) w.close(); await until(() => !composeWindows().length, "closed");`));
+    await client.run(inPage(overview, `${showAll} ${buttonOf("news.heise@mine.example", "Write")}.click();`));
+    await client.run(chrome(`await until(() => composeWindows()[0]?.composeEditorReady, "compose opened", 30000);`));
+    const before = await identities();
+    if (before.filter(i => i[1] == "Alias Buddy").length < 3) throw new Error("too few add-on identities to tidy: " + JSON.stringify(before));
+    const status = await client.run(
+      inPage(
+        overview,
+        `
+        const tidy = [...doc.querySelectorAll("button")].find(b => b.textContent == "Tidy up");
+        tidy.click();
+        await sleep(600);
+        tidy.click();
+        await until(() => doc.getElementById("state").textContent.startsWith("Removed"), "tidied");
+        return doc.getElementById("state").textContent;
+        `
+      )
+    );
+    const after = await identities();
+    const kept = before.filter(i => i[1] != "Alias Buddy" || i[0] == "news.heise@mine.example");
+    expect(after, kept, "only the add-on's identities that no open message uses are gone");
+    expect(status, `Removed ${before.length - after.length} sender identities the add-on created. They come back when you use their alias.`, "status");
+    expect(
+      await client.run(chrome(`return MailServices.accounts.getIdentity(composeWindows()[0].getCurrentIdentityKey()).email;`)),
+      "news.heise@mine.example",
+      "the open message keeps its sender"
+    );
+  });
+
   await check("API down: an unknown identity is blocked", async () => {
     api.down = true;
     const mail = nextMail(4000);

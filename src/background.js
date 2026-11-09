@@ -930,6 +930,23 @@ Object.assign(ALIAS_ACTIONS, {
     }
     return { keptIdentities: kept };
   },
+  /** Removes the identities the add-on created that no open message uses; they come back when needed. */
+  tidyIdentities: async () => {
+    const used = new Set();
+    for (const tab of await messenger.tabs.query({ type: "messageCompose" })) {
+      used.add((await messenger.compose.getComposeDetails(tab.id)).identityId);
+    }
+    let removed = 0;
+    for (const identity of await messenger.identities.list()) {
+      if (identity.label == IDENTITY_LABEL && !used.has(identity.id)) {
+        await messenger.identities.delete(identity.id);
+        removed++;
+      }
+    }
+    // Open compose windows list their senders from when they opened.
+    await messenger.aliasBuddyCompose.refreshIdentities();
+    return { removed };
+  },
   /** All contacts of an alias (up to 1000), in one go. */
   listContacts: async (ctx, m) => {
     const contacts = [];
