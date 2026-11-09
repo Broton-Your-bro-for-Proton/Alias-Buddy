@@ -362,6 +362,40 @@ fs.writeFileSync(
     "Hi.",
     "",
     "",
+    // A reverse alias of shop@alias.example in a message that names another alias.
+    "From - Mon Jan 05 14:00:00 2026",
+    "Message-ID: <cross-1@x.example>",
+    "Date: Mon, 05 Jan 2026 14:00:00 +0000",
+    "From: Known <ra-known@sl.example>",
+    "To: other@alias.example",
+    "X-SimpleLogin-Envelope-To: other@alias.example",
+    "Subject: Names the wrong alias",
+    "",
+    "Hi.",
+    "",
+    "",
+    "From - Mon Jan 05 15:00:00 2026",
+    "Message-ID: <noat-1@evil.example>",
+    "Date: Mon, 05 Jan 2026 15:00:00 +0000",
+    "From: attacker@evil.example",
+    "To: me2@real.example",
+    "X-SimpleLogin-Envelope-To: e",
+    "Subject: Names no address",
+    "",
+    "Hi.",
+    "",
+    "",
+    "From - Mon Jan 05 16:00:00 2026",
+    "Message-ID: <nocache-1@z.example>",
+    "Date: Mon, 05 Jan 2026 16:00:00 +0000",
+    "From: Zed <ra-zed@sl.example>",
+    "To: fresh.zed@alias.example",
+    "X-SimpleLogin-Envelope-To: fresh.zed@alias.example",
+    "Subject: Shown while SimpleLogin is down",
+    "",
+    "Hi.",
+    "",
+    "",
   ].join("\n")
 );
 
@@ -1406,6 +1440,30 @@ try {
   await check("message: a faked SimpleLogin header is not confirmed, a direct message has no alias", async () => {
     expect(await showMessage("forged-1@evil.example", "Unconfirmed alias"), { label: "Unconfirmed alias", disabled: false }, "forged");
     expect(await showMessage("own-1@real.example", "No alias"), { label: "No alias", disabled: true }, "direct");
+    // The sender is a reverse alias, but of shop@alias.example, not of the alias the header names.
+    expect(await showMessage("cross-1@x.example", "Unconfirmed alias"), { label: "Unconfirmed alias", disabled: false }, "other alias's contact");
+    const searches = api.searches.length;
+    expect(await showMessage("noat-1@evil.example", "Unconfirmed alias"), { label: "Unconfirmed alias", disabled: false }, "no address");
+    expect(api.searches.length - searches, 0, "searches for a header without an address");
+  });
+
+  await check("message: when SimpleLogin is down, the popup says so instead of calling the message unconfirmed", async () => {
+    api.down = true;
+    try {
+      expect(await showMessage("nocache-1@z.example", "Alias"), { label: "Alias", disabled: false }, "button");
+      await client.run(
+        chrome(`
+          window.document.getElementById("tabmail").currentTabInfo.chromeBrowser.contentDocument.querySelector('[id$="-messageDisplayAction-toolbarbutton"]').click();
+          await until(() => ${messagePopup}, "popup opened");
+        `)
+      );
+      const shown = await client.run(
+        inPage(messagePopup, `await until(() => !doc.getElementById("error").hidden, "error shown"); return [doc.getElementById("summary").textContent, doc.getElementById("error").textContent];`)
+      );
+      expect(shown, ["Checking...", "SimpleLogin: maintenance. The add-on cannot tell whether fresh.zed@alias.example is an alias."], "popup");
+    } finally {
+      api.down = false;
+    }
     await client.run(
       chrome(`
         const tabmail = window.document.getElementById("tabmail");

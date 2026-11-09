@@ -6,7 +6,13 @@ async function act(type, args = {}) {
   $("error").hidden = true;
   const buttons = [...document.querySelectorAll("button")];
   buttons.forEach(b => (b.disabled = true));
-  const answer = await messenger.runtime.sendMessage({ type, tabId: tab.id, ...args }).finally(() => buttons.forEach(b => (b.disabled = false)));
+  let answer;
+  try {
+    answer = await messenger.runtime.sendMessage({ type, tabId: tab.id, ...args });
+  } catch (e) {
+    answer = { ok: false, error: e.message };
+  }
+  buttons.forEach(b => (b.disabled = false));
   if (!answer?.ok) {
     $("error").textContent = answer?.error ?? "No answer from the add-on.";
     $("error").hidden = false;
