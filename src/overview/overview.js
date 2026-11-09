@@ -278,6 +278,19 @@ $("search").addEventListener("input", () => {
 });
 $("filter").addEventListener("change", () => load(true));
 $("more").addEventListener("click", () => load(false));
+const tidy = confirmButton("Tidy up", "the sender list", async () => {
+  const result = await act("tidyIdentities");
+  if (result) {
+    say(
+      result.removed
+        ? `Removed ${result.removed} sender identities the add-on created. They come back when you use their alias.`
+        : "No sender identities of the add-on to remove."
+    );
+  }
+});
+tidy.title =
+  "Removes the Thunderbird identities the add-on created for aliases, except those of open messages. A draft from such an alias opens with your default sender, and the guard checks it again.";
+$("tidy").replaceWith(tidy);
 $("settings").addEventListener("click", event => {
   event.preventDefault();
   messenger.runtime.openOptionsPage();
