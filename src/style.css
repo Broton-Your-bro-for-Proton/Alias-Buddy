@@ -87,12 +87,13 @@ td {
   padding: 7px 10px;
   border-bottom: 1px solid var(--aio-line);
   text-align: left;
-  word-break: break-all;
+  overflow-wrap: anywhere;
 }
 
 th {
   color: var(--aio-muted);
   font-weight: 600;
+  white-space: nowrap;
 }
 
 tbody tr:hover {
@@ -248,6 +249,7 @@ main.wide {
 }
 
 .alias {
+  white-space: nowrap;
   font-weight: 600;
   margin-bottom: 4px;
 }
@@ -283,6 +285,29 @@ table.inner {
   margin: 0;
 }
 
-.nav-link {
+.tabs {
+  display: flex;
+  gap: 4px;
   margin-left: auto;
+}
+
+.tabs a {
+  padding: 6px 14px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  color: var(--aio-muted);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.tabs a:hover {
+  border-color: var(--aio-line);
+  color: var(--aio-text);
+}
+
+.tabs a[aria-current="page"] {
+  border-color: var(--aio-accent-line);
+  background: var(--aio-accent-bg);
+  color: var(--aio-accent);
 }

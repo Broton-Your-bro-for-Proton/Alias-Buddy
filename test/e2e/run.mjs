@@ -109,6 +109,8 @@ const api = {
     { id: 7, email: "gone@mine.example", mailboxes: [{ id: 1, email: MINE }] },
     // The user's own news category alias for heise.
     { id: 8, email: "news.heise@mine.example", mailboxes: [{ id: 1, email: MINE }] },
+    // Only on the second mailbox, so a typed From on that mailbox's identity keeps the identity.
+    { id: 9, email: "plain@mine.example", mailboxes: [{ id: 2, email: PLAIN }] },
   ],
   contacts: {
     1: [
@@ -507,7 +509,6 @@ const helpers = `
     const params = Cc["@mozilla.org/messengercompose/composeparams;1"].createInstance(Ci.nsIMsgComposeParams);
     const fields = Cc["@mozilla.org/messengercompose/composefields;1"].createInstance(Ci.nsIMsgCompFields);
     Object.assign(fields, { to, cc, subject, body });
-    if (from) fields.from = from;
     if (attachment) {
       const a = Cc["@mozilla.org/messengercompose/attachment;1"].createInstance(Ci.nsIMsgAttachment);
       Object.assign(a, { url: PathUtils.toFileURI(attachment.path), name: attachment.name, contentType: attachment.type });
@@ -520,7 +521,13 @@ const helpers = `
     MailServices.compose.OpenComposeWindowWithParams(null, params);
     await until(() => composeWindows()[0]?.composeEditorReady, "compose window ready", 30000);
     await sleep(500);
-    return composeWindows()[0];
+    const win = composeWindows()[0];
+    if (from) {
+      // As "Customize From Address" in the sender menu, then typing.
+      win.MakeFromFieldEditable(true);
+      win.document.getElementById("msgIdentity").value = from;
+    }
+    return win;
   }
   async function send(key, options) {
     const win = await compose(key, options);
@@ -920,6 +927,47 @@ try {
 
   await check("other identity: a customized From with the real address is blocked", () =>
     expectBlocked(`await send("id3", { to: "bob@x.example", from: "Tester <${PLAIN}>" })`, /me2@real.example would be visible to bob/)
+  );
+
+  await check("typed From: an existing alias sends through SimpleLogin like its identity", async () => {
+    const mail = nextMail();
+    await client.run(chrome(`await send("id5", { to: "eve@e.example", from: "Tester <promo@mine.example>" });`));
+    const sent = await mail;
+    if (!sent) throw new Error("nothing was sent");
+    expect(sent.from, MINE, "envelope sender: the alias's mailbox");
+    expect(sent.to.length == 1 && sent.to[0].startsWith("ra-"), true, "envelope recipient is a reverse alias, no automatic Cc");
+    expect(header(sent, "To"), sent.to[0], "To header");
+    expect((header(sent, "From") ?? "").includes(MINE), true, "From header names the mailbox, which SimpleLogin replaces");
+    expect(header(sent, "Reply-To"), null, "Reply-To header");
+  });
+
+  await check("typed From: a new name on your own domain creates exactly that alias", async () => {
+    const mail = nextMail();
+    await client.run(chrome(`await send("id5", { to: "eve@e.example", from: "privat.eve@mine.example" });`));
+    const sent = await mail;
+    if (!sent) throw new Error("nothing was sent");
+    expect(api.created.at(-1)?.email, "privat.eve@mine.example", "created alias");
+    expect(sent.to.length == 1 && sent.to[0].startsWith("ra-"), true, "envelope recipient is a reverse alias");
+  });
+
+  await check("typed From: a new name is not created for a message that is blocked", async () => {
+    const created = api.created.length;
+    await expectBlocked(`await send("id5", { to: "eve@e.example", from: "privat.tim@mine.example", body: "<p>Reach me at ${MINE}</p>" })`, /contains me@real.example/);
+    expect(api.created.length, created, "aliases created");
+  });
+
+  await check("typed From: on the mailbox identity itself the From header still becomes the mailbox", async () => {
+    const mail = nextMail();
+    await client.run(chrome(`await send("id5", { to: "eve@e.example", from: "plain@mine.example" });`));
+    const sent = await mail;
+    if (!sent) throw new Error("nothing was sent");
+    expect(sent.from, PLAIN, "envelope sender");
+    expect(sent.to.length == 1 && sent.to[0].startsWith("ra-"), true, "envelope recipient is a reverse alias, no automatic Cc");
+    expect(header(sent, "From"), `Tester <${PLAIN}>`, "From header names the mailbox, which SimpleLogin replaces");
+  });
+
+  await check("typed From: an address on a domain that is not yours stays guarded", () =>
+    expectBlocked(`await send("id5", { to: "bob@x.example", from: "someone@foreign.example" })`, /me2@real.example would be visible to bob/)
   );
 
   const calendarSend = options => client.run(chrome(`return itip(${JSON.stringify(options)});`));
@@ -1559,6 +1607,14 @@ try {
     }
   });
   await screenshot(client, "overview");
+  if (shots) {
+    // A long address stays on one line; Tidy up sits below the list.
+    await client.run(inPage(overview, `${listed} doc.querySelector("#aliases .address").textContent = "newsletter.very-long-shop-name.k7f2x@subdomain.mine.example";`));
+    await screenshot(client, "overview-long");
+    await client.run(inPage(overview, `doc.querySelector("main > .panel:last-child").scrollIntoView(); await sleep(300);`));
+    await screenshot(client, "overview-tidy");
+    await client.run(inPage(overview, `doc.documentElement.scrollTop = 0; doc.querySelector("#aliases .address").textContent = "shop@alias.example";`));
+  }
 
   await check("overview: search, disable, note, pin and unpin change the alias in SimpleLogin", async () => {
     await client.run(

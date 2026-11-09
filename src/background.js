@@ -458,6 +458,20 @@ async function check(tab, details, ctx, { override = false, apply = true } = {})
   // error) is still the alias's message.
   const earlier = rewritten.get(tab.id);
   const resumed = earlier?.mailboxId == details.identityId;
+  // An alias typed into the From field counts like choosing its identity.
+  const typed = details.from && core.addressOf(details.from);
+  if (!resumed && ctx.sl && typed && typed != sender && !isMine(typed)) {
+    let alias = await typedAlias(ctx, typed);
+    if (alias && alias.id == null && apply) {
+      // As with the site alias: every check runs on the planned alias first, so
+      // nothing is created for a message that would be blocked anyway.
+      await checkAlias(tab, details, ctx, { ...options, alias, resumed: false, apply: false });
+      alias = await createAlias(ctx, "", { prefix: alias.prefix, domain: alias.domain });
+    }
+    if (alias) {
+      return checkAlias(tab, details, ctx, { ...options, alias, resumed: false });
+    }
+  }
   if (!resumed && isMine(sender)) {
     try {
       return await checkMailbox(tab, details, ctx, { ...options, sender });
@@ -759,6 +773,30 @@ async function createAlias(ctx, site, choices = {}) {
     }
   }
   throw new Blocked("SimpleLogin could not create an alias, every generated name was taken.");
+}
+
+/**
+ * The alias a typed From names: an existing one, or the plan (id null) for a new
+ * one with exactly that name on one of your own domains. Null for any other
+ * address, and when SimpleLogin cannot tell: the send is then checked by its
+ * identity as before, which blocks a real mailbox anyway.
+ */
+async function typedAlias(ctx, email) {
+  try {
+    const existing = await aliasFor(ctx, email);
+    if (existing) {
+      return existing;
+    }
+    const domain = domainOf(email);
+    const prefix = email.slice(0, email.lastIndexOf("@"));
+    const own = core.creationDomains(await ctx.sl.suffixes()).some(d => d.domain == domain && !d.random);
+    if (!own || core.prefixFrom(prefix, "") != prefix) {
+      return null;
+    }
+    return { id: null, email, prefix, domain, mailboxes: [(await creationMailbox(ctx)).email] };
+  } catch {
+    return null;
+  }
 }
 
 /** The alias for a site: the one tied to it or named like the plan, else a new one. */
