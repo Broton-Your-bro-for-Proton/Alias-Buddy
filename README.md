@@ -8,7 +8,7 @@ Not affiliated with or endorsed by Proton AG or SimpleLogin.
 
 SimpleLogin only sends as an alias when the message comes from one of your mailboxes and goes to a reverse alias of that alias. The add-on does this at the moment you press Send:
 
-1. You pick the alias as sender and write to the real address of your contact. The alias can be an existing Thunderbird identity, or you choose or create it in the Alias Buddy popup (see Choosing and creating aliases).
+1. You pick the alias as sender and write to the real address of your contact. The alias can be an existing Thunderbird identity, you can choose or create it in the Alias Buddy popup (see Choosing and creating aliases), or you type it into the From field (see Typing the alias as sender).
 2. The add-on looks up the alias, creates the contact through the SimpleLogin API if needed, and replaces every recipient with its reverse alias.
 3. It switches the sender to a Thunderbird identity of the alias's mailbox, because SimpleLogin only accepts it from there. It only uses an identity without an OpenPGP key or S/MIME certificate, because Thunderbird decides about signing after the switch, too late for a check.
 4. It checks the final state before the message leaves: sender, recipients, Reply-To, vCard, OpenPGP key, signing and the text. Anything that would reveal your mailbox address stops the send.
@@ -28,6 +28,10 @@ The Alias Buddy popup in the compose window offers:
 The chosen alias becomes the sender. If Thunderbird has no identity for it yet, the add-on creates one next to the mailbox's identity, labeled "Alias Buddy". These identities stay when the add-on is disabled or removed. Without the add-on, sending from them goes out directly through Thunderbird's default server, with no reverse alias, so delete them (Account Settings > Manage Identities) before you disable the add-on.
 
 Pressing Send while a popup action is still running (for example while a new alias is created) stops the send with a note to send again, because the sender may have changed meanwhile.
+
+### Typing the alias as sender
+
+Both ways work side by side, nothing to switch: with "Customize From Address" in the sender menu you can type any alias into the From field. On sending, an existing alias is used as it is. An address on one of your own domains that is not an alias yet becomes exactly that alias, with the mailbox for new aliases. Either way the message goes out through the alias's mailbox like any alias message, so no identity is needed. Any other address changes nothing: the guard checks the message by its identity, as before.
 
 The settings set the defaults:
 
@@ -53,7 +57,7 @@ The Aliases button in Thunderbird's main toolbar (also linked from the popup and
 - **Contacts** lists who the alias wrote to or got mail from, with their reverse alias. A contact can be blocked (SimpleLogin drops its mail) or deleted.
 - **Write** opens a new message with the alias as sender, creating its identity if needed. A turned-off alias cannot be used, because replies to it would not arrive. **Copy** copies the address.
 - **Delete** asks for a second click (a double click does not count). Depending on your SimpleLogin setting the alias goes to its trash first or is deleted right away; either way the address cannot be created again. Turning an alias off is the gentler choice.
-- **Tidy up** (with a second click) removes the identities the add-on created, except those of open messages, so the sender list stays short. They come back when you use their alias again. A draft from such an alias opens with your default sender and is checked again on send.
+- **Tidy up** (below the list, with a second click) removes the identities the add-on created, except those of open messages, so the sender list stays short. They come back when you use their alias again. A draft from such an alias opens with your default sender and is checked again on send.
 - After deleting, the add-on removes the identities it created for the alias. Sending from an identity of a deleted alias, or from one of the add-on's identities whose alias is gone, is blocked: it would go out directly, past SimpleLogin. An identity you created yourself stays; delete it in the account settings.
 
 ## Received messages

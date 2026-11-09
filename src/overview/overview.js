@@ -288,12 +288,6 @@ const tidy = confirmButton("Tidy up", "the sender list", async () => {
     );
   }
 });
-tidy.title =
-  "Removes the Thunderbird identities the add-on created for aliases, except those of open messages. A draft from such an alias opens with your default sender, and the guard checks it again.";
 $("tidy").replaceWith(tidy);
-$("settings").addEventListener("click", event => {
-  event.preventDefault();
-  messenger.runtime.openOptionsPage();
-});
 
 load(true);

@@ -11,6 +11,10 @@
       <img src="../icons/icon.svg" alt="" width="28" height="28" />
       <span class="brand">Alias Buddy</span>
       <span class="subtitle">Your SimpleLogin aliases</span>
+      <nav class="tabs" aria-label="Alias Buddy">
+        <a href="../overview/overview.html" aria-current="page">Aliases</a>
+        <a href="../options/options.html">Settings</a>
+      </nav>
     </header>
 
     <main class="wide">
@@ -23,8 +27,6 @@
             <option value="disabled">Disabled</option>
             <option value="pinned">Pinned</option>
           </select>
-          <span id="tidy"></span>
-          <a href="#" id="settings">Settings</a>
         </div>
         <p id="state" class="muted" role="status">Loading...</p>
         <p id="error" class="state-blocked" role="alert" hidden></p>
@@ -44,6 +46,16 @@
         <div class="actions">
           <button id="more" class="btn" type="button" hidden>Load more</button>
         </div>
+      </section>
+
+      <section class="panel">
+        <h2>Sender list</h2>
+        <p class="muted">
+          Alias Buddy adds a Thunderbird identity for each alias you send from. Tidy up removes the identities it added,
+          except those of open messages. Your aliases in SimpleLogin and identities you created yourself stay. A removed
+          identity comes back the next time you use its alias, and a draft from it opens with your default sender.
+        </p>
+        <span id="tidy"></span>
       </section>
     </main>
     <script type="module" src="overview.js"></script>

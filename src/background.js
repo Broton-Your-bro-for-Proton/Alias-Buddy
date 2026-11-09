@@ -458,6 +458,14 @@ async function check(tab, details, ctx, { override = false, apply = true } = {})
   // error) is still the alias's message.
   const earlier = rewritten.get(tab.id);
   const resumed = earlier?.mailboxId == details.identityId;
+  // An alias typed into the From field counts like choosing its identity.
+  const typed = details.from && core.addressOf(details.from);
+  if (!resumed && ctx.sl && typed && typed != sender && !isMine(typed)) {
+    const alias = await typedAlias(ctx, typed, apply);
+    if (alias) {
+      return checkAlias(tab, details, ctx, { ...options, alias, resumed: false });
+    }
+  }
   if (!resumed && isMine(sender)) {
     try {
       return await checkMailbox(tab, details, ctx, { ...options, sender });
@@ -759,6 +767,36 @@ async function createAlias(ctx, site, choices = {}) {
     }
   }
   throw new Blocked("SimpleLogin could not create an alias, every generated name was taken.");
+}
+
+/**
+ * The alias a typed From names: an existing one, or a new one with exactly that
+ * name on one of your own domains. Null for any other address. With `apply`
+ * false nothing is created.
+ */
+async function typedAlias(ctx, email, apply) {
+  const existing = await aliasFor(ctx, email);
+  if (existing) {
+    return existing;
+  }
+  let suffixes;
+  try {
+    suffixes = await ctx.sl.suffixes();
+  } catch (e) {
+    throw new Blocked(`SimpleLogin: ${e.message}`);
+  }
+  const domain = domainOf(email);
+  if (!core.creationDomains(suffixes).some(d => d.domain == domain && !d.random)) {
+    return null;
+  }
+  const prefix = email.slice(0, email.lastIndexOf("@"));
+  if (core.prefixFrom(prefix, "") != prefix) {
+    throw new Blocked(`${email} cannot become an alias: SimpleLogin names use only a-z, 0-9, dots, dashes and underscores.`);
+  }
+  if (!apply) {
+    return { id: null, email, mailboxes: [(await creationMailbox(ctx)).email] };
+  }
+  return createAlias(ctx, "", { prefix, domain });
 }
 
 /** The alias for a site: the one tied to it or named like the plan, else a new one. */
