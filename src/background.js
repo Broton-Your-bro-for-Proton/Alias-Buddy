@@ -75,6 +75,16 @@ async function protectedAddresses(ctx) {
   return new Set([...ctx.cache.mailboxes.value.map(m => core.canonical(m.email)), ...manual]);
 }
 
+/** Cached reverse aliases whose contact is one of your own addresses. */
+function ownReverseAliases(ctx, isMine) {
+  return new Set(
+    Object.values(ctx.cache.contacts)
+      .flatMap(Object.entries)
+      .filter(([contact]) => isMine(contact))
+      .map(([, reverse]) => reverse)
+  );
+}
+
 async function aliasFor(ctx, email) {
   if (!ctx.sl) {
     return null;
@@ -432,6 +442,16 @@ async function check(tab, details, ctx, { override = false, apply = true } = {})
   const options = { identity, recipients, mine, isMine, override, apply };
   if (!ctx.sl && !mine.size) {
     return { state: "unconfigured" };
+  }
+  // A contact with your own address (you once wrote to an alias from a
+  // mailbox) has a reverse alias too. Next to other recipients in To or Cc,
+  // SimpleLogin would write your address into their copy.
+  const own = ownReverseAliases(ctx, isMine);
+  const toSelf = recipients.filter(r => r.field != "bcc" && own.has(r.email));
+  if (toSelf.length && toSelf.length < recipients.length) {
+    throw new Blocked(
+      `${toSelf.map(r => r.email).join(", ")} is the reverse alias of your own address, so the other recipients would see that address. Remove it.`
+    );
   }
 
   // A rewritten message whose send did not finish (a later prompt, an SMTP
@@ -996,17 +1016,19 @@ let binding = Promise.resolve(); // one write at a time, so the book and its car
  * Keeps the given reverse aliases as cards in the address book "Alias Buddy",
  * named after their contact and alias, so Thunderbird shows that name instead
  * of the reverse alias in message lists, the Sent folder and the message
- * header. Runs after the check and never holds up a send.
+ * header. Runs after the check and never holds up a send. A contact with
+ * your own address gets no card, and without the mailbox list none does.
  */
 function bindContacts(ctx, reverses) {
-  if (!ctx.settings.creation.addressBook) {
+  if (!ctx.settings.creation.addressBook || !ctx.cache.mailboxes) {
     return;
   }
+  const mine = new Set([...ctx.cache.mailboxes.value.map(m => m.email), ...ctx.settings.protected].map(core.canonical));
   const cards = [];
   for (const [id, contacts] of Object.entries(ctx.cache.contacts)) {
     const alias = aliasById(ctx, id);
     for (const [contact, reverse] of Object.entries(contacts)) {
-      if (alias && reverses.includes(reverse)) {
+      if (alias && reverses.includes(reverse) && !mine.has(core.canonical(contact))) {
         cards.push({ reverse, properties: core.reverseAliasCard(contact, alias.email) });
       }
     }
@@ -1016,8 +1038,12 @@ function bindContacts(ctx, reverses) {
   }
   binding = binding
     .then(async () => {
-      const books = await messenger.addressBooks.list();
-      const bookId = books.find(b => b.name == BOOK_NAME && !b.readOnly && !b.remote)?.id ?? (await messenger.addressBooks.create({ name: BOOK_NAME }));
+      // Only the book the add-on created, never another one of that name (for example a synced one).
+      let { addressBookId: bookId } = await messenger.storage.local.get("addressBookId");
+      if (!(await messenger.addressBooks.list()).some(b => b.id == bookId)) {
+        bookId = await messenger.addressBooks.create({ name: BOOK_NAME });
+        await messenger.storage.local.set({ addressBookId: bookId });
+      }
       for (const { reverse, properties } of cards) {
         const found = await messenger.contacts.quickSearch(bookId, { searchString: reverse, includeRemote: false });
         const card = found.find(c => core.norm(c.properties.PrimaryEmail) == reverse);

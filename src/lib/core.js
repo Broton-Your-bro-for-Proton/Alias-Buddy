@@ -233,9 +233,13 @@ export function recipientSites(emails, { isMine, contactOf, reverseDomains }) {
   return [...sites].filter(Boolean);
 }
 
-/** The address book card of a reverse alias: Thunderbird shows its name instead of the reverse alias. */
+/**
+ * The address book card of a reverse alias: Thunderbird shows its name instead
+ * of the reverse alias. It starts with the alias, so typing the contact's
+ * address does not silently complete to the card.
+ */
 export const reverseAliasCard = (contact, alias) => ({
-  DisplayName: `${contact} via ${alias}`,
+  DisplayName: `[${alias}] ${contact}`,
   Notes: `Reverse alias for ${contact} through your alias ${alias}. Kept by Alias Buddy.`,
 });
 

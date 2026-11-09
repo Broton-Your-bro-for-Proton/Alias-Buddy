@@ -119,6 +119,8 @@ const api = {
     2: [
       { id: 2, contact: "anna@y.example", reverse_alias_address: "ra-other@sl.example" },
       { id: 5, contact: "bea@y.example", reverse_alias_address: "ra-bea@sl.example" },
+      // Exists after the user wrote to the alias from a mailbox.
+      { id: 7, contact: PLAIN, reverse_alias_address: "ra-me2@sl.example" },
     ],
     4: [{ id: 6, contact: "dan@d.example", reverse_alias_address: "ra-dan@sl.example" }],
   },
@@ -392,6 +394,18 @@ fs.writeFileSync(
     "To: fresh.zed@alias.example",
     "X-SimpleLogin-Envelope-To: fresh.zed@alias.example",
     "Subject: Shown while SimpleLogin is down",
+    "",
+    "Hi.",
+    "",
+    "",
+    // The user's own test mail to the alias, forwarded back by SimpleLogin.
+    "From - Mon Jan 05 17:00:00 2026",
+    "Message-ID: <self-1@real.example>",
+    "Date: Mon, 05 Jan 2026 17:00:00 +0000",
+    "From: Tester <ra-me2@sl.example>",
+    "To: other@alias.example",
+    "X-SimpleLogin-Envelope-To: other@alias.example",
+    "Subject: Test to my alias",
     "",
     "Hi.",
     "",
@@ -1483,17 +1497,19 @@ try {
         email
       );
     // Shown in the message checks above.
-    expect(await cardOf("ra-bea@sl.example"), "bea@y.example via other@alias.example", "received message");
+    expect(await cardOf("ra-bea@sl.example"), "[other@alias.example] bea@y.example", "received message");
+    // Confirmed, but its contact is the user's own mailbox: it must get no card.
+    expect((await showMessage("self-1@real.example", "other@alias.example")).label, "other@alias.example", "own test mail confirmed");
     const mail = nextMail();
     await client.run(chrome(`await send("id2", { to: "carl@c.example" });`));
     const sent = await mail;
     const carl = api.contacts[1].find(c => c.contact == "carl@c.example").reverse_alias_address;
-    expect([sent?.to, await cardOf(carl)], [[carl], "carl@c.example via shop@alias.example"], "alias send");
-    const names = await client.run(
+    // Cards are written one after another, so the own address would have come before this one.
+    expect([sent?.to, await cardOf(carl)], [[carl], "[shop@alias.example] carl@c.example"], "alias send");
+    const cards = await client.run(
       chrome(`return MailServices.ab.directories.find(d => d.dirName == "Alias Buddy").childCards.map(c => c.displayName + " " + c.primaryEmail);`)
     );
-    const leaked = names.filter(n => /real\.example/.test(n));
-    expect(leaked, [], "cards that name a real address");
+    expect(cards.filter(n => /real\.example|ra-me2/.test(n)), [], "cards that name a real address");
     await showMessage("sl-1@y.example", "other@alias.example");
     await screenshot(client, "message-named");
     await client.run(
@@ -1502,6 +1518,11 @@ try {
         for (const info of [...tabmail.tabInfo]) if (info.mode.name == "mailMessageTab") tabmail.closeTab(info);
       `)
     );
+  });
+
+  await check("a reverse alias of your own address next to another recipient is blocked", async () => {
+    // Both belong to other@alias.example, whose mailbox sends: without the check it would go out.
+    await expectBlocked(`await send("id5", { to: "ra-bea@sl.example", cc: "ra-me2@sl.example" })`, /ra-me2@sl\.example is the reverse alias of your own address/);
   });
 
   // ---- alias overview
