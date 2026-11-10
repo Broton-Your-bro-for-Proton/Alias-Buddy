@@ -288,7 +288,20 @@ table.inner {
 .tabs {
   display: flex;
   gap: 4px;
-  margin-left: auto;
+  margin-left: 16px;
+}
+
+main > footer {
+  margin-top: 24px;
+  font-size: 12px;
+}
+
+.popup-footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--aio-line);
 }
 
 .tabs a {
