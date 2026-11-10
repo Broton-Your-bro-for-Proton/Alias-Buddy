@@ -265,3 +265,35 @@ test("reverseAliasCard starts with the alias and names the contact, never more",
     Notes: "Reverse alias for bea@y.example through your alias other@alias.example. Kept by Alias Buddy.",
   });
 });
+
+test("hasEmbeddedImages finds every image, background and link Thunderbird embeds", () => {
+  assert.ok(core.hasEmbeddedImages('<img moz-do-not-send="false" src="https://example.com/a.png">'));
+  assert.ok(core.hasEmbeddedImages('<body background="data:image/png;base64,AAAA"><p>x</p></body>'));
+  assert.ok(core.hasEmbeddedImages('<a href="data:text/plain;base64,AAAA">file</a>'));
+  assert.ok(core.hasEmbeddedImages("<a moz-do-not-send='false' href='https://example.com/a.pdf'>file</a>"));
+  assert.ok(!core.hasEmbeddedImages('<a href="https://example.com/">site</a><a href="mailto:x@y.z">mail</a>'));
+  assert.ok(!core.hasEmbeddedImages('<img data-src="data:x" src="https://example.com/a.png">'));
+});
+
+test("decodeText reads UTF-16 with and without a byte order mark", () => {
+  const text = "Contact: me@real.example";
+  const le = Buffer.from(text, "utf16le");
+  const be = Buffer.from(le).swap16();
+  assert.equal(core.decodeText(new Uint8Array(le)), text);
+  assert.equal(core.decodeText(new Uint8Array([0xff, 0xfe, ...le])), text);
+  assert.equal(core.decodeText(new Uint8Array([0xfe, 0xff, ...be])), text);
+  assert.equal(core.decodeText(new Uint8Array(be)), text);
+  assert.equal(core.decodeText(new TextEncoder().encode("café " + text)), "café " + text);
+});
+
+test("hasEmbeddedImages treats an empty moz-do-not-send as unset and ignores names inside quoted values", () => {
+  assert.ok(core.hasEmbeddedImages('<img moz-do-not-send="" src="data:image/png;base64,AAAA">'));
+  assert.ok(core.hasEmbeddedImages('<img alt=" src=https://x" src="data:image/png;base64,AAAA">'));
+  assert.ok(!core.hasEmbeddedImages('<img alt=" src=data:x" src="https://example.com/a.png">'));
+});
+
+test("decodeText finds an address in UTF-16 without a byte order mark that is mostly not Latin", () => {
+  const text = "\u9023\u7d61\u5148".repeat(600) + " me@real.example";
+  assert.ok(core.decodeText(new Uint8Array(Buffer.from(text, "utf16le"))).includes("me@real.example"));
+  assert.ok(core.decodeText(new Uint8Array(Buffer.from(text, "utf16le").swap16())).includes("me@real.example"));
+});

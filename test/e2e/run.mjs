@@ -280,7 +280,7 @@ const prefs = {
   "mail.accountmanager.defaultaccount": "account1",
   "mail.accountmanager.localfoldersserver": "server1",
   "mail.account.account1.server": "server1",
-  "mail.account.account1.identities": "id1,id2,id3,id4,id5,id6,id7,id8,id9,id10,id12",
+  "mail.account.account1.identities": "id1,id2,id3,id4,id5,id6,id7,id8,id9,id10,id12,id13",
   "mail.server.server1.type": "none",
   "mail.server.server1.hostname": "Local Folders",
   "mail.server.server1.userName": "nobody",
@@ -310,6 +310,8 @@ const prefs = {
   ...identity("id9", PLAIN, { doCc: true, doCcList: "archive2@x.example" }),
   ...identity("id10", "other@alias.example", { doCc: true, doCcList: MINE }),
   ...identity("id12", "gone@mine.example"),
+  // On the user's own domain, but never created as an alias.
+  ...identity("id13", "nobody@mine.example"),
 };
 fs.writeFileSync(
   path.join(profile, "user.js"),
@@ -503,12 +505,12 @@ const helpers = `
     throw new Error("Timed out: " + what);
   }
   const composeWindows = () => [...Services.wm.getEnumerator("msgcompose")];
-  async function compose(key, { to = "", cc = "", body = "<p>Hello</p>", subject = "Test", from, attachment } = {}) {
+  async function compose(key, { to = "", cc = "", replyTo = "", body = "<p>Hello</p>", subject = "Test", from, attachment } = {}) {
     for (const w of composeWindows()) w.close();
     await until(() => !composeWindows().length, "old compose windows closed");
     const params = Cc["@mozilla.org/messengercompose/composeparams;1"].createInstance(Ci.nsIMsgComposeParams);
     const fields = Cc["@mozilla.org/messengercompose/composefields;1"].createInstance(Ci.nsIMsgCompFields);
-    Object.assign(fields, { to, cc, subject, body });
+    Object.assign(fields, { to, cc, replyTo, subject, body });
     if (attachment) {
       const a = Cc["@mozilla.org/messengercompose/attachment;1"].createInstance(Ci.nsIMsgAttachment);
       Object.assign(a, { url: PathUtils.toFileURI(attachment.path), name: attachment.name, contentType: attachment.type });
@@ -760,6 +762,16 @@ try {
     expect(api.posts, 2, "contact API calls");
   });
 
+  await check("alias: a reverse alias of your own address is blocked while the alias's contacts are still unknown", async () => {
+    // Both belong to other@alias.example, whose contacts the add-on learns only while it sends.
+    const mail = nextMail(4000);
+    const after = await client.run(
+      chrome(`const win = await send("id5", { from: "other@alias.example", to: "ra-bea@sl.example", cc: "ra-me2@sl.example" }); await sleep(3000); return state(win);`)
+    );
+    expect(await mail, null, "sent message");
+    if (!/ra-me2@sl\.example is the reverse alias of your own address/.test(after.reason ?? "")) throw new Error(`blocked for another reason: ${after.reason}`);
+  });
+
   await check("alias: replying to its own reverse alias keeps it", async () => {
     const mail = nextMail();
     await client.run(chrome(`await send("id2", { to: "ra-known@sl.example" });`));
@@ -894,6 +906,80 @@ try {
     expectBlocked(`await send("id6", { to: "ra-known@sl.example" })`, /vCard/)
   );
 
+  await check("other identity: an address on your own domain that is not an alias is blocked", () =>
+    expectBlocked(`await send("id13", { to: "bob@x.example" })`, /nobody@mine\.example is on your SimpleLogin domain but is not an alias/)
+  );
+
+  await check("mailbox: sending an unknown reverse alias once accepts only that and still blocks the vCard", async () => {
+    await expectBlocked(`await send("id6", { to: "ra-unknown@sl.example" })`, /ra-unknown@sl\.example looks like a reverse alias/);
+    const mail = nextMail(5000);
+    await client.run(
+      chrome(`
+        const win = composeWindows()[0];
+        win.document.querySelector('[id$="-composeAction-toolbarbutton"]').click();
+        await until(() => win.document.querySelector(".webextension-popup-browser"), "popup opened");
+      `)
+    );
+    await client.run(inPage(popup, `await until(() => !doc.getElementById("sendOnce").hidden, "send button shown"); doc.getElementById("sendOnce").click();`));
+    const after = await client.run(chrome(`await sleep(3000); return state(composeWindows()[0]);`));
+    expect(await mail, null, "sent message");
+    if (!/vCard/.test(after.reason ?? "")) throw new Error(`blocked for another reason: ${after.reason}`);
+  });
+
+  await check("mailbox: a second reason after sending once is shown and can be sent once on its own", async () => {
+    await expectBlocked(`await send("id5", { to: "ra-unknown2@sl.example", body: "<p>Reach me at ${PLAIN}</p>" })`, /ra-unknown2@sl\.example looks like a reverse alias/);
+    const sendOnce = async () => {
+      await client.run(
+        chrome(`
+          const win = composeWindows()[0];
+          win.document.querySelector('[id$="-composeAction-toolbarbutton"]').click();
+          await until(() => win.document.querySelector(".webextension-popup-browser"), "popup opened");
+        `)
+      );
+      return client.run(
+        inPage(
+          popup,
+          `await until(() => !doc.body.dataset.used && !doc.getElementById("sendOnce").hidden, "fresh popup with the send button");
+          doc.body.dataset.used = "1"; // a popup document left over from the first decision is not read again
+          const text = doc.getElementById("summary").textContent;
+          doc.getElementById("sendOnce").click();
+          return text;`
+        )
+      );
+    };
+    const first = nextMail(5000);
+    await sendOnce();
+    const after = await client.run(chrome(`await sleep(3000); return state(composeWindows()[0]);`));
+    expect(await first, null, "sent after the first decision");
+    if (!/text contains me2@real\.example/.test(after.reason ?? "")) throw new Error(`blocked for another reason: ${after.reason}`);
+    const second = nextMail();
+    const shown = await sendOnce();
+    if (!/text contains me2@real\.example/.test(shown)) throw new Error("popup showed: " + shown);
+    expect((await second)?.to, ["ra-unknown2@sl.example"], "sent after the second decision");
+  });
+
+  const big = path.join(profile, "big.txt");
+  fs.writeFileSync(big, "x".repeat(11 * 1024 * 1024));
+  await check("alias: an attachment too large to check does not hide the other findings", () =>
+    expectBlocked(
+      `await send("id2", { to: "peter@x.example", body: "<p>Reach me at ${MINE}</p>", attachment: { path: ${JSON.stringify(big)}, name: "big.txt", type: "text/plain" } })`,
+      /the text contains me@real\.example.*the attachment big\.txt cannot be checked/
+    )
+  );
+
+  const utf16 = path.join(profile, "contacts.txt");
+  fs.writeFileSync(utf16, Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(`Contact: ${MINE}\r\n`, "utf16le")]));
+  await check("alias: a UTF-16 text attachment that names the real address is blocked", () =>
+    expectBlocked(
+      `await send("id2", { to: "peter@x.example", attachment: { path: ${JSON.stringify(utf16)}, name: "contacts.txt", type: "text/plain" } })`,
+      /an attachment contains me@real\.example/
+    )
+  );
+
+  await check("alias: a file Thunderbird embeds from a link is blocked", () =>
+    expectBlocked(`await send("id2", { to: "peter@x.example", body: '<p><a href="data:text/plain;base64,SGk=">note</a></p>' })`, /embedded images or files/)
+  );
+
   await check("mailbox: reply all that keeps the alias in Cc passes", async () => {
     const mail = nextMail();
     await client.run(chrome(`await send("id5", { to: "ra-known@sl.example", cc: "shop@alias.example" });`));
@@ -969,6 +1055,21 @@ try {
   await check("typed From: an address on a domain that is not yours stays guarded", () =>
     expectBlocked(`await send("id5", { to: "bob@x.example", from: "someone@foreign.example" })`, /me2@real.example would be visible to bob/)
   );
+
+  await check("typed From: blocked while SimpleLogin cannot tell whether it is an alias", async () => {
+    api.down = true;
+    try {
+      await expectBlocked(`await send("id3", { to: "bob@x.example", from: "never.seen@mine.example" })`, /cannot tell whether never\.seen@mine\.example is an alias/);
+    } finally {
+      api.down = false;
+    }
+  });
+
+  await check("typed From: a Reply-To with the real address blocks before the alias is created", async () => {
+    const created = api.created.length;
+    await expectBlocked(`await send("id5", { to: "eve@e.example", from: "privat.rt@mine.example", replyTo: "${PLAIN}" })`, /Reply-To contains me2@real\.example/);
+    expect(api.created.length, created, "aliases created");
+  });
 
   const calendarSend = options => client.run(chrome(`return itip(${JSON.stringify(options)});`));
   const reverseOf = email => Object.values(api.contacts[1]).find(c => c.contact == email)?.reverse_alias_address;
@@ -1462,6 +1563,7 @@ try {
         tabmail.openTab("mailMessageTab", { messageURI: inbox.getUriForMsg(hdr), background: false });
         const button = () => tabmail.currentTabInfo.chromeBrowser?.contentDocument?.querySelector('[id$="-messageDisplayAction-toolbarbutton"]');
         await until(() => button()?.getAttribute("label") == args[1], "button labeled " + args[1]);
+        await sleep(300); // the label is set before the button is enabled or disabled
         return { label: button().getAttribute("label"), disabled: button().disabled };
       `),
       messageId,
@@ -1747,6 +1849,12 @@ try {
     await expectBlocked(`await send("id12", { to: "bob@x.example" })`, /gone@mine\.example is no longer an alias/);
   });
 
+  await check("calendar: a calendar email from your own identity of a deleted alias is dropped", async () => {
+    const mail = nextMail(4000);
+    await calendarSend({ identity: "id12", attendee: "gone@mine.example", organizer: "org@x.example", to: ["org@x.example"] });
+    expect(await mail, null, "sent message");
+  });
+
   await check("overview: Copy puts the address on the clipboard", async () => {
     const text = await client.run(
       inPage(overview, `${buttonOf("shop@alias.example", "Copy")}.click(); await until(() => doc.getElementById("state").textContent.startsWith("Copied"), "copied"); return doc.getElementById("state").textContent;`)
@@ -1812,6 +1920,30 @@ try {
     await client.run(chrome(`await send("id4", { to: "bob@x.example" }); await sleep(3000);`));
     api.down = false;
     expect(await mail, null, "sent message");
+  });
+
+  // Last, because it removes the API key.
+  await check("no API key: the identity of a deleted alias is blocked", async () => {
+    await client.run(
+      chrome(`
+        const url = WebExtensionPolicy.getByID(args[0]).getURL("options/options.html");
+        window.document.getElementById("tabmail").openTab("contentTab", { url });
+        await sleep(1500);
+      `),
+      addon
+    );
+    await client.run(
+      inPage(
+        `window.document.getElementById("tabmail").currentTabInfo.browser`,
+        `
+        await until(() => doc.getElementById("apiKey").value, "settings loaded");
+        doc.getElementById("apiKey").value = "";
+        doc.getElementById("form").requestSubmit();
+        await until(() => /^Saved[.,] /.test(doc.getElementById("result").textContent) && !doc.getElementById("result").textContent.includes("Testing"), "saved");
+        `
+      )
+    );
+    await expectBlocked(`await send("id12", { to: "bob@x.example" })`, /Without the SimpleLogin API key/);
   });
 
   if (results.some(r => !r.ok)) {

@@ -11,7 +11,9 @@ const SUMMARY = {
   blocked: p => `This message would be blocked: ${p.reason}`,
 };
 
+let shown = null;
 function render({ preview, last }) {
+  shown = preview;
   $("summary").textContent = SUMMARY[preview.state](preview);
   $("summary").className = { alias: "state-ok", switch: "state-ok", blocked: "state-blocked" }[preview.state] ?? "";
   const body = $("rows").tBodies[0];
@@ -126,7 +128,10 @@ $("create").addEventListener("click", () =>
   })
 );
 $("sendOnce").addEventListener("click", async () => {
-  await messenger.runtime.sendMessage({ type: "sendOnce", tabId: tab.id });
+  // The block the user saw; a different one is not sent once.
+  const reason = shown.state == "switch" ? shown.override : shown.reason;
+  // A send blocked again rejects; the popup closes either way, the button shows the new reason.
+  await messenger.runtime.sendMessage({ type: "sendOnce", tabId: tab.id, reason }).catch(() => {});
   window.close();
 });
 $("overview").addEventListener("click", async event => {
