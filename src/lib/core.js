@@ -126,9 +126,52 @@ export function verifiedOf(aliasMailboxes, knownMailboxes) {
   return knownMailboxes ? aliasMailboxes.filter(m => knownMailboxes.some(k => k.email == m && k.verified)) : aliasMailboxes;
 }
 
-/** Images Thunderbird embeds at send time. Their Content-ID carries the sender's domain. */
+/**
+ * Images and files Thunderbird embeds at send time (MessageSend.sys.mjs,
+ * _gatherEmbeddedAttachments). Their Content-ID carries the sender's domain.
+ */
 export function hasEmbeddedImages(body) {
-  return /<img\b(?![^>]*\bmoz-do-not-send="true")[^>]*\bsrc\s*=\s*(?:"(?!https?:)|'(?!https?:)|(?!["']|https?:))/i.test(String(body ?? ""));
+  const tags = String(body ?? "").match(/<(img|a|body)\b(?:"[^"]*"|'[^']*'|[^'">])*>/gi) ?? [];
+  return tags.some(tag => {
+    const attrs = new Map();
+    for (const [, name, ...values] of tag.matchAll(/\s([^\s=/>]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/g)) {
+      if (!attrs.has(name.toLowerCase())) {
+        attrs.set(name.toLowerCase(), (values.find(v => v != null) ?? "").trim());
+      }
+    }
+    // As Thunderbird: an empty moz-do-not-send counts as not set.
+    const noSend = attrs.get("moz-do-not-send")?.toLowerCase();
+    const kind = tag.slice(1, 2).toLowerCase();
+    const url = attrs.get({ i: "src", a: "href", b: "background" }[kind]);
+    if (!url || (noSend && noSend != "false")) {
+      return false;
+    }
+    if (/^https?:/i.test(url) || /^s?news:/i.test(url)) {
+      return noSend == "false";
+    }
+    // Links are embedded only for data: and nntp:, images for anything but the web.
+    return kind != "a" || /^(data|nntp):/i.test(url);
+  });
+}
+
+/**
+ * The text of a file: UTF-16 by its byte order mark or its zero bytes, else
+ * UTF-8. Bytes that are no valid UTF-8 are read as both UTF-16 orders.
+ */
+export function decodeText(bytes) {
+  const zeros = parity => bytes.subarray(0, 4096).filter((b, i) => i % 2 == parity && b == 0).length;
+  const half = Math.min(bytes.length, 4096) / 2;
+  if ((bytes[0] == 0xff && bytes[1] == 0xfe) || zeros(1) > half / 4) {
+    return new TextDecoder("utf-16le").decode(bytes);
+  }
+  if ((bytes[0] == 0xfe && bytes[1] == 0xff) || zeros(0) > half / 4) {
+    return new TextDecoder("utf-16be").decode(bytes);
+  }
+  try {
+    return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+  } catch {
+    return `${new TextDecoder("utf-16le").decode(bytes)}\n${new TextDecoder("utf-16be").decode(bytes)}`;
+  }
 }
 
 /**
