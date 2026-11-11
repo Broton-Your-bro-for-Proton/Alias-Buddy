@@ -1779,8 +1779,9 @@ try {
         ${buttonOf("shop.otto@mine.example", "Write")}.click();
         await until(() => !doc.getElementById("error").hidden, "error shown");
         const text = doc.getElementById("error").textContent;
-        row.querySelector('input[type="checkbox"]').click();
-        await until(() => row.className == "", "enabled again");
+        // A background update may have redrawn the list meanwhile, so the row is looked up again.
+        ${rowOf("shop.otto@mine.example")}.querySelector('input[type="checkbox"]').click();
+        await until(() => ${rowOf("shop.otto@mine.example")}.className == "", "enabled again");
         return text;
         `
       )
@@ -1929,7 +1930,7 @@ try {
         `
       )
     );
-    expect(result, "1 aliases shown, 1 of them found online.", "status");
+    expect(result, "1 aliases, 1 shown. 1 came from the online search.", "status");
   });
 
   await check("overview: the local list pages, with a page size to choose", async () => {

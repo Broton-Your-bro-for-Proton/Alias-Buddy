@@ -12,8 +12,10 @@ function element(tag, props = {}, ...children) {
 const say = text => ($("state").textContent = text);
 
 /** Runs an action in the background; shows its error and returns undefined on failure, true for success without a value. */
-async function act(type, args = {}) {
-  $("error").hidden = true;
+async function act(type, args = {}, quiet = false) {
+  if (!quiet) {
+    $("error").hidden = true;
+  }
   let answer;
   try {
     answer = await messenger.runtime.sendMessage({ type, ...args });
@@ -40,10 +42,12 @@ function confirmButton(label, target, onConfirm) {
   button.addEventListener("click", async () => {
     if (!armedAt) {
       armedAt = Date.now();
+      button.dataset.armed = "true";
       button.textContent = `Confirm ${label.toLowerCase()}`;
       say(`Click again to ${label.toLowerCase()} ${target}.`);
       reset = setTimeout(() => {
         armedAt = 0;
+        delete button.dataset.armed;
         button.textContent = label;
       }, 5000);
       return;
@@ -53,6 +57,7 @@ function confirmButton(label, target, onConfirm) {
     }
     clearTimeout(reset);
     armedAt = 0;
+    delete button.dataset.armed;
     button.disabled = true;
     await onConfirm();
     button.disabled = false;
@@ -172,7 +177,7 @@ function aliasRow(alias) {
   enabled.addEventListener("change", async () => {
     const now = await act("toggleAlias", { id: alias.id, email: alias.email });
     if (now === undefined) {
-      await reload(); // the state in SimpleLogin is unknown now
+      await load("quick", true); // the state in SimpleLogin is unknown now
       return;
     }
     alias.enabled = now;
@@ -260,26 +265,43 @@ function render() {
   return view;
 }
 
-/** Loads the local list from the add-on, after a quick or full sync if asked. */
-async function load(sync) {
-  const store = await act("aliasStore", { sync });
+const shownText = view => (view.total ? `${view.total} aliases, ${view.rows.length} shown.` : "No aliases found.");
+
+/**
+ * Loads the local list from the add-on, after a quick or full sync if asked. A quiet
+ * load runs behind the user's back: it redraws only when the list changed and keeps
+ * the status line, so a message or an open contact list stays.
+ */
+async function load(sync, quiet = false) {
+  const store = await act("aliasStore", { sync }, quiet);
   if (store === undefined) {
     return;
   }
+  const changed = JSON.stringify(store.aliases) != JSON.stringify(aliases);
   aliases = store.aliases;
   syncedAt = store.at;
-  const view = render();
-  say(store.error ? `Could not update the list: ${store.error}` : view.total ? `${view.total} aliases shown.` : "No aliases found.");
+  // Not while the user works in a row: an armed Delete, open contacts or a note being typed.
+  const busy = document.querySelector("#aliases [data-armed], #aliases tr.contacts, #aliases input:focus");
+  const view = !quiet || (changed && !busy) ? render() : null;
+  $("synced").textContent = `List updated ${age(syncedAt)}.`;
+  if (store.error) {
+    say(`Could not update the list: ${store.error}`);
+  } else if (!quiet) {
+    say(shownText(view));
+  }
 }
 
-const reload = () => load();
+// Rows change their alias in place, so after an edit the page is redrawn even when the list looks the same.
+const reload = async () => {
+  await load(undefined, true);
+  render();
+};
 
 let searchTimer;
 let searching = 0;
 $("search").addEventListener("input", () => {
   page = 0;
-  const view = render();
-  say(view.total ? `${view.total} aliases shown.` : "No aliases found.");
+  say(shownText(render()));
   clearTimeout(searchTimer);
   const query = $("search").value.trim();
   if (query.length < 2) {
@@ -288,20 +310,19 @@ $("search").addEventListener("input", () => {
   // Also asks SimpleLogin, for aliases the local list does not have yet.
   searchTimer = setTimeout(async () => {
     const ticket = ++searching;
-    const before = aliases.length;
-    if ((await act("searchOnline", { query })) === undefined || ticket != searching) {
+    const found = await act("searchOnline", { query }, true);
+    if (!found || ticket != searching) {
       return;
     }
-    await load();
-    const added = aliases.length - before;
-    if (added > 0) {
-      say(`${render().total} aliases shown, ${added} of them found online.`);
+    await load(undefined, true);
+    if (found.added) {
+      say(`${shownText(render())} ${found.added} came from the online search.`);
     }
   }, 600);
 });
 $("filter").addEventListener("change", () => {
   page = 0;
-  load();
+  say(shownText(render()));
 });
 $("size").addEventListener("change", () => {
   page = 0;
@@ -334,4 +355,4 @@ const tidy = confirmButton("Tidy up", "the sender list", async () => {
 $("tidy").replaceWith(tidy);
 
 await load();
-load("quick");
+load("quick", true);

@@ -1042,19 +1042,23 @@ Object.assign(ALIAS_ACTIONS, {
   /** The online search of the overview; what it finds goes into the local list. */
   searchOnline: async (ctx, m) => {
     const found = await api(ctx, () => ctx.sl.listAliases({ query: m.query }));
-    await storeAliases(ctx, list => core.mergeAliases(list, found).aliases);
-    return found.length;
+    let added = 0;
+    await storeAliases(ctx, list => {
+      added = found.filter(a => !list.some(b => b.id == a.id)).length;
+      return core.mergeAliases(list, found).aliases;
+    });
+    return { added };
   },
   toggleAlias: async (ctx, m) => {
     const enabled = await api(ctx, () => ctx.sl.toggleAlias(m.id));
     forgetAlias(ctx, m.email, m.id);
-    await storeAliases(ctx, list => list.map(a => (a.id == m.id ? { ...a, enabled } : a)));
+    await storeAliases(ctx, list => list.map(a => (a.id == m.id ? { ...a, enabled } : a)), undefined, [m.id]);
     return enabled;
   },
   updateAlias: async (ctx, m) => {
     await api(ctx, () => ctx.sl.updateAlias(m.id, m.fields));
     forgetAlias(ctx, m.email, m.id);
-    await storeAliases(ctx, list => list.map(a => (a.id == m.id ? { ...a, ...m.fields } : a)));
+    await storeAliases(ctx, list => list.map(a => (a.id == m.id ? { ...a, ...m.fields } : a)), undefined, [m.id]);
   },
   /**
    * Deletes the alias, removes the identities the add-on created for it and
@@ -1063,7 +1067,7 @@ Object.assign(ALIAS_ACTIONS, {
   deleteAlias: async (ctx, m) => {
     await api(ctx, () => ctx.sl.deleteAlias(m.id));
     forgetAlias(ctx, m.email, m.id, { contacts: true });
-    await storeAliases(ctx, list => list.filter(a => a.id != m.id));
+    await storeAliases(ctx, list => list.filter(a => a.id != m.id), undefined, [m.id]);
     const gone = await goneAliases();
     await messenger.storage.local.set({ goneAliases: [...new Set([...gone, core.norm(m.email)])] });
     let kept = 0;
@@ -1143,7 +1147,11 @@ async function aliasStore(ctx) {
   return store?.owner == ctx.cache.owner ? store : { owner: ctx.cache.owner, aliases: [], at: 0 };
 }
 
-async function storeAliases(ctx, change, at) {
+// Aliases changed here while a full sync runs; its older copies of them do not count.
+const editedDuringSync = new Set();
+
+async function storeAliases(ctx, change, at, ids = []) {
+  ids.forEach(id => editedDuringSync.add(id));
   const store = await aliasStore(ctx);
   await messenger.storage.local.set({ aliasStore: { ...store, aliases: change(store.aliases), at: at ?? store.at } });
 }
@@ -1153,35 +1161,67 @@ let syncing = null;
  * Fetches the alias list page by page, each request in the queue on its own so a send
  * never waits for the whole sync. SimpleLogin lists aliases with new activity first, so
  * a quick sync stops at the first page without changes. Only a full sync sees deletions
- * and changes made elsewhere to aliases further down.
+ * and changes made elsewhere to aliases further down. A full sync asked for during a
+ * quick one runs after it.
  */
 function syncAliases(full) {
-  syncing ??= (async () => {
-    let fetched = [];
-    for (let page = 0; ; page++) {
-      if (page) {
-        await new Promise(r => setTimeout(r, SYNC_PACE));
+  if (syncing && (!full || syncing.full)) {
+    return syncing;
+  }
+  const run = (syncing ?? Promise.resolve())
+    .catch(() => {})
+    .then(() => fetchAliasList(full))
+    .finally(() => syncing == run && (syncing = null));
+  run.full = full;
+  syncing = run;
+  return run;
+}
+
+async function fetchAliasList(full) {
+  let owner = null;
+  // Each step checks that the API key is still the one the sync started with.
+  const step = work =>
+    serialized(ctx => {
+      if (!ctx.sl) {
+        throw new Blocked("Add your SimpleLogin API key in the settings first.");
       }
-      const found = await serialized(ctx => (ctx.sl ? ctx.sl.listAliases({ page }) : []));
+      owner ??= ctx.cache.owner;
+      if (ctx.cache.owner != owner) {
+        throw new Blocked("The API key changed during the update. Update again.");
+      }
+      return work(ctx);
+    });
+  editedDuringSync.clear();
+  let fetched = [];
+  for (let page = 0; ; page++) {
+    if (page) {
+      await new Promise(r => setTimeout(r, SYNC_PACE));
+    }
+    const changed = await step(async ctx => {
+      const found = await ctx.sl.listAliases({ page });
       fetched = core.mergeAliases(fetched, found).aliases;
-      const changed = await serialized(async ctx => {
-        let changed = false;
-        await storeAliases(ctx, list => {
-          const merged = core.mergeAliases(list, found);
-          changed = merged.changed;
-          return merged.aliases;
-        });
-        return changed;
+      let changed = !!found.length;
+      await storeAliases(ctx, list => {
+        const merged = core.mergeAliases(list.filter(a => !editedDuringSync.has(a.id)), found.filter(a => !editedDuringSync.has(a.id)));
+        changed = found.length > 0 && merged.changed;
+        return [...merged.aliases, ...list.filter(a => editedDuringSync.has(a.id))];
       });
-      if (!found.length || (!full && !changed)) {
-        break;
-      }
+      return { more: found.length > 0, changed };
+    });
+    if (!changed.more || (!full && !changed.changed)) {
+      break;
     }
-    if (full) {
-      await serialized(ctx => storeAliases(ctx, () => fetched, Date.now()));
-    }
-  })().finally(() => (syncing = null));
-  return syncing;
+  }
+  if (full) {
+    // What SimpleLogin listed, except aliases changed or deleted here meanwhile, which keep their state.
+    await step(ctx =>
+      storeAliases(
+        ctx,
+        list => [...fetched.filter(a => !editedDuringSync.has(a.id)), ...list.filter(a => editedDuringSync.has(a.id))],
+        Date.now()
+      )
+    );
+  }
 }
 
 const fullSync = () => syncAliases(true).catch(e => console.warn("Alias Buddy: could not sync the alias list", e));

@@ -314,4 +314,7 @@ test("viewAliases searches, filters, sorts pinned and recent first and pages", (
   const second = core.viewAliases(list, { size: 3, page: 1 });
   assert.deepEqual([second.rows.map(a => a.id), second.page, second.pages, second.total], [[3], 1, 2, 4]);
   assert.equal(core.viewAliases(list, { size: 3, page: 9 }).page, 1);
+  // Found by name; a new alias without activity ranks by its creation time.
+  assert.deepEqual(core.viewAliases([alias(5, { name: "Bank" })], { query: "bank" }).rows.map(a => a.id), [5]);
+  assert.deepEqual(core.viewAliases([alias(1, { latest: { at: 50 } }), alias(6, { created: 90 })]).rows.map(a => a.id), [6, 1]);
 });
