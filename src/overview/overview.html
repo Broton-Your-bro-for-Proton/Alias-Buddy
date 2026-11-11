@@ -27,6 +27,11 @@
             <option value="disabled">Disabled</option>
             <option value="pinned">Pinned</option>
           </select>
+          <select id="size" aria-label="Aliases per page">
+            <option value="20">20 per page</option>
+            <option value="50">50 per page</option>
+            <option value="100">100 per page</option>
+          </select>
         </div>
         <p id="state" class="muted" role="status">Loading...</p>
         <p id="error" class="state-blocked" role="alert" hidden></p>
@@ -43,12 +48,20 @@
           </thead>
           <tbody></tbody>
         </table>
-        <div class="actions">
-          <button id="more" class="btn" type="button" hidden>Load more</button>
+        <div id="pager" class="actions" hidden>
+          <button id="prev" class="btn" type="button">Previous</button>
+          <span id="pageInfo" class="muted"></span>
+          <button id="next" class="btn" type="button">Next</button>
         </div>
         <p class="muted">
-          SimpleLogin returns 20 aliases per request and allows only a few dozen alias requests per minute, which the guard also needs
-          when you send. So the list loads 20 at a time instead of offering pages or a page size.
+          <span id="synced"></span>
+          <button id="update" class="btn" type="button">Update now</button>
+        </p>
+        <p class="muted">
+          Alias Buddy keeps a copy of your alias list in your Thunderbird profile and updates it slowly in the background, because
+          SimpleLogin allows only a few dozen alias requests per minute and the guard needs them when you send. New aliases show up
+          when you open this page, changes made elsewhere with the next full update, at the latest after six hours. A search also
+          asks SimpleLogin, so it finds aliases the copy does not have yet.
         </p>
       </section>
 

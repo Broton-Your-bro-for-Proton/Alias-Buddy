@@ -1779,8 +1779,9 @@ try {
         ${buttonOf("shop.otto@mine.example", "Write")}.click();
         await until(() => !doc.getElementById("error").hidden, "error shown");
         const text = doc.getElementById("error").textContent;
-        row.querySelector('input[type="checkbox"]').click();
-        await until(() => row.className == "", "enabled again");
+        // A background update may have redrawn the list meanwhile, so the row is looked up again.
+        ${rowOf("shop.otto@mine.example")}.querySelector('input[type="checkbox"]').click();
+        await until(() => ${rowOf("shop.otto@mine.example")}.className == "", "enabled again");
         return text;
         `
       )
@@ -1912,6 +1913,51 @@ try {
       "news.heise@mine.example",
       "the open message keeps its sender"
     );
+  });
+
+  await check("overview: a search also asks SimpleLogin and adds what the local list lacks", async () => {
+    api.aliases.push({ id: 900, email: "fresh.online@mine.example", enabled: true, mailboxes: [{ email: MINE }] });
+    const result = await client.run(
+      inPage(
+        overview,
+        `
+        ${showAll}
+        const search = doc.getElementById("search");
+        search.value = "fresh.online";
+        search.dispatchEvent(new content.Event("input"));
+        await until(() => ${rowOf("fresh.online@mine.example")}, "found online");
+        return doc.getElementById("state").textContent;
+        `
+      )
+    );
+    expect(result, "1 aliases, 1 shown. 1 came from the online search.", "status");
+  });
+
+  await check("overview: the local list pages, with a page size to choose", async () => {
+    for (let i = 0; i < 25; i++) {
+      api.aliases.push({ id: 1000 + i, email: `bulk${i}@mine.example`, enabled: true, mailboxes: [{ email: MINE }] });
+    }
+    const result = await client.run(
+      inPage(
+        overview,
+        `
+        ${showAll}
+        doc.getElementById("update").click();
+        await until(() => !doc.getElementById("pager").hidden, "pager shown", 30000);
+        const count = () => doc.querySelectorAll("#aliases .address").length;
+        const first = [count(), doc.getElementById("pageInfo").textContent];
+        doc.getElementById("next").click();
+        const second = [count(), doc.getElementById("pageInfo").textContent];
+        const size = doc.getElementById("size");
+        size.value = "50";
+        size.dispatchEvent(new content.Event("change"));
+        return { first, second, all: [count(), doc.getElementById("pager").hidden] };
+        `
+      )
+    );
+    const total = api.aliases.length;
+    expect(result, { first: [20, "Page 1 of 2"], second: [total - 20, "Page 2 of 2"], all: [total, true] }, "pages");
+    api.aliases.splice(-25);
   });
 
   await check("API down: an unknown identity is blocked", async () => {

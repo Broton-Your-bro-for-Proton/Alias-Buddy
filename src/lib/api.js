@@ -9,6 +9,8 @@ const aliasInfo = a => ({
   email: norm(a.email),
   mailboxes: (a.mailboxes ?? []).map(m => norm(m.email)),
   note: a.note ?? "",
+  name: a.name ?? "",
+  created: a.creation_timestamp ?? 0,
   enabled: a.enabled !== false,
   pinned: !!a.pinned,
   forwards: a.nb_forward ?? 0,

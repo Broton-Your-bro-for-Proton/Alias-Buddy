@@ -367,3 +367,37 @@ export function templatesOf(creation) {
   const list = (creation.templates ?? [creation.template]).map(t => String(t ?? "").trim()).filter(Boolean);
   return list.length ? [...new Set(list)] : ["{domain}.{random}"];
 }
+
+// ---- local alias list --------------------------------------------------------------
+
+const sameAlias = (a, b) => JSON.stringify(a) == JSON.stringify(b);
+
+/** Puts a page of aliases into the stored list; says whether anything on the page was new or different. */
+export function mergeAliases(stored, page) {
+  const byId = new Map(stored.map(a => [a.id, a]));
+  let changed = false;
+  for (const alias of page) {
+    if (!sameAlias(byId.get(alias.id), alias)) {
+      changed = true;
+      byId.set(alias.id, alias);
+    }
+  }
+  return { aliases: [...byId.values()], changed };
+}
+
+const lastActive = a => a.latest?.at ?? a.created ?? 0;
+
+/**
+ * One page of the stored aliases, searched and filtered like SimpleLogin does:
+ * pinned first, then the most recent activity or creation, then the newest.
+ */
+export function viewAliases(aliases, { query = "", filter = "", page = 0, size = 20 } = {}) {
+  const q = query.trim().toLowerCase();
+  const keep = a =>
+    (!q || [a.email, a.note, a.name ?? ""].some(text => text.toLowerCase().includes(q))) &&
+    (filter == "enabled" ? a.enabled : filter == "disabled" ? !a.enabled : filter == "pinned" ? a.pinned : true);
+  const sorted = aliases.filter(keep).sort((a, b) => b.pinned - a.pinned || lastActive(b) - lastActive(a) || b.id - a.id);
+  const pages = Math.max(1, Math.ceil(sorted.length / size));
+  const at = Math.min(Math.max(page, 0), pages - 1);
+  return { rows: sorted.slice(at * size, (at + 1) * size), page: at, pages, total: sorted.length };
+}

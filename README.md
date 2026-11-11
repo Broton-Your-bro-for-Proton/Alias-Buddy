@@ -51,7 +51,8 @@ And the automatic behavior, each one can be turned off:
 
 The Aliases button in Thunderbird's main toolbar (also linked from the popup and the settings) opens a tab with all your aliases:
 
-- Search by address, note or name, and show all, enabled, disabled or pinned aliases. More load at the bottom.
+- Search by address, note or name, and show all, enabled, disabled or pinned aliases. Page through the list with 20, 50 or 100 per page.
+- The list comes from a copy in your Thunderbird profile. The add-on updates it slowly in the background (SimpleLogin allows only a few dozen alias requests per minute, and the guard needs them when you send): new aliases when you open the page, everything every six hours or with **Update now**. A search also asks SimpleLogin and adds what the copy lacks.
 - Per alias: its mailboxes, how many messages it received, sent and blocked, and the last activity.
 - Edit the note in place, pin it, turn it off (it stops receiving mail) or on again.
 - **Contacts** lists who the alias wrote to or got mail from, with their reverse alias. A contact can be blocked (SimpleLogin drops its mail) or deleted.
