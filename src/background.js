@@ -1039,15 +1039,22 @@ async function api(ctx, action) {
 }
 
 Object.assign(ALIAS_ACTIONS, {
-  listAliases: (ctx, m) => api(ctx, () => ctx.sl.listAliases({ page: m.page, query: m.query, filter: m.filter })),
+  /** The online search of the overview; what it finds goes into the local list. */
+  searchOnline: async (ctx, m) => {
+    const found = await api(ctx, () => ctx.sl.listAliases({ query: m.query }));
+    await storeAliases(ctx, list => core.mergeAliases(list, found).aliases);
+    return found.length;
+  },
   toggleAlias: async (ctx, m) => {
     const enabled = await api(ctx, () => ctx.sl.toggleAlias(m.id));
     forgetAlias(ctx, m.email, m.id);
+    await storeAliases(ctx, list => list.map(a => (a.id == m.id ? { ...a, enabled } : a)));
     return enabled;
   },
   updateAlias: async (ctx, m) => {
     await api(ctx, () => ctx.sl.updateAlias(m.id, m.fields));
     forgetAlias(ctx, m.email, m.id);
+    await storeAliases(ctx, list => list.map(a => (a.id == m.id ? { ...a, ...m.fields } : a)));
   },
   /**
    * Deletes the alias, removes the identities the add-on created for it and
@@ -1056,6 +1063,7 @@ Object.assign(ALIAS_ACTIONS, {
   deleteAlias: async (ctx, m) => {
     await api(ctx, () => ctx.sl.deleteAlias(m.id));
     forgetAlias(ctx, m.email, m.id, { contacts: true });
+    await storeAliases(ctx, list => list.filter(a => a.id != m.id));
     const gone = await goneAliases();
     await messenger.storage.local.set({ goneAliases: [...new Set([...gone, core.norm(m.email)])] });
     let kept = 0;
@@ -1122,6 +1130,63 @@ Object.assign(ALIAS_ACTIONS, {
     await messenger.compose.beginNew({ identityId: identity.id });
   },
 });
+
+// ---- local alias list ------------------------------------------------------------
+
+// Pause between list requests, so the sync leaves most of SimpleLogin's limit to the guard.
+const SYNC_PACE = 3000;
+const FULL_SYNC_EVERY = 6 * 60 * 60 * 1000;
+
+/** The stored alias list of the current API key: { aliases, at } with at the time of the last full sync. */
+async function aliasStore(ctx) {
+  const { aliasStore: store } = await messenger.storage.local.get("aliasStore");
+  return store?.owner == ctx.cache.owner ? store : { owner: ctx.cache.owner, aliases: [], at: 0 };
+}
+
+async function storeAliases(ctx, change, at) {
+  const store = await aliasStore(ctx);
+  await messenger.storage.local.set({ aliasStore: { ...store, aliases: change(store.aliases), at: at ?? store.at } });
+}
+
+let syncing = null;
+/**
+ * Fetches the alias list page by page, each request in the queue on its own so a send
+ * never waits for the whole sync. SimpleLogin lists aliases with new activity first, so
+ * a quick sync stops at the first page without changes. Only a full sync sees deletions
+ * and changes made elsewhere to aliases further down.
+ */
+function syncAliases(full) {
+  syncing ??= (async () => {
+    let fetched = [];
+    for (let page = 0; ; page++) {
+      if (page) {
+        await new Promise(r => setTimeout(r, SYNC_PACE));
+      }
+      const found = await serialized(ctx => (ctx.sl ? ctx.sl.listAliases({ page }) : []));
+      fetched = core.mergeAliases(fetched, found).aliases;
+      const changed = await serialized(async ctx => {
+        let changed = false;
+        await storeAliases(ctx, list => {
+          const merged = core.mergeAliases(list, found);
+          changed = merged.changed;
+          return merged.aliases;
+        });
+        return changed;
+      });
+      if (!found.length || (!full && !changed)) {
+        break;
+      }
+    }
+    if (full) {
+      await serialized(ctx => storeAliases(ctx, () => fetched, Date.now()));
+    }
+  })().finally(() => (syncing = null));
+  return syncing;
+}
+
+const fullSync = () => syncAliases(true).catch(e => console.warn("Alias Buddy: could not sync the alias list", e));
+setTimeout(fullSync, 30 * 1000);
+setInterval(fullSync, FULL_SYNC_EVERY);
 
 // ---- address book ------------------------------------------------------------------
 
@@ -1314,6 +1379,15 @@ messenger.runtime.onMessage.addListener(async message => {
       preview = blockedResult(e);
     }
     return { preview, last: status.get(tabId) };
+  }
+  if (message.type == "aliasStore") {
+    // A full sync when asked, else a quick one for the newest aliases; the list either way.
+    let error = null;
+    if (message.sync) {
+      error = await syncAliases(message.sync == "full").then(() => null, e => e.message);
+    }
+    const store = await serialized(ctx => aliasStore(ctx));
+    return { ok: true, value: { aliases: store.aliases, at: store.at, error } };
   }
   if (ALIAS_ACTIONS[message.type]) {
     try {

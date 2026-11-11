@@ -297,3 +297,21 @@ test("decodeText finds an address in UTF-16 without a byte order mark that is mo
   assert.ok(core.decodeText(new Uint8Array(Buffer.from(text, "utf16le"))).includes("me@real.example"));
   assert.ok(core.decodeText(new Uint8Array(Buffer.from(text, "utf16le").swap16())).includes("me@real.example"));
 });
+
+test("mergeAliases adds new and changed aliases and says whether the page changed anything", () => {
+  const a = { id: 1, email: "a@x", note: "", enabled: true, pinned: false, latest: null };
+  const b = { id: 2, email: "b@x", note: "", enabled: true, pinned: false, latest: null };
+  assert.deepEqual(core.mergeAliases([a], [a]), { aliases: [a], changed: false });
+  assert.deepEqual(core.mergeAliases([a], [{ ...a, enabled: false }, b]), { aliases: [{ ...a, enabled: false }, b], changed: true });
+});
+
+test("viewAliases searches, filters, sorts pinned and recent first and pages", () => {
+  const alias = (id, extra = {}) => ({ id, email: `a${id}@x`, note: "", enabled: true, pinned: false, latest: null, ...extra });
+  const list = [alias(1, { latest: { at: 50 } }), alias(2, { pinned: true }), alias(3, { note: "Shop", enabled: false }), alias(4)];
+  assert.deepEqual(core.viewAliases(list).rows.map(a => a.id), [2, 1, 4, 3]);
+  assert.deepEqual(core.viewAliases(list, { query: "shop" }).rows.map(a => a.id), [3]);
+  assert.deepEqual(core.viewAliases(list, { filter: "disabled" }).rows.map(a => a.id), [3]);
+  const second = core.viewAliases(list, { size: 3, page: 1 });
+  assert.deepEqual([second.rows.map(a => a.id), second.page, second.pages, second.total], [[3], 1, 2, 4]);
+  assert.equal(core.viewAliases(list, { size: 3, page: 9 }).page, 1);
+});

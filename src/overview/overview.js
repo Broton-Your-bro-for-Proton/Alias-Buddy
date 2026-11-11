@@ -1,3 +1,5 @@
+import * as core from "../lib/core.js";
+
 const $ = id => document.getElementById(id);
 const date = seconds => (seconds ? new Date(seconds * 1000).toLocaleDateString() : "");
 
@@ -210,12 +212,12 @@ function aliasRow(alias) {
     confirmButton("Delete", alias.email, async () => {
       const result = await act("deleteAlias", { id: alias.id, email: alias.email });
       if (result) {
+        await reload();
         say(
           result.keptIdentities
             ? `${alias.email} deleted. Remove its ${result.keptIdentities} identity in the account settings, the add-on blocks sending from it.`
             : `${alias.email} deleted.`
         );
-        await reload();
       }
     })
   );
@@ -233,51 +235,92 @@ function aliasRow(alias) {
   return row;
 }
 
+let aliases = [];
+let syncedAt = 0;
 let page = 0;
-let loading = 0;
-async function load(reset) {
-  const ticket = ++loading;
-  if (reset) {
-    page = 0;
-    $("aliases").tBodies[0].replaceChildren();
+
+function age(at) {
+  if (!at) {
+    return "not fully loaded yet";
   }
-  say("Loading...");
-  const aliases = await act("listAliases", { page, query: $("search").value.trim(), filter: $("filter").value });
-  if (ticket != loading) {
-    return;
-  }
-  if (aliases === undefined) {
-    say("Could not load the aliases.");
-    return;
-  }
-  $("aliases").tBodies[0].append(...aliases.map(aliasRow));
-  const shown = $("aliases").tBodies[0].querySelectorAll("tr:not(.contacts)").length;
-  say(shown ? `${shown} aliases shown.` : "No aliases found.");
-  $("more").hidden = !aliases.length;
-  page++;
+  const minutes = Math.round((Date.now() - at) / 60000);
+  return minutes < 1 ? "just now" : minutes < 120 ? `${minutes} minutes ago` : `${Math.round(minutes / 60)} hours ago`;
 }
 
-/**
- * Loads the pages shown so far again. SimpleLogin pages by position, so after
- * a row left the list (deleted, or out of the filter) the next page would skip one.
- */
-async function reload() {
-  const pages = page;
-  const status = $("state").textContent;
-  await load(true);
-  while (page < pages && !$("more").hidden) {
-    await load(false);
-  }
-  say(status);
+/** Shows the current page of the local list. */
+function render() {
+  const view = core.viewAliases(aliases, { query: $("search").value, filter: $("filter").value, page, size: Number($("size").value) });
+  page = view.page;
+  $("aliases").tBodies[0].replaceChildren(...view.rows.map(aliasRow));
+  $("pager").hidden = view.pages < 2;
+  $("pageInfo").textContent = `Page ${view.page + 1} of ${view.pages}`;
+  $("prev").disabled = view.page == 0;
+  $("next").disabled = view.page == view.pages - 1;
+  $("synced").textContent = `List updated ${age(syncedAt)}.`;
+  return view;
 }
+
+/** Loads the local list from the add-on, after a quick or full sync if asked. */
+async function load(sync) {
+  const store = await act("aliasStore", { sync });
+  if (store === undefined) {
+    return;
+  }
+  aliases = store.aliases;
+  syncedAt = store.at;
+  const view = render();
+  say(store.error ? `Could not update the list: ${store.error}` : view.total ? `${view.total} aliases shown.` : "No aliases found.");
+}
+
+const reload = () => load();
 
 let searchTimer;
+let searching = 0;
 $("search").addEventListener("input", () => {
+  page = 0;
+  const view = render();
+  say(view.total ? `${view.total} aliases shown.` : "No aliases found.");
   clearTimeout(searchTimer);
-  searchTimer = setTimeout(() => load(true), 300);
+  const query = $("search").value.trim();
+  if (query.length < 2) {
+    return;
+  }
+  // Also asks SimpleLogin, for aliases the local list does not have yet.
+  searchTimer = setTimeout(async () => {
+    const ticket = ++searching;
+    const before = aliases.length;
+    if ((await act("searchOnline", { query })) === undefined || ticket != searching) {
+      return;
+    }
+    await load();
+    const added = aliases.length - before;
+    if (added > 0) {
+      say(`${render().total} aliases shown, ${added} of them found online.`);
+    }
+  }, 600);
 });
-$("filter").addEventListener("change", () => load(true));
-$("more").addEventListener("click", () => load(false));
+$("filter").addEventListener("change", () => {
+  page = 0;
+  load();
+});
+$("size").addEventListener("change", () => {
+  page = 0;
+  render();
+});
+$("prev").addEventListener("click", () => {
+  page--;
+  render();
+});
+$("next").addEventListener("click", () => {
+  page++;
+  render();
+});
+$("update").addEventListener("click", async () => {
+  $("update").disabled = true;
+  say("Updating the list from SimpleLogin...");
+  await load("full");
+  $("update").disabled = false;
+});
 const tidy = confirmButton("Tidy up", "the sender list", async () => {
   const result = await act("tidyIdentities");
   if (result) {
@@ -290,4 +333,5 @@ const tidy = confirmButton("Tidy up", "the sender list", async () => {
 });
 $("tidy").replaceWith(tidy);
 
-load(true);
+await load();
+load("quick");
