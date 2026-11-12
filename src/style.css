@@ -296,6 +296,10 @@ main > footer {
   font-size: 12px;
 }
 
+.support-link {
+  color: inherit;
+}
+
 .popup-footer {
   display: flex;
   justify-content: space-between;
