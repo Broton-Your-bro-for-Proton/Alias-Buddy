@@ -146,4 +146,4 @@ npm run build               # dist/aliasbuddy-<version>.xpi
 
 [MPL-2.0](LICENSE)
 
-If Broton saves you time, you can [support the project on Ko-fi](https://ko-fi.com/hypercrisis).
+☕ If Broton saves you time, you can [support the project on Ko-fi](https://ko-fi.com/hypercrisis).
