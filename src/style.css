@@ -300,6 +300,12 @@ main > footer {
   color: inherit;
 }
 
+.support-link::before {
+  display: inline-block;
+  margin-right: 0.35em;
+  content: "☕";
+}
+
 .popup-footer {
   display: flex;
   justify-content: space-between;
