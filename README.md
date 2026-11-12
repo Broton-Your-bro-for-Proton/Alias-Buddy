@@ -6,7 +6,7 @@
 
 ![Thunderbird](https://img.shields.io/badge/Thunderbird-153%2B-0A84FF)
 ![Status](https://img.shields.io/badge/Status-test%20version-orange)
-![License](https://img.shields.io/badge/License-MPL--2.0-blue)
+![License](https://img.shields.io/badge/License-AGPL--3.0-blue)
 
 A Thunderbird add-on that lets you send as a [SimpleLogin](https://simplelogin.io) alias to normal addresses. It creates and fills in the reverse aliases for you, and it blocks messages that would reveal your real address.
 
@@ -144,6 +144,6 @@ npm run build               # dist/aliasbuddy-<version>.xpi
 
 ## 📄 License
 
-[MPL-2.0](LICENSE)
+Licensed under the GNU Affero General Public License, version 3 only (`AGPL-3.0-only`). See [`LICENSE`](LICENSE).
 
 ☕ If Broton saves you time, you can [support the project on Ko-fi](https://ko-fi.com/hypercrisis).
