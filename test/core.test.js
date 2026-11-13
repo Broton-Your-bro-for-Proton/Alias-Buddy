@@ -318,3 +318,17 @@ test("viewAliases searches, filters, sorts pinned and recent first and pages", (
   assert.deepEqual(core.viewAliases([alias(5, { name: "Bank" })], { query: "bank" }).rows.map(a => a.id), [5]);
   assert.deepEqual(core.viewAliases([alias(1, { latest: { at: 50 } }), alias(6, { created: 90 })]).rows.map(a => a.id), [6, 1]);
 });
+
+test("siteAliases finds aliases of a site by a word in the address or by the note", () => {
+  const alias = (email, extra = {}) => ({ email, note: "", enabled: true, ...extra });
+  const list = [
+    alias("crypto.mexc@w3b.world"),
+    alias("mexc1@w3b.world"),
+    alias("mexcpro@w3b.world"),
+    alias("shop@w3b.world", { note: "Alias Buddy: mexc.com (default)" }),
+    alias("mexc.old@w3b.world", { enabled: false }),
+    alias("x.shop@w3b.world"),
+  ];
+  assert.deepEqual(core.siteAliases(list, "mexc.com").map(a => a.email), ["crypto.mexc@w3b.world", "mexc1@w3b.world", "shop@w3b.world"]);
+  assert.deepEqual(core.siteAliases(list, "x.com"), []);
+});

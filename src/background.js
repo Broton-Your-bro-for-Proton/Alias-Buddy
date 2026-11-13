@@ -939,6 +939,92 @@ async function useAlias(ctx, tabId, alias) {
   return alias.email;
 }
 
+/** The sites a message goes to, see core.recipientSites. */
+async function sitesOf(ctx, details, mine) {
+  const contacts = new Map(Object.values(ctx.cache.contacts).flatMap(c => Object.entries(c).map(([contact, reverse]) => [reverse, contact])));
+  return core.recipientSites(
+    (await recipientsOf(details).catch(() => [])).map(r => r.email),
+    {
+      isMine: email => mine.has(core.canonical(email)),
+      contactOf: email => contacts.get(email),
+      reverseDomains: new Set([...contacts.keys()].map(domainOf)),
+    }
+  );
+}
+
+/** The aliases of a site, from the local list, else from a search in SimpleLogin. */
+async function aliasesOfSite(ctx, site) {
+  const local = core.siteAliases((await aliasStore(ctx)).aliases, site);
+  if (local.length || !ctx.sl) {
+    return local;
+  }
+  const found = await ctx.sl.searchAliases(site.split(".")[0]);
+  await storeAliases(ctx, list => core.mergeAliases(list, found).aliases);
+  return core.siteAliases(found, site);
+}
+
+// ---- matching alias while writing ----------------------------------------------------
+
+const siteChecks = new Map(); // tab id: the sites last looked at, so each recipient change is looked at once
+const siteNotes = new Map(); // tab id: what the add-on found for the recipients, for the popup
+
+function showSiteNote(tabId, note, badge) {
+  siteNotes.set(tabId, note);
+  if (status.has(tabId)) {
+    return; // the result of a send attempt stays on the button
+  }
+  messenger.composeAction.setBadgeText({ tabId, text: badge });
+  messenger.composeAction.setTitle({ tabId, title: note ? `Alias Buddy: ${note}` : "Alias Buddy" });
+  if (badge) {
+    messenger.composeAction.setBadgeBackgroundColor({ tabId, color: "#b49a64" });
+    messenger.composeAction.setBadgeTextColor({ tabId, color: "#0f1217" });
+  }
+}
+
+/**
+ * After the recipients change: with one site and the real address as sender,
+ * a single alias of that site becomes the sender; several are offered in the popup.
+ * A sender the user chose is never changed.
+ */
+async function matchSiteAlias(ctx, tabId) {
+  const details = await messenger.compose.getComposeDetails(tabId);
+  const mine = await protectedAddresses(ctx);
+  const sites = await sitesOf(ctx, details, mine);
+  const key = sites.join(" ");
+  if (siteChecks.get(tabId) == key) {
+    return;
+  }
+  siteChecks.set(tabId, key);
+  const current = core.norm((await messenger.identities.get(details.identityId)).email);
+  if (sites.length != 1 || !ctx.sl || !ctx.settings.creation.matchSite || !mine.has(core.canonical(current))) {
+    showSiteNote(tabId, null, "");
+    return;
+  }
+  const matches = await aliasesOfSite(ctx, sites[0]);
+  if (matches.length == 1) {
+    await useAlias(ctx, tabId, matches[0]);
+    showSiteNote(tabId, `Matching alias ${matches[0].email} found for ${sites[0]} and set as sender.`, "✓");
+  } else if (matches.length > 1) {
+    showSiteNote(tabId, `${matches.length} aliases found for ${sites[0]}. Choose one in Alias Buddy.`, String(matches.length));
+  } else {
+    showSiteNote(tabId, `No alias for ${sites[0]} yet.`, "");
+  }
+}
+
+// Thunderbird has no event for changed recipients, so open messages are looked at every two seconds.
+const seenRecipients = new Map(); // tab id: recipients at the last look, so an unchanged message costs no queue turn
+setInterval(async () => {
+  for (const tab of await messenger.tabs.query({ type: "messageCompose" })) {
+    const { to, cc, bcc } = await messenger.compose.getComposeDetails(tab.id).catch(() => ({}));
+    const recipients = JSON.stringify([to, cc, bcc]);
+    if (seenRecipients.get(tab.id) == recipients) {
+      continue;
+    }
+    seenRecipients.set(tab.id, recipients);
+    serialized(ctx => matchSiteAlias(ctx, tab.id)).catch(e => console.warn("Alias Buddy: could not look for a matching alias", e));
+  }
+}, 2000);
+
 /** What the popup offers for choosing or creating the sender alias. */
 async function aliasPanel(ctx, tabId, wanted, wantedSite) {
   if (!ctx.sl) {
@@ -950,15 +1036,7 @@ async function aliasPanel(ctx, tabId, wanted, wantedSite) {
   const details = await messenger.compose.getComposeDetails(tabId);
   const current = core.norm((await messenger.identities.get(details.identityId)).email);
   const mine = await protectedAddresses(ctx);
-  const contacts = new Map(Object.values(ctx.cache.contacts).flatMap(c => Object.entries(c).map(([contact, reverse]) => [reverse, contact])));
-  const sites = core.recipientSites(
-    (await recipientsOf(details).catch(() => [])).map(r => r.email),
-    {
-      isMine: email => mine.has(core.canonical(email)),
-      contactOf: email => contacts.get(email),
-      reverseDomains: new Set([...contacts.keys()].map(domainOf)),
-    }
-  );
+  const sites = await sitesOf(ctx, details, mine);
   const site = sites.includes(wantedSite) ? wantedSite : (sites[0] ?? "");
   // The recipient's site is only looked up for messages from a mailbox or an alias.
   const relevant = site && (mine.has(core.canonical(current)) || (await aliasFor(ctx, current).catch(() => null)));
@@ -976,6 +1054,7 @@ async function aliasPanel(ctx, tabId, wanted, wantedSite) {
   return {
     site,
     sites,
+    matches: site ? (await aliasesOfSite(ctx, site).catch(() => [])).slice(0, 10).map(a => ({ email: a.email, note: a.note })) : [],
     templates,
     template,
     suggestion,
@@ -1406,6 +1485,9 @@ messenger.tabs.onRemoved.addListener(tabId => {
   rewritten.delete(tabId);
   chosenTemplates.delete(tabId);
   displays.delete(tabId);
+  siteChecks.delete(tabId);
+  seenRecipients.delete(tabId);
+  siteNotes.delete(tabId);
 });
 
 messenger.runtime.onMessage.addListener(async message => {
@@ -1418,7 +1500,7 @@ messenger.runtime.onMessage.addListener(async message => {
     } catch (e) {
       preview = blockedResult(e);
     }
-    return { preview, last: status.get(tabId) };
+    return { preview, last: status.get(tabId), found: siteNotes.get(tabId) };
   }
   if (message.type == "aliasStore") {
     // A full sync when asked, else a quick one for the newest aliases; the list either way.

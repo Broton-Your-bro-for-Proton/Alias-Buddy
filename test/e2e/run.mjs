@@ -727,6 +727,8 @@ try {
         doc.getElementById("apiUrl").value = "http://127.0.0.1:${apiPort}";
         doc.getElementById("apiKey").value = "test-key";
         doc.getElementById("allowlist").value = "@family.example";
+        // The checks below write from real mailboxes to sites with aliases; the matching while writing has its own check.
+        doc.getElementById("matchSite").checked = false;
         doc.getElementById("form").requestSubmit();
         await until(() => doc.getElementById("result").textContent.startsWith("Saved."), "saved");
         await until(() => !doc.getElementById("result").textContent.includes("Testing"), "tested");
@@ -1275,7 +1277,8 @@ try {
         const search = doc.getElementById("search");
         search.value = "shop@alias";
         search.dispatchEvent(new content.Event("input"));
-        await until(() => doc.querySelector("#results button"), "results");
+        // The site's own aliases show first, the search replaces them.
+        await until(() => doc.querySelector("#results button")?.textContent.startsWith("shop@alias.example"), "results");
         doc.querySelector("#results button").click();
         `
       )
@@ -1958,6 +1961,45 @@ try {
     const total = api.aliases.length;
     expect(result, { first: [20, "Page 1 of 2"], second: [total - 20, "Page 2 of 2"], all: [total, true] }, "pages");
     api.aliases.splice(-25);
+  });
+
+  await check("writing: the only alias of the recipient's site becomes the sender, several are offered", async () => {
+    await client.run(
+      chrome(`
+        const url = WebExtensionPolicy.getByID(args[0]).getURL("options/options.html");
+        window.document.getElementById("tabmail").openTab("contentTab", { url });
+        await sleep(1500);
+      `),
+      addon
+    );
+    await client.run(
+      inPage(
+        `window.document.getElementById("tabmail").currentTabInfo.browser`,
+        `
+        await until(() => doc.getElementById("apiKey").value, "settings loaded");
+        doc.getElementById("matchSite").checked = true;
+        doc.getElementById("form").requestSubmit();
+        await until(() => doc.getElementById("result").textContent.startsWith("Saved."), "saved");
+        `
+      )
+    );
+    // heise has one alias, news.heise@mine.example.
+    await client.run(chrome(`await compose("id5", { to: "news@heise.example" });`));
+    await client.run(chrome(`await until(() => MailServices.accounts.getIdentity(composeWindows()[0].getCurrentIdentityKey()).email == "news.heise@mine.example", "switched to the site's alias", 15000);`));
+    await openPopup();
+    const one = await client.run(inPage(popup, `await until(() => !doc.getElementById("found").hidden, "note shown"); return doc.getElementById("found").textContent;`));
+    expect(one, "Matching alias news.heise@mine.example found for heise.example and set as sender.", "note");
+    expect(await client.run(inPage(popup, `return doc.getElementById("suggestion").hidden;`)), true, "no contradicting suggestion");
+    await popupShot("popup-matched");
+    // shop has three: shop@alias.example, shop.otto@mine.example and the one created above. None is chosen, both are offered.
+    await client.run(chrome(`await compose("id5", { to: "info@shop.example" }); await sleep(5000);`));
+    expect(await composeIdentity(), "id5", "sender unchanged with several aliases");
+    await openPopup();
+    const offered = await client.run(
+      inPage(popup, `await until(() => doc.querySelectorAll("#results button").length > 1, "aliases offered"); return [doc.getElementById("found").textContent, [...doc.querySelectorAll("#results button")].map(b => b.textContent.split(" ")[0]).sort()];`)
+    );
+    if (!/^3 aliases found for shop\.example/.test(offered[0]) || !offered[1].includes("shop.otto@mine.example")) throw new Error("offered: " + JSON.stringify(offered));
+    await popupShot("popup-matches");
   });
 
   await check("API down: an unknown identity is blocked", async () => {

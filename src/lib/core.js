@@ -401,3 +401,16 @@ export function viewAliases(aliases, { query = "", filter = "", page = 0, size =
   const at = Math.min(Math.max(page, 0), pages - 1);
   return { rows: sorted.slice(at * size, (at + 1) * size), page: at, pages, total: sorted.length };
 }
+
+/**
+ * The enabled aliases that belong to a site: the site's name stands as its own
+ * word in the address (crypto.mexc@ for mexc.com, not mexcpro@), or the note
+ * names the site. Names shorter than three letters only count through the note.
+ */
+export function siteAliases(aliases, site) {
+  const name = site.split(".")[0];
+  const word = text => new RegExp(`(^|[^a-z])${name.replace(/[^a-z0-9-]/g, "")}([^a-z]|$)`).test(text);
+  return aliases.filter(
+    a => a.enabled && ((name.length >= 3 && word(a.email.split("@")[0])) || a.note.toLowerCase().includes(site))
+  );
+}

@@ -4,7 +4,7 @@ import { getSettings } from "../lib/settings.js";
 
 const $ = id => document.getElementById(id);
 const lines = text => text.split("\n").map(l => l.trim()).filter(Boolean);
-const FLAGS = ["perDomain", "autoSwitch", "replyFromAlias", "autoIdentity", "addressBook"];
+const FLAGS = ["perDomain", "autoSwitch", "matchSite", "replyFromAlias", "autoIdentity", "addressBook"];
 
 const settings = await getSettings();
 $("apiUrl").value = settings.apiUrl;

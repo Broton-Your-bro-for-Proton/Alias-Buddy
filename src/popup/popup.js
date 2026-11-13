@@ -12,8 +12,10 @@ const SUMMARY = {
 };
 
 let shown = null;
-function render({ preview, last }) {
+function render({ preview, last, found }) {
   shown = preview;
+  $("found").hidden = !found;
+  $("found").textContent = found ?? "";
   $("summary").textContent = SUMMARY[preview.state](preview);
   $("summary").className = { alias: "state-ok", switch: "state-ok", blocked: "state-blocked" }[preview.state] ?? "";
   const body = $("rows").tBodies[0];
@@ -71,7 +73,8 @@ async function loadPanel(template, site) {
   }
   panel = loaded;
   $("aliasPanel").hidden = false;
-  $("suggestion").hidden = !panel.suggestion;
+  // "No alias yet" would contradict the site's aliases listed below; a new one can still be created there.
+  $("suggestion").hidden = !panel.suggestion || (!panel.suggestion.existing && panel.matches.length > 0);
   $("useSuggestion").hidden = !!panel.suggestion?.error;
   if (panel.suggestion?.error) {
     $("suggestionText").textContent = panel.suggestion.error;
@@ -80,6 +83,9 @@ async function loadPanel(template, site) {
       ? `Your alias for ${panel.site}:`
       : `No alias for ${panel.site} yet. A new one would be:`;
     $("useSuggestion").textContent = `${panel.suggestion.existing ? "Use" : "Create and use"} ${panel.suggestion.email}`;
+  }
+  if ($("search").value.trim().length < 2) {
+    showAliases(panel.matches);
   }
   $("siteRow").hidden = panel.sites.length < 2;
   $("site").replaceChildren(...panel.sites.map(s => new Option(s, s, false, s == panel.site)));
@@ -92,22 +98,26 @@ async function loadPanel(template, site) {
   $("mailbox").replaceChildren(...panel.mailboxes.map(m => new Option(`to ${m.email}`, m.id, false, m.id == panel.mailboxId)));
 }
 
+/** Alias buttons under "Existing alias": search results, or the site's aliases while the search is empty. */
+function showAliases(aliases) {
+  $("results").replaceChildren(
+    ...aliases.slice(0, 10).map(alias => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "btn choice";
+      button.textContent = alias.note ? `${alias.email}  (${alias.note.split("\n")[0]})` : alias.email;
+      button.addEventListener("click", () => choose("useAlias", { email: alias.email }));
+      return button;
+    })
+  );
+}
+
 let searchTimer;
 $("search").addEventListener("input", () => {
   clearTimeout(searchTimer);
   searchTimer = setTimeout(async () => {
     const query = $("search").value.trim();
-    const found = query.length < 2 ? [] : (await act("searchAliases", { query })) ?? [];
-    $("results").replaceChildren(
-      ...found.slice(0, 8).map(alias => {
-        const button = document.createElement("button");
-        button.type = "button";
-        button.className = "btn choice";
-        button.textContent = alias.note ? `${alias.email}  (${alias.note.split("\n")[0]})` : alias.email;
-        button.addEventListener("click", () => choose("useAlias", { email: alias.email }));
-        return button;
-      })
-    );
+    showAliases(query.length < 2 ? (panel?.matches ?? []) : ((await act("searchAliases", { query })) ?? []));
   }, 300);
 });
 
