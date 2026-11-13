@@ -1991,6 +1991,19 @@ try {
     expect(one, "Matching alias news.heise@mine.example found for heise.example and set as sender.", "note");
     expect(await client.run(inPage(popup, `return doc.getElementById("suggestion").hidden;`)), true, "no contradicting suggestion");
     await popupShot("popup-matched");
+    // A real address the user picked before adding the recipient stays.
+    await client.run(
+      chrome(`
+        const win = await compose("id5");
+        await sleep(3000);
+        const menu = win.document.getElementById("msgIdentity");
+        menu.selectedItem = menu.getElementsByAttribute("identitykey", "id6")[0];
+        win.LoadIdentity(false);
+        win.addressRowAddRecipientsArray(win.document.querySelector(".address-row[data-recipienttype='addr_to']"), ["tips@heise.example"]);
+        await sleep(5000);
+      `)
+    );
+    expect(await composeIdentity(), "id6", "the sender the user picked stays");
     // shop has three: shop@alias.example, shop.otto@mine.example and the one created above. None is chosen, both are offered.
     await client.run(chrome(`await compose("id5", { to: "info@shop.example" }); await sleep(5000);`));
     expect(await composeIdentity(), "id5", "sender unchanged with several aliases");

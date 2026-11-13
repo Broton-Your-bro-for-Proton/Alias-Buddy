@@ -73,8 +73,8 @@ async function loadPanel(template, site) {
   }
   panel = loaded;
   $("aliasPanel").hidden = false;
-  // "No alias yet" would contradict the site's aliases listed below; a new one can still be created there.
-  $("suggestion").hidden = !panel.suggestion || (!panel.suggestion.existing && panel.matches.length > 0);
+  // "No alias yet" would contradict a sender that is already one of the site's aliases.
+  $("suggestion").hidden = !panel.suggestion || (!panel.suggestion.existing && panel.matches.some(m => m.email == panel.sender));
   $("useSuggestion").hidden = !!panel.suggestion?.error;
   if (panel.suggestion?.error) {
     $("suggestionText").textContent = panel.suggestion.error;

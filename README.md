@@ -50,6 +50,7 @@ The Alias Buddy button in the compose window shows what will happen to each reci
 The Alias Buddy popup in the compose window offers:
 
 - **The alias for the recipient's site**, for example for news@shop.amazon.de the alias tied to amazon.de, or a new one. For recipients of several sites, a choice of the site comes first; a reply's reverse alias counts as its contact's site. With several name templates, a choice of the template (the category) follows. The chosen template also applies to the automatic switch when you send this message.
+- **While you write**, the add-on looks for your aliases of the recipient's site: the site's name as a word in the address (crypto.mexc@ for mexc.com) or the site in the note. If you write from your real address and there is exactly one, it becomes the sender right away; the button shows ✓ and its tooltip says which alias it chose. With several, the button shows how many and the popup lists the first 10 under Existing alias. A sender you picked yourself is never changed, and replies and forwards keep their own alias. Turn it off in the settings under Automatic.
 - **An existing alias**, found by searching its address or note.
 - **A new alias** with a name, a domain and a mailbox of your choice.
 

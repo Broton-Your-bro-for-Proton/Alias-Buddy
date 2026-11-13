@@ -331,4 +331,7 @@ test("siteAliases finds aliases of a site by a word in the address or by the not
   ];
   assert.deepEqual(core.siteAliases(list, "mexc.com").map(a => a.email), ["crypto.mexc@w3b.world", "mexc1@w3b.world", "shop@w3b.world"]);
   assert.deepEqual(core.siteAliases(list, "x.com"), []);
+  assert.deepEqual(core.siteAliases([alias("a@w3b.world", { note: "Created for netflix.com" })], "x.com"), []);
+  assert.deepEqual(core.siteAliases([alias("a@w3b.world", { note: "For x.com orders" })], "x.com").length, 1);
+  assert.deepEqual(core.siteAliases([alias("x1192@w3b.world")], "192.168.1.1"), []);
 });
