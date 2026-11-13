@@ -939,6 +939,128 @@ async function useAlias(ctx, tabId, alias) {
   return alias.email;
 }
 
+/** The sites a message goes to, see core.recipientSites. */
+async function sitesOf(ctx, details, mine) {
+  const contacts = new Map(Object.values(ctx.cache.contacts).flatMap(c => Object.entries(c).map(([contact, reverse]) => [reverse, contact])));
+  return core.recipientSites(
+    (await recipientsOf(details).catch(() => [])).map(r => r.email),
+    {
+      isMine: email => mine.has(core.canonical(email)),
+      contactOf: email => contacts.get(email),
+      reverseDomains: new Set([...contacts.keys()].map(domainOf)),
+    }
+  );
+}
+
+/**
+ * The aliases of a site from the local list, else from one search in SimpleLogin.
+ * complete is false when the search filled a whole page, so more may exist.
+ */
+async function aliasesOfSite(ctx, site, { online = true } = {}) {
+  const local = core.siteAliases((await aliasStore(ctx)).aliases, site);
+  if (local.length || !online || !ctx.sl) {
+    return { matches: local, complete: true };
+  }
+  const found = await ctx.sl.searchAliases(site.split(".")[0]);
+  await storeAliases(ctx, list => core.mergeAliases(list, found).aliases, undefined, found.map(a => a.id));
+  return { matches: core.siteAliases(found, site), complete: found.length < 20 };
+}
+
+// ---- matching alias while writing ----------------------------------------------------
+
+const siteChecks = new Map(); // tab id: the sites last looked at, so each recipient change is looked at once
+const siteNotes = new Map(); // tab id: what the add-on found for the recipients, for the popup
+const firstSenders = new Map(); // tab id: the sender the window opened with; null once the add-on switched or the user chose
+const seenRecipients = new Map(); // tab id: recipients at the last look, so an unchanged message costs no queue turn
+
+function showSiteNote(tabId, note, badge) {
+  siteNotes.set(tabId, note);
+  if (status.has(tabId)) {
+    return; // the result of a send attempt stays on the button
+  }
+  messenger.composeAction.setBadgeText({ tabId, text: badge });
+  messenger.composeAction.setTitle({ tabId, title: note ? `Alias Buddy: ${note}` : "Alias Buddy" });
+  if (badge) {
+    messenger.composeAction.setBadgeBackgroundColor({ tabId, color: "#b49a64" });
+    messenger.composeAction.setBadgeTextColor({ tabId, color: "#0f1217" });
+  }
+}
+
+/**
+ * After the recipients change: with one site and the real address the window
+ * opened with as sender, a single alias of that site becomes the sender; several
+ * are offered in the popup. It switches once per window and never after the user
+ * picked a sender. Replies and forwards are left to their own automation.
+ */
+async function matchSiteAlias(ctx, tabId) {
+  const details = await messenger.compose.getComposeDetails(tabId);
+  if (!firstSenders.has(tabId)) {
+    firstSenders.set(tabId, details.identityId);
+  }
+  if (firstSenders.get(tabId) != details.identityId) {
+    firstSenders.set(tabId, null);
+  }
+  const mine = await protectedAddresses(ctx);
+  const sites = await sitesOf(ctx, details, mine);
+  const key = sites.join(" ");
+  if (siteChecks.get(tabId) == key) {
+    return;
+  }
+  siteChecks.set(tabId, key);
+  const current = core.norm((await messenger.identities.get(details.identityId)).email);
+  const automated = ["reply", "forward"].includes(details.type) && details.relatedMessageId && ctx.settings.creation.replyFromAlias;
+  if (sites.length != 1 || !ctx.sl || !ctx.settings.creation.matchSite || automated || !mine.has(core.canonical(current))) {
+    showSiteNote(tabId, null, "");
+    return;
+  }
+  const site = sites[0];
+  let found;
+  try {
+    found = await aliasesOfSite(ctx, site);
+  } catch (e) {
+    siteChecks.delete(tabId); // looked at again with the next recipient change
+    seenRecipients.delete(tabId);
+    showSiteNote(tabId, `Could not look for an alias for ${site}: ${e.message}`, "");
+    return;
+  }
+  const { matches, complete } = found;
+  if (matches.length == 1 && complete && firstSenders.get(tabId)) {
+    // The local list may be hours old: the alias must still exist and be on.
+    const live = await ctx.sl.findAlias(matches[0].email).catch(() => null);
+    // The user may have picked a sender while this waited.
+    const now = await messenger.compose.getComposeDetails(tabId);
+    if (live?.enabled && now.identityId == details.identityId) {
+      await useAlias(ctx, tabId, live);
+      firstSenders.set(tabId, null);
+      showSiteNote(tabId, `Matching alias ${live.email} found for ${site} and set as sender.`, "✓");
+      return;
+    }
+  }
+  if (matches.length == 1) {
+    showSiteNote(tabId, `Alias ${matches[0].email} found for ${site}. Choose it in Alias Buddy.`, "1");
+  } else if (matches.length > 1) {
+    showSiteNote(tabId, `${matches.length}${complete ? "" : "+"} aliases found for ${site}. Choose one in Alias Buddy.`, String(matches.length));
+  } else {
+    showSiteNote(tabId, `No alias for ${site} yet.`, "");
+  }
+}
+
+// Thunderbird has no event for changed recipients, so open messages are looked at every two seconds.
+setInterval(async () => {
+  for (const tab of await messenger.tabs.query({ type: "messageCompose" })) {
+    const { to, cc, bcc } = await messenger.compose.getComposeDetails(tab.id).catch(() => ({}));
+    const recipients = JSON.stringify([to, cc, bcc]);
+    if (seenRecipients.get(tab.id) == recipients) {
+      continue;
+    }
+    seenRecipients.set(tab.id, recipients);
+    serialized(ctx => matchSiteAlias(ctx, tab.id)).catch(e => {
+      seenRecipients.delete(tab.id);
+      console.warn("Alias Buddy: could not look for a matching alias", e);
+    });
+  }
+}, 2000);
+
 /** What the popup offers for choosing or creating the sender alias. */
 async function aliasPanel(ctx, tabId, wanted, wantedSite) {
   if (!ctx.sl) {
@@ -950,15 +1072,7 @@ async function aliasPanel(ctx, tabId, wanted, wantedSite) {
   const details = await messenger.compose.getComposeDetails(tabId);
   const current = core.norm((await messenger.identities.get(details.identityId)).email);
   const mine = await protectedAddresses(ctx);
-  const contacts = new Map(Object.values(ctx.cache.contacts).flatMap(c => Object.entries(c).map(([contact, reverse]) => [reverse, contact])));
-  const sites = core.recipientSites(
-    (await recipientsOf(details).catch(() => [])).map(r => r.email),
-    {
-      isMine: email => mine.has(core.canonical(email)),
-      contactOf: email => contacts.get(email),
-      reverseDomains: new Set([...contacts.keys()].map(domainOf)),
-    }
-  );
+  const sites = await sitesOf(ctx, details, mine);
   const site = sites.includes(wantedSite) ? wantedSite : (sites[0] ?? "");
   // The recipient's site is only looked up for messages from a mailbox or an alias.
   const relevant = site && (mine.has(core.canonical(current)) || (await aliasFor(ctx, current).catch(() => null)));
@@ -976,6 +1090,8 @@ async function aliasPanel(ctx, tabId, wanted, wantedSite) {
   return {
     site,
     sites,
+    sender: current,
+    matches: site ? (await aliasesOfSite(ctx, site, { online: false })).matches.slice(0, 10).map(a => ({ email: a.email, note: a.note })) : [],
     templates,
     template,
     suggestion,
@@ -1406,6 +1522,10 @@ messenger.tabs.onRemoved.addListener(tabId => {
   rewritten.delete(tabId);
   chosenTemplates.delete(tabId);
   displays.delete(tabId);
+  siteChecks.delete(tabId);
+  seenRecipients.delete(tabId);
+  siteNotes.delete(tabId);
+  firstSenders.delete(tabId);
 });
 
 messenger.runtime.onMessage.addListener(async message => {
@@ -1418,7 +1538,7 @@ messenger.runtime.onMessage.addListener(async message => {
     } catch (e) {
       preview = blockedResult(e);
     }
-    return { preview, last: status.get(tabId) };
+    return { preview, last: status.get(tabId), found: siteNotes.get(tabId) };
   }
   if (message.type == "aliasStore") {
     // A full sync when asked, else a quick one for the newest aliases; the list either way.

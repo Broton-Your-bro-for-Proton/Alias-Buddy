@@ -401,3 +401,20 @@ export function viewAliases(aliases, { query = "", filter = "", page = 0, size =
   const at = Math.min(Math.max(page, 0), pages - 1);
   return { rows: sorted.slice(at * size, (at + 1) * size), page: at, pages, total: sorted.length };
 }
+
+/**
+ * The enabled aliases that belong to a site: the site's name stands as its own
+ * word in the address (crypto.mexc@ for mexc.com, not mexcpro@), or the note
+ * names the site. Names shorter than three letters only count through the note.
+ */
+export function siteAliases(aliases, site) {
+  if (!/[a-z]/.test(site)) {
+    return []; // an IP address names no site
+  }
+  const name = site.split(".")[0].replace(/[^a-z0-9-]/g, "");
+  const escaped = site.replace(/[^a-z0-9-]/g, c => `\\${c}`);
+  const word = text => new RegExp(`(^|[^a-z])${name}([^a-z]|$)`).test(text);
+  // In the note the site counts as a whole domain: x.com is not in "netflix.com".
+  const named = note => new RegExp(`(^|[^a-z0-9.-])${escaped}([^a-z0-9-]|$)`).test(note.toLowerCase());
+  return aliases.filter(a => a.enabled && ((name.length >= 3 && word(a.email.split("@")[0])) || named(a.note)));
+}

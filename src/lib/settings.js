@@ -6,6 +6,7 @@ export const CREATION_DEFAULTS = {
   template: "{domain}.{random}", // the default name template, always templates[0]
   perDomain: true, // reuse or create one alias per recipient domain, remembered in the alias note
   autoSwitch: false, // from a real mailbox to a new recipient: switch to that alias instead of blocking
+  matchSite: true, // while writing from a real mailbox: the only alias of the recipient's site becomes the sender
   replyFromAlias: true, // a reply or forward goes out as the alias the message came through
   autoIdentity: true, // create the Thunderbird identity for an alias when it is needed
   addressBook: true, // keep reverse aliases in the address book "Alias Buddy", named after contact and alias
