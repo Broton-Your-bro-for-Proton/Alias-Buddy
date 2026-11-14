@@ -1,0 +1,24 @@
+{
+  "name": "Alias Buddy for SimpleLogin",
+  "summary": "以 SimpleLogin 別名寄信給一般地址。Alias Buddy 為您建立並填入反向別名，並攔截會洩露您真實地址的郵件。",
+  "description": "使用 SimpleLogin，您可以用自己的某個別名寫信給任何人，但必須透過需要手動建立並複製的反向別名。一時疏忽，您的真實地址就會外洩。Alias Buddy 會在您按下寄送的那一刻替您完成這些工作。\n\n<b>功能</b>\n<ul>\n<li><b>直接寫給真實地址：</b>選擇一個別名作為寄件者，像平常一樣寫信給聯絡人。寄送時，附加元件會建立反向別名，並透過正確的郵件信箱寄出。</li>\n<li><b>為每個網站選對別名：</b>撰寫視窗中的彈出視窗會為收件者的網站建議別名，或依據您的名稱範本建立新別名，例如 shop.amazon@yourdomain.com。</li>\n<li><b>守衛：</b>在郵件寄出之前檢查寄件者、收件者、Reply-To、內文、附件、vCard、OpenPGP 金鑰和簽章，並攔截任何會洩露您信箱地址的內容。行事曆邀請同樣受到保護。</li>\n<li><b>回覆維持使用別名：</b>回覆或轉寄透過別名收到的郵件時，會以該別名寄出。</li>\n<li><b>別名總覽：</b>在一個 Thunderbird 分頁中搜尋、編輯備註、釘選、停用或刪除別名，以及封鎖聯絡人。</li>\n<li><b>收到的郵件：</b>每封郵件上方的按鈕會顯示它是透過哪個別名送達的。</li>\n</ul>\n\n您需要 SimpleLogin API 金鑰。建立反向別名需要允許此功能的 SimpleLogin 方案。附加元件只與 SimpleLogin API 通訊（app.simplelogin.io，或您自己的 SimpleLogin 伺服器）。介面為英文。\n\n與 Proton AG 或 SimpleLogin 無關，也未獲得其認可。",
+  "releaseNotes": "addons.thunderbird.net 上的第一個版本。",
+  "screenshots": [
+    {
+      "file": "01-compose.png",
+      "caption": "撰寫時為收件者的網站選擇或建立別名"
+    },
+    {
+      "file": "02-guard.png",
+      "caption": "守衛會攔截會洩露您真實地址的郵件"
+    },
+    {
+      "file": "03-overview.png",
+      "caption": "所有別名集中在一個 Thunderbird 分頁中"
+    },
+    {
+      "file": "04-settings.png",
+      "caption": "API 金鑰、新別名和自動行為的設定"
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "name": "Alias Buddy for SimpleLogin",
+  "summary": "Envie como um alias do SimpleLogin para endereços comuns. O Alias Buddy cria e preenche os aliases reversos para você e bloqueia mensagens que revelariam seu endereço real.",
+  "description": "Com o SimpleLogin você pode escrever para qualquer pessoa como um dos seus aliases, mas só por meio de um alias reverso que você precisa criar e copiar à mão. Um deslize e seu endereço real vai para fora. O Alias Buddy faz isso por você no momento em que você clica em Enviar.\n\n<b>Recursos</b>\n<ul>\n<li><b>Escreva para o endereço real:</b> escolha um alias como remetente e escreva para o seu contato como de costume. Ao enviar, o complemento cria os aliases reversos e envia pela caixa de correio certa.</li>\n<li><b>O alias certo para cada site:</b> o popup na janela de composição sugere o alias para o site do destinatário ou cria um novo a partir dos seus modelos de nome, por exemplo shop.amazon@yourdomain.com.</li>\n<li><b>A proteção:</b> verifica remetente, destinatários, Reply-To, texto, anexos, vCard, chave OpenPGP e assinatura antes de a mensagem sair e bloqueia tudo que revelaria o endereço da sua caixa de correio. Convites de calendário também são cobertos.</li>\n<li><b>As respostas ficam no alias:</b> uma resposta ou um encaminhamento de uma mensagem que chegou por um alias sai com esse alias.</li>\n<li><b>Visão geral dos aliases:</b> pesquise, edite notas, fixe, desative ou exclua seus aliases e bloqueie contatos, tudo em uma aba do Thunderbird.</li>\n<li><b>Mensagens recebidas:</b> um botão acima de cada mensagem indica o alias pelo qual ela chegou.</li>\n</ul>\n\nVocê precisa de uma chave de API do SimpleLogin. Criar aliases reversos exige um plano do SimpleLogin que permita isso. O complemento se comunica apenas com a API do SimpleLogin (app.simplelogin.io, ou o seu próprio servidor SimpleLogin). A interface está em inglês.\n\nSem afiliação com a Proton AG ou o SimpleLogin, nem endosso por eles.",
+  "releaseNotes": "Primeira versão em addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-compose.png",
+      "caption": "Escolha ou crie o alias para o site do destinatário enquanto escreve"
+    },
+    {
+      "file": "02-guard.png",
+      "caption": "A proteção bloqueia uma mensagem que revelaria seu endereço real"
+    },
+    {
+      "file": "03-overview.png",
+      "caption": "Todos os seus aliases em uma aba do Thunderbird"
+    },
+    {
+      "file": "04-settings.png",
+      "caption": "Configurações da chave de API, de novos aliases e do comportamento automático"
+    }
+  ]
+}

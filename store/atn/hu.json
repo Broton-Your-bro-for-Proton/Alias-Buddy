@@ -1,0 +1,24 @@
+{
+  "name": "Alias Buddy for SimpleLogin",
+  "summary": "Küldjön SimpleLogin aliasként hétköznapi címekre. Az Alias Buddy létrehozza és kitölti helyette a fordított aliasokat, és blokkolja azokat az üzeneteket, amelyek felfednék a valódi címét.",
+  "description": "A SimpleLogin segítségével bárkinek írhat az egyik aliasaként, de csak egy fordított aliason keresztül, amelyet kézzel kell létrehoznia és másolnia. Egyetlen hiba, és kiderül a valódi címe. Az Alias Buddy ezt elvégzi helyette abban a pillanatban, amikor a Küldés gombra kattint.\n\n<b>Funkciók</b>\n<ul>\n<li><b>Írjon a valódi címre:</b> válasszon aliast feladóként, és írjon a partnerének a szokásos módon. Küldéskor a kiegészítő létrehozza a fordított aliasokat, és a megfelelő postafiókon keresztül küld.</li>\n<li><b>A megfelelő alias minden webhelyhez:</b> az üzenetíró ablak felugró ablaka a címzett webhelyéhez javasol aliast, vagy újat hoz létre a névsablonjaiból, például shop.amazon@yourdomain.com.</li>\n<li><b>Az őr:</b> az üzenet elküldése előtt ellenőrzi a feladót, a címzetteket, a Reply-To mezőt, a szöveget, a mellékleteket, a vCardot, az OpenPGP-kulcsot és az aláírást, és megállít mindent, ami felfedné a postafiókja címét. A naptármeghívók is le vannak fedve.</li>\n<li><b>A válaszok az aliason maradnak:</b> egy aliason keresztül érkezett üzenetre adott válasz vagy annak továbbítása ugyanazon aliasként megy ki.</li>\n<li><b>Aliasáttekintő:</b> keresés, jegyzetek szerkesztése, rögzítés, aliasok kikapcsolása vagy törlése és kapcsolattartók tiltása, mindez egyetlen Thunderbird-lapon.</li>\n<li><b>Fogadott üzenetek:</b> minden üzenet fölött egy gomb megnevezi az aliast, amelyen keresztül megérkezett.</li>\n</ul>\n\nSzüksége van egy SimpleLogin API-kulcsra. A fordított aliasok létrehozásához olyan SimpleLogin csomag kell, amely ezt lehetővé teszi. A kiegészítő csak a SimpleLogin API-val kommunikál (app.simplelogin.io vagy a saját SimpleLogin szervere). A felület angol nyelvű.\n\nNincs kapcsolatban a Proton AG-vel és a SimpleLogin szolgáltatással, és nem is támogatják.",
+  "releaseNotes": "Első verzió az addons.thunderbird.net oldalon.",
+  "screenshots": [
+    {
+      "file": "01-compose.png",
+      "caption": "Írás közben válassza ki vagy hozza létre az aliast a címzett webhelyéhez"
+    },
+    {
+      "file": "02-guard.png",
+      "caption": "Az őr megállítja azt az üzenetet, amely felfedné a valódi címét"
+    },
+    {
+      "file": "03-overview.png",
+      "caption": "Minden aliasa egyetlen Thunderbird-lapon"
+    },
+    {
+      "file": "04-settings.png",
+      "caption": "Beállítások az API-kulcshoz, az új aliasokhoz és az automatikus viselkedéshez"
+    }
+  ]
+}

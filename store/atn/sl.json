@@ -1,0 +1,24 @@
+{
+  "name": "Alias Buddy for SimpleLogin",
+  "summary": "Pošiljajte kot vzdevek SimpleLogin na navadne naslove. Alias Buddy namesto vas ustvari in vstavi povratne vzdevke ter blokira sporočila, ki bi razkrila vaš pravi naslov.",
+  "description": "S storitvijo SimpleLogin lahko komur koli pišete kot eden od svojih vzdevkov, vendar le prek povratnega vzdevka, ki ga morate ročno ustvariti in kopirati. Ena napaka in vaš pravi naslov je razkrit. Alias Buddy to naredi namesto vas v trenutku, ko pritisnete Pošlji.\n\n<b>Funkcije</b>\n<ul>\n<li><b>Pišite na pravi naslov:</b> izberite vzdevek kot pošiljatelja in pišite stiku kot običajno. Ob pošiljanju dodatek ustvari povratne vzdevke in pošlje prek pravega nabiralnika.</li>\n<li><b>Pravi vzdevek za vsako spletno mesto:</b> pojavno okno v oknu za pisanje predlaga vzdevek za spletno mesto prejemnika ali ustvari novega iz vaših predlog imen, na primer shop.amazon@yourdomain.com.</li>\n<li><b>Varuh:</b> pred odhodom sporočila preveri pošiljatelja, prejemnike, Reply-To, besedilo, priponke, vCard, ključ OpenPGP in podpisovanje ter ustavi vse, kar bi razkrilo naslov vašega nabiralnika. Zajeta so tudi koledarska vabila.</li>\n<li><b>Odgovori ostanejo na vzdevku:</b> odgovor na sporočilo, ki je prispelo prek vzdevka, ali njegovo posredovanje odide kot ta vzdevek.</li>\n<li><b>Pregled vzdevkov:</b> iskanje, urejanje opomb, pripenjanje, izklop ali brisanje vzdevkov in blokiranje stikov, vse v enem zavihku Thunderbirda.</li>\n<li><b>Prejeta sporočila:</b> gumb nad vsakim sporočilom navede vzdevek, prek katerega je prispelo.</li>\n</ul>\n\nPotrebujete ključ API storitve SimpleLogin. Ustvarjanje povratnih vzdevkov zahteva paket SimpleLogin, ki to omogoča. Dodatek komunicira le z API-jem SimpleLogin (app.simplelogin.io ali vašim lastnim strežnikom SimpleLogin). Vmesnik je v angleščini.\n\nNi povezano s podjetjema Proton AG in SimpleLogin niti ni odobreno z njune strani.",
+  "releaseNotes": "Prva različica na addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-compose.png",
+      "caption": "Med pisanjem izberite ali ustvarite vzdevek za spletno mesto prejemnika"
+    },
+    {
+      "file": "02-guard.png",
+      "caption": "Varuh ustavi sporočilo, ki bi razkrilo vaš pravi naslov"
+    },
+    {
+      "file": "03-overview.png",
+      "caption": "Vsi vaši vzdevki v enem zavihku Thunderbirda"
+    },
+    {
+      "file": "04-settings.png",
+      "caption": "Nastavitve za ključ API, nove vzdevke in samodejno vedenje"
+    }
+  ]
+}

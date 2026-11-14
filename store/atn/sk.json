@@ -1,0 +1,24 @@
+{
+  "name": "Alias Buddy for SimpleLogin",
+  "summary": "Odosielajte ako alias SimpleLogin na bežné adresy. Alias Buddy za vás vytvára a dopĺňa spätné aliasy a blokuje správy, ktoré by prezradili vašu skutočnú adresu.",
+  "description": "So SimpleLogin môžete písať komukoľvek ako jeden zo svojich aliasov, ale iba cez spätný alias, ktorý musíte vytvoriť a skopírovať ručne. Jeden preklep a vaša skutočná adresa je vonku. Alias Buddy to urobí za vás vo chvíli, keď kliknete na Odoslať.\n\n<b>Funkcie</b>\n<ul>\n<li><b>Píšte na skutočnú adresu:</b> vyberte alias ako odosielateľa a píšte kontaktu ako zvyčajne. Pri odoslaní doplnok vytvorí spätné aliasy a odošle správu cez správnu schránku.</li>\n<li><b>Správny alias pre každý web:</b> vyskakovacie okno v okne písania správy navrhne alias pre web príjemcu alebo vytvorí nový podľa vašich šablón mien, napríklad shop.amazon@yourdomain.com.</li>\n<li><b>Strážca:</b> pred odoslaním skontroluje odosielateľa, príjemcov, Reply-To, text, prílohy, vCard, kľúč OpenPGP a podpisovanie a zastaví všetko, čo by prezradilo adresu vašej schránky. Pozvánky z kalendára sú pokryté tiež.</li>\n<li><b>Odpovede zostávajú na aliase:</b> odpoveď na správu, ktorá prišla cez alias, alebo jej preposlanie odíde ako tento alias.</li>\n<li><b>Prehľad aliasov:</b> vyhľadávanie, úprava poznámok, pripnutie, vypnutie alebo zmazanie aliasov a blokovanie kontaktov, všetko na jednej karte Thunderbirdu.</li>\n<li><b>Prijaté správy:</b> tlačidlo nad každou správou uvádza alias, cez ktorý prišla.</li>\n</ul>\n\nPotrebujete kľúč API SimpleLogin. Vytváranie spätných aliasov vyžaduje tarifu SimpleLogin, ktorá to umožňuje. Doplnok komunikuje len s API SimpleLogin (app.simplelogin.io alebo vlastným serverom SimpleLogin). Rozhranie je v angličtine.\n\nBez spojenia so spoločnosťami Proton AG a SimpleLogin a bez ich schválenia.",
+  "releaseNotes": "Prvá verzia na addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-compose.png",
+      "caption": "Vyberte alebo vytvorte alias pre web príjemcu počas písania"
+    },
+    {
+      "file": "02-guard.png",
+      "caption": "Strážca zastaví správu, ktorá by prezradila vašu skutočnú adresu"
+    },
+    {
+      "file": "03-overview.png",
+      "caption": "Všetky vaše aliasy na jednej karte Thunderbirdu"
+    },
+    {
+      "file": "04-settings.png",
+      "caption": "Nastavenia kľúča API, nových aliasov a automatického správania"
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "name": "Alias Buddy for SimpleLogin",
+  "summary": "Pósćełajśo ako alias SimpleLogin na wšykne adrese. Alias Buddy wutwarja a zapisujo slědkojte aliase město was a blokěrujo powěsći, kótarež by wašu napšawdnu adresu wótkšyli.",
+  "description": "Z SimpleLogin móžośo komukuli ako jaden ze swójich aliasow pisaś, ale jano pśez slědkojty alias, kótaryž musyśo manuelnje wutwóriś a kopěrowaś. Jaden zmólk a waša napšawdna adresa jo wótkšyta. Alias Buddy to město was cyni w momenśe, gaž kliknjośo na Pósłaś.\n\n<b>Funkcije</b>\n<ul>\n<li><b>Pišćo na napšawdnu adresu:</b> wubjeŕśo alias ako sćelarja a pišćo swójomu kontaktoju ako zwóstawnje. Pśi sćělanju dodank slědkojte aliase wutwarja a pósćelo pśez pšawy kašćik.</li>\n<li><b>Pšawy alias za kužde městno:</b> wuskokujuce wokno we woknje za pisanje nadpomina alias za městno dostawarja abo wutwarja nowy z waših pśedłogow mjenjow, na pśikład shop.amazon@yourdomain.com.</li>\n<li><b>Stražnik:</b> pśespytujo sćelarja, dostawarjow, Reply-To, tekst, pśipoki, vCard, kluc OpenPGP a pódpisanje, nježli až powěsć wótejźo, a zajźujo wšykno, což by adresu wašogo kašćika wótkšyło. Kalendarske pśipšosenja su teke zapśimjete.</li>\n<li><b>Wótegrona wóstanu na aliasu:</b> wótegrono na powěsć, kótaraž jo pśez alias dojšła, abo jeje dalejposłanje wótejźo ako toś ten alias.</li>\n<li><b>Pśeglěd aliasow:</b> pytanje, wobźěłanje pokazkow, pśipowjesyś, wupnuś abo lašowaś aliase a blokěrowaś kontakty, wšykno w jadnom rejtarku Thunderbirda.</li>\n<li><b>Dostane powěsći:</b> tłocašk nad kuždeju powěsću mjenjujo alias, pśez kótaryž jo dojšła.</li>\n</ul>\n\nTrjebaśo API-kluc SimpleLogin. Wutwórjenje slědkojtych aliasow pominujo plan SimpleLogin, kótaryž to dowólujo. Dodank komunikěrujo jano z API SimpleLogin (app.simplelogin.io abo z wašym swójskim serwerom SimpleLogin). Wužywarski powjerch jo w engelskej rěcy.\n\nŽedno zwězanje z Proton AG a SimpleLogin a wót nich njeschwalone.",
+  "releaseNotes": "Prědna wersija na addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-compose.png",
+      "caption": "Wubjeŕśo abo wutwórśo alias za městno dostawarja, mjaztym až pišośo"
+    },
+    {
+      "file": "02-guard.png",
+      "caption": "Stražnik zajźujo powěsć, kótaraž by wašu napšawdnu adresu wótkšyła"
+    },
+    {
+      "file": "03-overview.png",
+      "caption": "Wšykne waše aliase w jadnom rejtarku Thunderbirda"
+    },
+    {
+      "file": "04-settings.png",
+      "caption": "Nastajenja za API-kluc, nowe aliase a awtomatiske zachopowanje"
+    }
+  ]
+}

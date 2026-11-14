@@ -1,0 +1,24 @@
+{
+  "name": "Alias Buddy for SimpleLogin",
+  "summary": "Lähetä SimpleLogin-aliaksena tavallisiin osoitteisiin. Alias Buddy luo ja täyttää käänteisaliakset puolestasi ja estää viestit, jotka paljastaisivat oikean osoitteesi.",
+  "description": "SimpleLoginilla voit kirjoittaa kenelle tahansa aliaksenasi, mutta vain käänteisaliaksen (reverse alias) kautta, joka sinun täytyy luoda ja kopioida käsin. Yksi lipsahdus ja oikea osoitteesi paljastuu. Alias Buddy tekee tämän puolestasi sillä hetkellä, kun painat Lähetä.\n\n<b>Ominaisuudet</b>\n<ul>\n<li><b>Kirjoita todelliseen osoitteeseen:</b> valitse alias lähettäjäksi ja kirjoita yhteyshenkilöllesi kuten tavallisesti. Lähetettäessä lisäosa luo käänteisaliakset ja lähettää oikean postilaatikon kautta.</li>\n<li><b>Oikea alias jokaiselle sivustolle:</b> kirjoitusikkunan ponnahdusikkuna ehdottaa aliasta vastaanottajan sivustolle tai luo uuden nimimalleistasi, esimerkiksi shop.amazon@yourdomain.com.</li>\n<li><b>Vartija:</b> tarkistaa lähettäjän, vastaanottajat, Reply-To-kentän, tekstin, liitteet, vCardin, OpenPGP-avaimen ja allekirjoituksen ennen kuin viesti lähtee, ja pysäyttää kaiken, mikä paljastaisi postilaatikkosi osoitteen. Myös kalenterikutsut katetaan.</li>\n<li><b>Vastaukset pysyvät aliaksessa:</b> aliaksen kautta tulleeseen viestiin vastaaminen tai sen välittäminen lähtee kyseisenä aliaksena.</li>\n<li><b>Aliasyleiskatsaus:</b> hae, muokkaa muistiinpanoja, kiinnitä, poista käytöstä tai poista aliaksesi ja estä yhteyshenkilöitä, kaikki Thunderbirdin välilehdellä.</li>\n<li><b>Vastaanotetut viestit:</b> jokaisen viestin yläpuolella oleva painike kertoo, minkä aliaksen kautta se tuli.</li>\n</ul>\n\nTarvitset SimpleLoginin API-avaimen. Käänteisaliasten luominen vaatii SimpleLogin-tilauksen, joka sen sallii. Lisäosa keskustelee vain SimpleLoginin rajapinnan kanssa (app.simplelogin.io tai oma SimpleLogin-palvelimesi). Käyttöliittymä on englanniksi.\n\nEi sidoksissa Proton AG:hen tai SimpleLoginiin eikä niiden hyväksymä.",
+  "releaseNotes": "Ensimmäinen versio addons.thunderbird.net-sivustolla.",
+  "screenshots": [
+    {
+      "file": "01-compose.png",
+      "caption": "Valitse tai luo alias vastaanottajan sivustolle kirjoittaessasi"
+    },
+    {
+      "file": "02-guard.png",
+      "caption": "Vartija pysäyttää viestin, joka paljastaisi oikean osoitteesi"
+    },
+    {
+      "file": "03-overview.png",
+      "caption": "Kaikki aliaksesi yhdellä Thunderbirdin välilehdellä"
+    },
+    {
+      "file": "04-settings.png",
+      "caption": "Asetukset API-avaimelle, uusille aliaksille ja automaattiselle toiminnalle"
+    }
+  ]
+}

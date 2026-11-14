@@ -1,0 +1,24 @@
+{
+  "name": "Alias Buddy for SimpleLogin",
+  "summary": "Stuur as 'n SimpleLogin-alias na gewone adresse. Alias Buddy skep en vul die omgekeerde aliasse vir jou in en blokkeer boodskappe wat jou regte adres sou onthul.",
+  "description": "Met SimpleLogin kan jy vir enigiemand skryf as een van jou aliasse, maar net deur 'n omgekeerde alias wat jy met die hand moet skep en kopieer. Een glip en jou regte adres is uit. Alias Buddy doen dit vir jou op die oomblik wanneer jy Stuur druk.\n\n<b>Kenmerke</b>\n<ul>\n<li><b>Skryf na die regte adres:</b> kies 'n alias as sender en skryf soos gewoonlik aan jou kontak. By die stuur skep die byvoeging die omgekeerde aliasse en stuur deur die regte posbus.</li>\n<li><b>Die regte alias vir elke webwerf:</b> die opspringer in die skryfvenster stel die alias vir die ontvanger se webwerf voor of skep 'n nuwe een uit jou naamsjablone, byvoorbeeld shop.amazon@yourdomain.com.</li>\n<li><b>Die wag:</b> kontroleer sender, ontvangers, Reply-To, teks, aanhangsels, vCard, OpenPGP-sleutel en ondertekening voordat die boodskap uitgaan, en keer alles wat jou posbusadres sou onthul. Kalenderuitnodigings word ook gedek.</li>\n<li><b>Antwoorde bly op die alias:</b> 'n antwoord op of aanstuur van 'n boodskap wat deur 'n alias gekom het, gaan uit as daardie alias.</li>\n<li><b>Aliasoorsig:</b> soek, wysig notas, pen vas, skakel af of vee jou aliasse uit en blokkeer kontakte, alles in 'n Thunderbird-oortjie.</li>\n<li><b>Ontvangde boodskappe:</b> 'n knoppie bo elke boodskap noem die alias waardeur dit gekom het.</li>\n</ul>\n\nJy het 'n SimpleLogin-API-sleutel nodig. Om omgekeerde aliasse te skep, benodig jy 'n SimpleLogin-plan wat dit toelaat. Die byvoeging praat slegs met die SimpleLogin-API (app.simplelogin.io, of jou eie SimpleLogin-bediener). Die koppelvlak is in Engels.\n\nNie geaffilieer met of onderskryf deur Proton AG of SimpleLogin nie.",
+  "releaseNotes": "Eerste weergawe op addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-compose.png",
+      "caption": "Kies of skep die alias vir die ontvanger se webwerf terwyl jy skryf"
+    },
+    {
+      "file": "02-guard.png",
+      "caption": "Die wag keer 'n boodskap wat jou regte adres sou onthul"
+    },
+    {
+      "file": "03-overview.png",
+      "caption": "Al jou aliasse in een Thunderbird-oortjie"
+    },
+    {
+      "file": "04-settings.png",
+      "caption": "Instellings vir die API-sleutel, nuwe aliasse en outomatiese gedrag"
+    }
+  ]
+}

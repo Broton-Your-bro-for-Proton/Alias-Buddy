@@ -1,0 +1,24 @@
+{
+  "name": "Alias Buddy for SimpleLogin",
+  "summary": "Ferstjoer as SimpleLogin-alias nei gewoane adressen. Alias Buddy makket en folt de omkearde aliassen foar jo yn en blokkearret berjochten dy't jo echte adres iepenbiere soene.",
+  "description": "Mei SimpleLogin kinne jo elkenien mailen as ien fan jo aliassen, mar allinnich fia in omkeard alias dat jo mei de hân meitsje en kopiearje moatte. Ien mis en jo echte adres is bekend. Alias Buddy docht dit foar jo op it momint dat jo op Ferstjoere drukke.\n\n<b>Funksjes</b>\n<ul>\n<li><b>Skriuw nei it echte adres:</b> kies in alias as ôfstjoerder en skriuw jo kontakt lykas gewoanlik. By it ferstjoeren makket de add-on de omkearde aliassen en ferstjoert fia de juste mailbox.</li>\n<li><b>It juste alias foar elke side:</b> it pop-upfinster yn it opstelfinster stelt it alias foar de side fan de ûntfanger foar of makket in nij alias op basis fan jo nammesjabloanen, bygelyks shop.amazon@yourdomain.com.</li>\n<li><b>De bewaker:</b> kontrolearret ôfstjoerder, ûntfangers, Reply-To, tekst, bylagen, vCard, OpenPGP-kaai en ûndertekening foardat it berjocht fuortgiet en stopet alles wat it adres fan jo mailbox iepenbiere soe. Aginda-útnûgingen falle der ek ûnder.</li>\n<li><b>Antwurden bliuwe op it alias:</b> in antwurd op of trochstjoerd berjocht fan in berjocht dat fia in alias binnenkaam, giet út as dat alias.</li>\n<li><b>Aliasoersjoch:</b> sykje, bewurkje notysjes, set fêst, skeakelje út of wiskje jo aliassen en blokkearje kontakten, alles yn ien Thunderbird-ljepblêd.</li>\n<li><b>Untfongen berjochten:</b> in knop boppe elk berjocht neamt it alias wêrtroch't it binnenkaam.</li>\n</ul>\n\nJo hawwe in SimpleLogin-API-kaai nedich. Foar it meitsjen fan omkearde aliassen is in SimpleLogin-abonnemint nedich dat dit tastiet. De add-on praat allinnich mei de SimpleLogin-API (app.simplelogin.io, of jo eigen SimpleLogin-tsjinner). De ynterface is yn it Ingelsk.\n\nNet ferbûn oan of stipe troch Proton AG of SimpleLogin.",
+  "releaseNotes": "Earste ferzje op addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-compose.png",
+      "caption": "Kies of meitsje it alias foar de side fan de ûntfanger wylst jo skriuwe"
+    },
+    {
+      "file": "02-guard.png",
+      "caption": "De bewaker stopet in berjocht dat jo echte adres iepenbiere soe"
+    },
+    {
+      "file": "03-overview.png",
+      "caption": "Al jo aliassen yn ien Thunderbird-ljepblêd"
+    },
+    {
+      "file": "04-settings.png",
+      "caption": "Ynstellingen foar de API-kaai, nije aliassen en automatysk gedrach"
+    }
+  ]
+}

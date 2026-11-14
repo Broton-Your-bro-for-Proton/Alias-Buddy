@@ -1,0 +1,24 @@
+{
+  "name": "Alias Buddy for SimpleLogin",
+  "summary": "Šaljite kao SimpleLogin alias na obične adrese. Alias Buddy umjesto vas kreira i popunjava obrnute aliase te blokira poruke koje bi otkrile vašu stvarnu adresu.",
+  "description": "Uz SimpleLogin možete pisati bilo kome kao jedan od svojih aliasa, ali samo preko obrnutog aliasa koji morate ručno kreirati i kopirati. Jedan propust i vaša stvarna adresa je otkrivena. Alias Buddy to radi umjesto vas u trenutku kada pritisnete Pošalji.\n\n<b>Funkcije</b>\n<ul>\n<li><b>Pišite na stvarnu adresu:</b> odaberite alias kao pošiljaoca i pišite svom kontaktu kao i obično. Pri slanju dodatak kreira obrnute aliase i šalje preko ispravnog poštanskog sandučeta.</li>\n<li><b>Pravi alias za svaku stranicu:</b> skočni prozor u prozoru za pisanje predlaže alias za stranicu primaoca ili kreira novi iz vaših šablona imena, na primjer shop.amazon@yourdomain.com.</li>\n<li><b>Čuvar:</b> prije slanja provjerava pošiljaoca, primaoce, Reply-To, tekst, priloge, vCard, OpenPGP ključ i potpisivanje te zaustavlja sve što bi otkrilo adresu vašeg sandučeta. Kalendarski pozivi su također obuhvaćeni.</li>\n<li><b>Odgovori ostaju na aliasu:</b> odgovor na poruku ili prosljeđivanje poruke koja je stigla preko aliasa odlazi kao taj alias.</li>\n<li><b>Pregled aliasa:</b> pretraga, uređivanje bilješki, prikvačivanje, isključivanje ili brisanje aliasa i blokiranje kontakata, sve u jednoj kartici Thunderbirda.</li>\n<li><b>Primljene poruke:</b> dugme iznad svake poruke navodi alias preko kojeg je stigla.</li>\n</ul>\n\nPotreban vam je SimpleLogin API ključ. Za kreiranje obrnutih aliasa potreban je SimpleLogin paket koji to dopušta. Dodatak komunicira samo sa SimpleLogin API-jem (app.simplelogin.io ili vaš vlastiti SimpleLogin server). Interfejs je na engleskom jeziku.\n\nNije povezano niti odobreno od strane kompanija Proton AG i SimpleLogin.",
+  "releaseNotes": "Prva verzija na addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-compose.png",
+      "caption": "Odaberite ili kreirajte alias za stranicu primaoca dok pišete"
+    },
+    {
+      "file": "02-guard.png",
+      "caption": "Čuvar zaustavlja poruku koja bi otkrila vašu stvarnu adresu"
+    },
+    {
+      "file": "03-overview.png",
+      "caption": "Svi vaši aliasi u jednoj kartici Thunderbirda"
+    },
+    {
+      "file": "04-settings.png",
+      "caption": "Postavke za API ključ, nove aliase i automatsko ponašanje"
+    }
+  ]
+}

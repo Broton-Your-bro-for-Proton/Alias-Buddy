@@ -1,0 +1,24 @@
+{
+  "name": "Alias Buddy for SimpleLogin",
+  "summary": "Wysyłaj jako alias SimpleLogin na zwykłe adresy. Alias Buddy tworzy i wstawia aliasy zwrotne za Ciebie oraz blokuje wiadomości, które ujawniłyby Twój prawdziwy adres.",
+  "description": "Dzięki SimpleLogin możesz pisać do każdego jako jeden ze swoich aliasów, ale tylko przez alias zwrotny, który trzeba utworzyć i skopiować ręcznie. Jedna pomyłka i Twój prawdziwy adres wychodzi na jaw. Alias Buddy robi to za Ciebie w chwili, gdy klikniesz Wyślij.\n\n<b>Funkcje</b>\n<ul>\n<li><b>Pisz na prawdziwy adres:</b> wybierz alias jako nadawcę i pisz do kontaktu jak zwykle. Przy wysyłaniu dodatek tworzy aliasy zwrotne i wysyła przez właściwą skrzynkę.</li>\n<li><b>Właściwy alias dla każdej witryny:</b> okienko w oknie tworzenia wiadomości podpowiada alias dla witryny odbiorcy lub tworzy nowy według Twoich szablonów nazw, na przykład shop.amazon@yourdomain.com.</li>\n<li><b>Strażnik:</b> przed wysłaniem sprawdza nadawcę, odbiorców, Reply-To, tekst, załączniki, vCard, klucz OpenPGP i podpisywanie oraz zatrzymuje wszystko, co ujawniłoby adres Twojej skrzynki. Zaproszenia z kalendarza także są objęte.</li>\n<li><b>Odpowiedzi zostają na aliasie:</b> odpowiedź na wiadomość, która przyszła przez alias, lub jej przekazanie wychodzi jako ten alias.</li>\n<li><b>Przegląd aliasów:</b> wyszukiwanie, edycja notatek, przypinanie, wyłączanie lub usuwanie aliasów i blokowanie kontaktów, wszystko w jednej karcie Thunderbirda.</li>\n<li><b>Odebrane wiadomości:</b> przycisk nad każdą wiadomością podaje alias, przez który przyszła.</li>\n</ul>\n\nPotrzebujesz klucza API SimpleLogin. Tworzenie aliasów zwrotnych wymaga planu SimpleLogin, który na to pozwala. Dodatek komunikuje się wyłącznie z API SimpleLogin (app.simplelogin.io lub Twoim własnym serwerem SimpleLogin). Interfejs jest po angielsku.\n\nBrak powiązań z Proton AG i SimpleLogin oraz ich poparcia.",
+  "releaseNotes": "Pierwsza wersja na addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-compose.png",
+      "caption": "Wybierz lub utwórz alias dla witryny odbiorcy w trakcie pisania"
+    },
+    {
+      "file": "02-guard.png",
+      "caption": "Strażnik zatrzymuje wiadomość, która ujawniłaby Twój prawdziwy adres"
+    },
+    {
+      "file": "03-overview.png",
+      "caption": "Wszystkie Twoje aliasy w jednej karcie Thunderbirda"
+    },
+    {
+      "file": "04-settings.png",
+      "caption": "Ustawienia klucza API, nowych aliasów i automatycznego działania"
+    }
+  ]
+}

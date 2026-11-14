@@ -1,0 +1,24 @@
+{
+  "name": "Alias Buddy for SimpleLogin",
+  "summary": "Bidali SimpleLogin ezizen gisa helbide arruntetara. Alias Buddy-k ezizen alderantzizkoak sortu eta betetzen ditu zuregatik eta zure benetako helbidea agerian utziko luketen mezuak blokeatzen ditu.",
+  "description": "SimpleLogin-ekin edonori idatz diezaiokezu zure ezizenetako bat gisa, baina eskuz sortu eta kopiatu behar duzun ezizen alderantzizko baten bidez soilik. Ezustekoren batean zure benetako helbidea agerian geratzen da. Alias Buddy-k zuregatik egiten du Bidali sakatzen duzun unean.\n\n<b>Eginbideak</b>\n<ul>\n<li><b>Idatzi benetako helbidera:</b> aukeratu ezizen bat bidaltzaile gisa eta idatzi zure kontaktuari ohi bezala. Bidaltzean, gehigarriak ezizen alderantzizkoak sortzen ditu eta posta-kutxa egokiaren bidez bidaltzen du.</li>\n<li><b>Webgune bakoitzaren ezizen egokia:</b> idazteko leihoko popup-ak hartzailearen webgunerako ezizena iradokitzen du edo berri bat sortzen du zure izen-txantiloietatik, adibidez shop.amazon@yourdomain.com.</li>\n<li><b>Zaintza:</b> bidaltzailea, hartzaileak, Reply-To, testua, eranskinak, vCard, OpenPGP gakoa eta sinadura egiaztatzen ditu mezua irten aurretik, eta zure posta-kutxaren helbidea agerian utziko lukeen guztia gelditzen du. Egutegi-gonbidapenak ere barnean daude.</li>\n<li><b>Erantzunak ezizenean geratzen dira:</b> ezizen baten bidez iritsi den mezu baten erantzuna edo birbidalketa ezizen horrekin irteten da.</li>\n<li><b>Ezizenen ikuspegi orokorra:</b> bilatu, editatu oharrak, finkatu, desaktibatu edo ezabatu zure ezizenak eta blokeatu kontaktuak, dena Thunderbird-eko fitxa batean.</li>\n<li><b>Jasotako mezuak:</b> mezu bakoitzaren gaineko botoi batek zein ezizenen bidez iritsi den adierazten du.</li>\n</ul>\n\nSimpleLogin API gako bat behar duzu. Ezizen alderantzizkoak sortzeko, hori ahalbidetzen duen SimpleLogin plan bat behar da. Gehigarria SimpleLogin APIarekin soilik komunikatzen da (app.simplelogin.io, edo zure SimpleLogin zerbitzaria). Interfazea ingelesez dago.\n\nEz dago Proton AG edo SimpleLogin-ekin lotuta, eta haiek ez dute onartzen.",
+  "releaseNotes": "Lehen bertsioa addons.thunderbird.net webgunean.",
+  "screenshots": [
+    {
+      "file": "01-compose.png",
+      "caption": "Aukeratu edo sortu hartzailearen webgunerako ezizena idazten ari zaren bitartean"
+    },
+    {
+      "file": "02-guard.png",
+      "caption": "Zaintzak zure benetako helbidea agerian utziko lukeen mezu bat gelditzen du"
+    },
+    {
+      "file": "03-overview.png",
+      "caption": "Zure ezizen guztiak Thunderbird-eko fitxa batean"
+    },
+    {
+      "file": "04-settings.png",
+      "caption": "API gakoaren, ezizen berrien eta portaera automatikoaren ezarpenak"
+    }
+  ]
+}

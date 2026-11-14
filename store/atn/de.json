@@ -1,0 +1,24 @@
+{
+  "name": "Alias Buddy for SimpleLogin",
+  "summary": "Als SimpleLogin-Alias an normale Adressen senden. Alias Buddy legt die Reverse-Aliase für dich an, setzt sie ein und blockiert Nachrichten, die deine echte Adresse verraten würden.",
+  "description": "Mit SimpleLogin kannst du jedem als einer deiner Aliase schreiben, aber nur über einen Reverse-Alias, den du von Hand anlegen und kopieren musst. Ein Fehler, und deine echte Adresse ist draußen. Alias Buddy erledigt das für dich, in dem Moment, in dem du auf Senden drückst.\n\n<b>Funktionen</b>\n<ul>\n<li><b>An die echte Adresse schreiben:</b> wähle einen Alias als Absender und schreibe deinem Kontakt wie gewohnt. Beim Senden legt das Add-on die Reverse-Aliase an und sendet über das richtige Postfach.</li>\n<li><b>Der passende Alias je Website:</b> das Popup im Verfassen-Fenster schlägt den Alias für die Website des Empfängers vor oder legt nach deinen Namensvorlagen einen neuen an, zum Beispiel shop.amazon@deinedomain.de.</li>\n<li><b>Der Wächter:</b> prüft Absender, Empfänger, Reply-To, Text, Anhänge, vCard, OpenPGP-Schlüssel und Signatur, bevor die Nachricht hinausgeht, und stoppt alles, was deine Postfach-Adresse verraten würde. Auch Kalendereinladungen sind abgedeckt.</li>\n<li><b>Antworten bleiben beim Alias:</b> eine Antwort auf oder Weiterleitung einer Nachricht, die über einen Alias kam, geht als dieser Alias hinaus.</li>\n<li><b>Alias-Übersicht:</b> deine Aliase durchsuchen, Notizen bearbeiten, anheften, abschalten oder löschen und Kontakte blockieren, alles in einem Thunderbird-Tab.</li>\n<li><b>Empfangene Nachrichten:</b> eine Schaltfläche über jeder Nachricht nennt den Alias, über den sie kam.</li>\n</ul>\n\nDu brauchst einen SimpleLogin-API-Schlüssel. Reverse-Aliase anlegen erfordert einen SimpleLogin-Tarif, der das erlaubt. Das Add-on spricht nur mit der SimpleLogin-API (app.simplelogin.io oder deinem eigenen SimpleLogin-Server). Die Oberfläche ist auf Englisch.\n\nKeine Verbindung zu und keine Unterstützung durch Proton AG oder SimpleLogin.",
+  "releaseNotes": "Erste Version auf addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-compose.png",
+      "caption": "Den Alias für die Website des Empfängers beim Schreiben wählen oder anlegen"
+    },
+    {
+      "file": "02-guard.png",
+      "caption": "Der Wächter stoppt eine Nachricht, die deine echte Adresse verraten würde"
+    },
+    {
+      "file": "03-overview.png",
+      "caption": "Alle deine Aliase in einem Thunderbird-Tab"
+    },
+    {
+      "file": "04-settings.png",
+      "caption": "Einstellungen für API-Schlüssel, neue Aliase und Automatik"
+    }
+  ]
+}

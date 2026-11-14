@@ -1,0 +1,24 @@
+{
+  "name": "Alias Buddy for SimpleLogin",
+  "summary": "Verstuur als SimpleLogin-alias naar gewone adressen. Alias Buddy maakt en vult de omgekeerde aliassen voor je in en blokkeert berichten die je echte adres zouden onthullen.",
+  "description": "Met SimpleLogin kun je iedereen mailen als een van je aliassen, maar alleen via een omgekeerd alias dat je met de hand moet maken en kopiëren. Eén misstap en je echte adres is bekend. Alias Buddy doet dit voor je op het moment dat je op Verzenden drukt.\n\n<b>Functies</b>\n<ul>\n<li><b>Schrijf naar het echte adres:</b> kies een alias als afzender en schrijf je contact zoals gewoonlijk. Bij het verzenden maakt de add-on de omgekeerde aliassen en verstuurt via de juiste mailbox.</li>\n<li><b>Het juiste alias voor elke site:</b> de popup in het opstelvenster stelt het alias voor de site van de ontvanger voor of maakt een nieuw alias op basis van je naamsjablonen, bijvoorbeeld shop.amazon@yourdomain.com.</li>\n<li><b>De bewaker:</b> controleert afzender, ontvangers, Reply-To, tekst, bijlagen, vCard, OpenPGP-sleutel en ondertekening voordat het bericht vertrekt en stopt alles wat het adres van je mailbox zou onthullen. Agenda-uitnodigingen vallen er ook onder.</li>\n<li><b>Antwoorden blijven op het alias:</b> een antwoord op of doorstuurbericht van een bericht dat via een alias binnenkwam, gaat uit als dat alias.</li>\n<li><b>Aliasoverzicht:</b> zoek, bewerk notities, zet vast, schakel uit of verwijder je aliassen en blokkeer contacten, allemaal in één Thunderbird-tabblad.</li>\n<li><b>Ontvangen berichten:</b> een knop boven elk bericht noemt het alias waarlangs het binnenkwam.</li>\n</ul>\n\nJe hebt een SimpleLogin-API-sleutel nodig. Voor het maken van omgekeerde aliassen is een SimpleLogin-abonnement nodig dat dit toestaat. De add-on praat alleen met de SimpleLogin-API (app.simplelogin.io, of je eigen SimpleLogin-server). De interface is in het Engels.\n\nNiet gelieerd aan of onderschreven door Proton AG of SimpleLogin.",
+  "releaseNotes": "Eerste versie op addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-compose.png",
+      "caption": "Kies of maak het alias voor de site van de ontvanger terwijl je schrijft"
+    },
+    {
+      "file": "02-guard.png",
+      "caption": "De bewaker stopt een bericht dat je echte adres zou onthullen"
+    },
+    {
+      "file": "03-overview.png",
+      "caption": "Al je aliassen in één Thunderbird-tabblad"
+    },
+    {
+      "file": "04-settings.png",
+      "caption": "Instellingen voor de API-sleutel, nieuwe aliassen en automatisch gedrag"
+    }
+  ]
+}
