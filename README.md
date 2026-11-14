@@ -4,7 +4,7 @@
 
 **Send as a SimpleLogin alias from Thunderbird without revealing your real address.**
 
-![Thunderbird](https://img.shields.io/badge/Thunderbird-153%2B-0A84FF)
+![Thunderbird](https://img.shields.io/badge/Thunderbird-153%20ESR-0A84FF)
 ![Status](https://img.shields.io/badge/Status-stable-brightgreen)
 ![License](https://img.shields.io/badge/License-AGPL--3.0-blue)
 
