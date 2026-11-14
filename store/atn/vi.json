@@ -1,0 +1,24 @@
+{
+  "name": "Alias Buddy for SimpleLogin",
+  "summary": "Gửi bằng bí danh SimpleLogin tới các địa chỉ thông thường. Alias Buddy tạo và điền sẵn bí danh ngược cho bạn, đồng thời chặn những thư có thể làm lộ địa chỉ thật của bạn.",
+  "description": "Với SimpleLogin, bạn có thể viết thư cho bất kỳ ai bằng một trong các bí danh của mình, nhưng chỉ thông qua một bí danh ngược (reverse alias) mà bạn phải tự tạo và sao chép. Chỉ một sơ suất là địa chỉ thật của bạn bị lộ. Alias Buddy làm việc này thay bạn ngay lúc bạn nhấn Gửi.\n\n<b>Tính năng</b>\n<ul>\n<li><b>Viết tới địa chỉ thật:</b> chọn một bí danh làm người gửi và viết cho liên hệ của bạn như bình thường. Khi gửi, tiện ích tạo các bí danh ngược và gửi qua đúng hộp thư.</li>\n<li><b>Bí danh đúng cho từng trang web:</b> cửa sổ bật lên trong cửa sổ soạn thư gợi ý bí danh cho trang web của người nhận hoặc tạo bí danh mới từ các mẫu tên của bạn, ví dụ shop.amazon@yourdomain.com.</li>\n<li><b>Lớp bảo vệ:</b> kiểm tra người gửi, người nhận, Reply-To, nội dung, tệp đính kèm, vCard, khóa OpenPGP và chữ ký trước khi thư được gửi đi, và chặn mọi thứ có thể làm lộ địa chỉ hộp thư của bạn. Lời mời lịch cũng được bao gồm.</li>\n<li><b>Trả lời giữ nguyên bí danh:</b> trả lời hoặc chuyển tiếp một thư đã đến qua bí danh sẽ được gửi đi bằng chính bí danh đó.</li>\n<li><b>Tổng quan bí danh:</b> tìm kiếm, sửa ghi chú, ghim, tắt hoặc xóa bí danh, và chặn liên hệ, tất cả trong một thẻ Thunderbird.</li>\n<li><b>Thư đã nhận:</b> một nút phía trên mỗi thư cho biết thư đó đến qua bí danh nào.</li>\n</ul>\n\nBạn cần có khóa API SimpleLogin. Việc tạo bí danh ngược đòi hỏi gói SimpleLogin có cho phép. Tiện ích chỉ trao đổi với API của SimpleLogin (app.simplelogin.io, hoặc máy chủ SimpleLogin của riêng bạn). Giao diện bằng tiếng Anh.\n\nKhông liên kết hoặc được xác nhận bởi Proton AG hay SimpleLogin.",
+  "releaseNotes": "Phiên bản đầu tiên trên addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-compose.png",
+      "caption": "Chọn hoặc tạo bí danh cho trang web của người nhận khi bạn viết thư"
+    },
+    {
+      "file": "02-guard.png",
+      "caption": "Lớp bảo vệ chặn thư có thể làm lộ địa chỉ thật của bạn"
+    },
+    {
+      "file": "03-overview.png",
+      "caption": "Tất cả bí danh của bạn trong một thẻ Thunderbird"
+    },
+    {
+      "file": "04-settings.png",
+      "caption": "Cài đặt cho khóa API, bí danh mới và hành vi tự động"
+    }
+  ]
+}

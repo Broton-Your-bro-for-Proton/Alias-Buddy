@@ -1,0 +1,24 @@
+{
+  "name": "Alias Buddy for SimpleLogin",
+  "summary": "Trimite ca alias SimpleLogin către adrese obișnuite. Alias Buddy creează și completează aliasurile inverse pentru tine și blochează mesajele care ți-ar dezvălui adresa reală.",
+  "description": "Cu SimpleLogin poți scrie oricui ca unul dintre aliasurile tale, dar doar printr-un alias invers pe care trebuie să-l creezi și să-l copiezi manual. O greșeală și adresa ta reală e expusă. Alias Buddy face asta pentru tine în momentul în care apeși Trimite.\n\n<b>Funcționalități</b>\n<ul>\n<li><b>Scrie la adresa reală:</b> alege un alias ca expeditor și scrie contactului tău ca de obicei. La trimitere, extensia creează aliasurile inverse și trimite prin căsuța potrivită.</li>\n<li><b>Aliasul potrivit pentru fiecare site:</b> fereastra pop-up din fereastra de compunere sugerează aliasul pentru site-ul destinatarului sau creează unul nou din șabloanele tale de nume, de exemplu shop.amazon@yourdomain.com.</li>\n<li><b>Paza:</b> verifică expeditorul, destinatarii, Reply-To, textul, atașamentele, vCard, cheia OpenPGP și semnarea înainte ca mesajul să plece și oprește tot ce ți-ar dezvălui adresa căsuței. Sunt acoperite și invitațiile din calendar.</li>\n<li><b>Răspunsurile rămân pe alias:</b> un răspuns sau o redirecționare a unui mesaj sosit printr-un alias pleacă cu acel alias.</li>\n<li><b>Prezentarea aliasurilor:</b> caută, editează notițe, fixează, dezactivează sau șterge aliasurile și blochează contacte, totul într-o filă Thunderbird.</li>\n<li><b>Mesaje primite:</b> un buton deasupra fiecărui mesaj indică aliasul prin care a sosit.</li>\n</ul>\n\nAi nevoie de o cheie API SimpleLogin. Crearea aliasurilor inverse necesită un plan SimpleLogin care o permite. Extensia comunică doar cu API-ul SimpleLogin (app.simplelogin.io sau propriul tău server SimpleLogin). Interfața este în engleză.\n\nFără afiliere cu Proton AG sau SimpleLogin și fără aprobarea acestora.",
+  "releaseNotes": "Prima versiune pe addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-compose.png",
+      "caption": "Alege sau creează aliasul pentru site-ul destinatarului în timp ce scrii"
+    },
+    {
+      "file": "02-guard.png",
+      "caption": "Paza oprește un mesaj care ți-ar dezvălui adresa reală"
+    },
+    {
+      "file": "03-overview.png",
+      "caption": "Toate aliasurile tale într-o filă Thunderbird"
+    },
+    {
+      "file": "04-settings.png",
+      "caption": "Setări pentru cheia API, aliasuri noi și comportament automat"
+    }
+  ]
+}

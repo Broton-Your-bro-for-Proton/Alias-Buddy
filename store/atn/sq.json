@@ -1,0 +1,24 @@
+{
+  "name": "Alias Buddy for SimpleLogin",
+  "summary": "Dërgo si alias SimpleLogin te adresa normale. Alias Buddy krijon dhe plotëson aliaset e kundërta për ty dhe bllokon mesazhet që do të zbulonin adresën tënde të vërtetë.",
+  "description": "Me SimpleLogin mund t'i shkruash këdo si një nga aliaset e tua, por vetëm përmes një aliasi të kundërt që duhet ta krijosh dhe kopjosh me dorë. Një lëshim dhe adresa jote e vërtetë del në pah. Alias Buddy e bën këtë për ty në çastin kur shtyp Dërgo.\n\n<b>Veçoritë</b>\n<ul>\n<li><b>Shkruaj në adresën e vërtetë:</b> zgjidh një alias si dërgues dhe shkruaji kontaktit tënd si zakonisht. Gjatë dërgimit, shtesa krijon aliaset e kundërta dhe dërgon përmes kutisë postare të duhur.</li>\n<li><b>Aliasi i duhur për çdo sajt:</b> dritarja e vogël te dritarja e hartimit sugjeron aliasin për sajtin e marrësit ose krijon një të ri nga shabllonet e tua të emrave, për shembull shop.amazon@yourdomain.com.</li>\n<li><b>Mbrojtja:</b> kontrollon dërguesin, marrësit, Reply-To, tekstin, bashkëngjitjet, vCard, çelësin OpenPGP dhe nënshkrimin para se të dalë mesazhi dhe ndalon çdo gjë që do të zbulonte adresën e kutisë tënde postare. Mbulohen edhe ftesat e kalendarit.</li>\n<li><b>Përgjigjet mbeten te aliasi:</b> një përgjigje ose përcjellje e një mesazhi që ka ardhur përmes një aliasi del me atë alias.</li>\n<li><b>Përmbledhje e aliaseve:</b> kërko, përpuno shënime, fiksoji, çaktivizoji ose fshiji aliaset e tua dhe blloko kontakte, gjithçka në një skedë të Thunderbird.</li>\n<li><b>Mesazhet e marra:</b> një buton mbi çdo mesazh tregon aliasin përmes të cilit ka ardhur.</li>\n</ul>\n\nTë nevojitet një çelës API i SimpleLogin. Krijimi i aliaseve të kundërta kërkon një plan SimpleLogin që e lejon. Shtesa komunikon vetëm me API-n e SimpleLogin (app.simplelogin.io, ose serverin tënd SimpleLogin). Ndërfaqja është në anglisht.\n\nPa lidhje me Proton AG ose SimpleLogin dhe jo e miratuar prej tyre.",
+  "releaseNotes": "Versioni i parë në addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-compose.png",
+      "caption": "Zgjidh ose krijo aliasin për sajtin e marrësit ndërsa shkruan"
+    },
+    {
+      "file": "02-guard.png",
+      "caption": "Mbrojtja ndalon një mesazh që do të zbulonte adresën tënde të vërtetë"
+    },
+    {
+      "file": "03-overview.png",
+      "caption": "Të gjitha aliaset e tua në një skedë të Thunderbird"
+    },
+    {
+      "file": "04-settings.png",
+      "caption": "Cilësime për çelësin API, aliaset e reja dhe sjelljen automatike"
+    }
+  ]
+}

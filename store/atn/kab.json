@@ -1,0 +1,24 @@
+{
+  "name": "Alias Buddy for SimpleLogin",
+  "summary": "Azen am alias SimpleLogin ɣer tansiwin tamagnutin. Alias Buddy yesnulfa yerna yeččar aliasen uɣalen i kečč yerna yessewḥel tibratin ara d-yessekren tansa-ik ilawin.",
+  "description": "S SimpleLogin tzemreḍ ad tarreḍ i yal yiwen am yiwen seg yialiasen-ik, maca kan s alias uɣal (reverse alias) i ilaqen ad tesnulfuḍ yerna ad t-tneɣleḍ s ufus. Yiwen n wuccaḍ kan, tansa-ik tilawit teffeɣ. Alias Buddy ixeddem-it i kečč di tazwara n tikkelt ara tsit ɣef Azen.\n\n<b>Timahilin</b>\n<ul>\n<li><b>Aru ɣer tansa tilawit:</b> fren alias am umazan yerna aru i umedyaz-ik am yal tikkelt. Mi ara tazneḍ, asemmil isnulfa aliasen uɣalen yerna yuzen s tbaṭuyt tameɣtut.</li>\n<li><b>Alias ameɣtu i yal asmel:</b> asfaylu asfaylu deg usfaylu n tira yessumer alias i usmel n umaɣnu neɣ yesnulfa amaynut seg yinuzen n yismawen-ik, am shop.amazon@yourdomain.com.</li>\n<li><b>Amsefḍi:</b> yessenqad amazan, imaɣnuten, Reply-To, aḍris, iceɣbalen, vCard, tasarut OpenPGP d usezwel send ad teffeɣ tebrat, yerna yessewḥel kra n wayen ara d-yessekren tansa n tbaṭuyt-ik. Isutar n uwitay daɣen ttwasɛan.</li>\n<li><b>Tiririyin qqimen ɣef alias:</b> tiririt neɣ tuzzna n tebrat i d-yusan s alias teffeɣ am alias-nni.</li>\n<li><b>Agezzu n yialiasen:</b> nadi, ẓreg tizmilin, senteḍ, ssens neɣ kkes yialiasen-ik, yerna sewḥel imdanen, kullec deg yiwen n yitaluɣt n Thunderbird.</li>\n<li><b>Tibratin i d-yusan:</b> taqeffalt nnig yal tabrat tessaram alias i d-tekcem seg-s.</li>\n</ul>\n\nTesriḍ tasarut API n SimpleLogin. Tuseddi n yialiasen uɣalen tesra amtawi SimpleLogin i t-yeǧǧan. Asemmil yettmeslay kan d API n SimpleLogin (app.simplelogin.io, neɣ aqeddac-ik n SimpleLogin). Asagem yella s teglizit.\n\nWar assaɣ neɣ asentem seg Proton AG neɣ SimpleLogin.",
+  "releaseNotes": "Lqem amezwaru deg addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-compose.png",
+      "caption": "Fren neɣ snulfu alias i usmel n umaɣnu mi ara tarreḍ"
+    },
+    {
+      "file": "02-guard.png",
+      "caption": "Amsefḍi yessewḥel tabrat ara d-yessekren tansa-ik tilawit"
+    },
+    {
+      "file": "03-overview.png",
+      "caption": "Akk yialiasen-ik deg yiwen n yitaluɣt n Thunderbird"
+    },
+    {
+      "file": "04-settings.png",
+      "caption": "Iɣewwaren n tsarut API, yialiasen imaynuten d tikli tawurmant"
+    }
+  ]
+}

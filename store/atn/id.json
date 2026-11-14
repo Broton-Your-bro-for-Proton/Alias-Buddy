@@ -1,0 +1,24 @@
+{
+  "name": "Alias Buddy for SimpleLogin",
+  "summary": "Kirim sebagai alias SimpleLogin ke alamat biasa. Alias Buddy membuat dan mengisi alias balik untuk Anda dan memblokir pesan yang akan mengungkap alamat asli Anda.",
+  "description": "Dengan SimpleLogin Anda bisa menulis kepada siapa saja sebagai salah satu alias Anda, tetapi hanya lewat alias balik (reverse alias) yang harus Anda buat dan salin sendiri. Satu kelalaian dan alamat asli Anda terbuka. Alias Buddy melakukannya untuk Anda saat Anda menekan Kirim.\n\n<b>Fitur</b>\n<ul>\n<li><b>Menulis ke alamat asli:</b> pilih alias sebagai pengirim dan tulis kepada kontak Anda seperti biasa. Saat mengirim, pengaya membuat alias balik dan mengirim melalui kotak surat yang tepat.</li>\n<li><b>Alias yang tepat untuk setiap situs:</b> popup di jendela tulis menyarankan alias untuk situs penerima atau membuat yang baru dari templat nama Anda, misalnya shop.amazon@yourdomain.com.</li>\n<li><b>Penjaga:</b> memeriksa pengirim, penerima, Reply-To, teks, lampiran, vCard, kunci OpenPGP, dan tanda tangan sebelum pesan keluar, dan menghentikan apa pun yang akan mengungkap alamat kotak surat Anda. Undangan kalender juga tercakup.</li>\n<li><b>Balasan tetap di alias:</b> balasan atau penerusan pesan yang masuk melalui alias dikirim sebagai alias itu.</li>\n<li><b>Ringkasan alias:</b> cari, edit catatan, sematkan, matikan, atau hapus alias Anda, dan blokir kontak, semuanya di satu tab Thunderbird.</li>\n<li><b>Pesan diterima:</b> tombol di atas setiap pesan menyebutkan alias tempat pesan itu masuk.</li>\n</ul>\n\nAnda memerlukan kunci API SimpleLogin. Membuat alias balik memerlukan paket SimpleLogin yang mengizinkannya. Pengaya hanya berkomunikasi dengan API SimpleLogin (app.simplelogin.io, atau server SimpleLogin Anda sendiri). Antarmukanya berbahasa Inggris.\n\nTidak berafiliasi dengan atau didukung oleh Proton AG maupun SimpleLogin.",
+  "releaseNotes": "Versi pertama di addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-compose.png",
+      "caption": "Pilih atau buat alias untuk situs penerima saat Anda menulis"
+    },
+    {
+      "file": "02-guard.png",
+      "caption": "Penjaga menghentikan pesan yang akan mengungkap alamat asli Anda"
+    },
+    {
+      "file": "03-overview.png",
+      "caption": "Semua alias Anda dalam satu tab Thunderbird"
+    },
+    {
+      "file": "04-settings.png",
+      "caption": "Pengaturan untuk kunci API, alias baru, dan perilaku otomatis"
+    }
+  ]
+}

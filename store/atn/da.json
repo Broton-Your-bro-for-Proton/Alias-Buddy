@@ -1,0 +1,24 @@
+{
+  "name": "Alias Buddy for SimpleLogin",
+  "summary": "Send som et SimpleLogin-alias til almindelige adresser. Alias Buddy opretter og udfylder reverse-aliasser for dig og blokerer beskeder, der ville afsløre din rigtige adresse.",
+  "description": "Med SimpleLogin kan du skrive til hvem som helst som et af dine aliasser, men kun via et reverse-alias, som du selv skal oprette og kopiere. Ét fejltrin, og din rigtige adresse er afsløret. Alias Buddy gør det for dig i det øjeblik, du trykker på Send.\n\n<b>Funktioner</b>\n<ul>\n<li><b>Skriv til den rigtige adresse:</b> vælg et alias som afsender og skriv til din kontakt som sædvanlig. Ved afsendelse opretter tilføjelsen reverse-aliasserne og sender via den rigtige postkasse.</li>\n<li><b>Det rigtige alias til hvert websted:</b> pop op-vinduet i skrivevinduet foreslår aliaset til modtagerens websted eller opretter et nyt ud fra dine navneskabeloner, for eksempel shop.amazon@yourdomain.com.</li>\n<li><b>Vagten:</b> kontrollerer afsender, modtagere, Reply-To, tekst, vedhæftninger, vCard, OpenPGP-nøgle og signering, før beskeden forlader din computer, og stopper alt, der ville afsløre din postkasseadresse. Kalenderinvitationer er også dækket.</li>\n<li><b>Svar bliver på aliaset:</b> et svar på eller en videresendelse af en besked, der kom via et alias, sendes som det alias.</li>\n<li><b>Aliasoversigt:</b> søg, redigér noter, fastgør, slå fra eller slet dine aliasser, og bloker kontakter, alt sammen i en Thunderbird-fane.</li>\n<li><b>Modtagne beskeder:</b> en knap over hver besked viser, hvilket alias den kom igennem.</li>\n</ul>\n\nDu skal bruge en SimpleLogin API-nøgle. Oprettelse af reverse-aliasser kræver et SimpleLogin-abonnement, der tillader det. Tilføjelsen taler kun med SimpleLogin-API'et (app.simplelogin.io eller din egen SimpleLogin-server). Grænsefladen er på engelsk.\n\nIkke tilknyttet eller godkendt af Proton AG eller SimpleLogin.",
+  "releaseNotes": "Første version på addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-compose.png",
+      "caption": "Vælg eller opret aliaset til modtagerens websted, mens du skriver"
+    },
+    {
+      "file": "02-guard.png",
+      "caption": "Vagten stopper en besked, der ville afsløre din rigtige adresse"
+    },
+    {
+      "file": "03-overview.png",
+      "caption": "Alle dine aliasser i én Thunderbird-fane"
+    },
+    {
+      "file": "04-settings.png",
+      "caption": "Indstillinger for API-nøgle, nye aliasser og automatisk adfærd"
+    }
+  ]
+}

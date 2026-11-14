@@ -1,0 +1,24 @@
+{
+  "name": "Alias Buddy for SimpleLogin",
+  "summary": "以 SimpleLogin 别名向普通地址发送邮件。Alias Buddy 为您创建并填写反向别名，并拦截会暴露您真实地址的邮件。",
+  "description": "使用 SimpleLogin，您可以以自己的某个别名给任何人写信，但必须通过需要手动创建并复制的反向别名。一时疏忽，您的真实地址就会泄露。Alias Buddy 会在您点击发送的那一刻替您完成这些工作。\n\n<b>功能</b>\n<ul>\n<li><b>直接写给真实地址：</b>选择一个别名作为发件人，像平常一样给联系人写信。发送时，附加组件会创建反向别名，并通过正确的邮箱发送。</li>\n<li><b>为每个网站选对别名：</b>写信窗口中的弹出窗口会为收件人的网站推荐别名，或根据您的名称模板创建新别名，例如 shop.amazon@yourdomain.com。</li>\n<li><b>守卫：</b>在邮件发出之前检查发件人、收件人、Reply-To、正文、附件、vCard、OpenPGP 密钥和签名，并拦截任何会暴露您邮箱地址的内容。日历邀请同样受到保护。</li>\n<li><b>回复保持使用别名：</b>回复或转发通过别名收到的邮件时，会以该别名发出。</li>\n<li><b>别名总览：</b>在一个 Thunderbird 标签页中搜索、编辑备注、置顶、停用或删除别名，以及屏蔽联系人。</li>\n<li><b>收到的邮件：</b>每封邮件上方的按钮会显示它是通过哪个别名送达的。</li>\n</ul>\n\n您需要 SimpleLogin API 密钥。创建反向别名需要允许此功能的 SimpleLogin 套餐。附加组件只与 SimpleLogin API 通信（app.simplelogin.io，或您自己的 SimpleLogin 服务器）。界面为英语。\n\n与 Proton AG 或 SimpleLogin 无关联，也未获得其认可。",
+  "releaseNotes": "addons.thunderbird.net 上的首个版本。",
+  "screenshots": [
+    {
+      "file": "01-compose.png",
+      "caption": "写信时为收件人的网站选择或创建别名"
+    },
+    {
+      "file": "02-guard.png",
+      "caption": "守卫会拦截会暴露您真实地址的邮件"
+    },
+    {
+      "file": "03-overview.png",
+      "caption": "所有别名集中在一个 Thunderbird 标签页中"
+    },
+    {
+      "file": "04-settings.png",
+      "caption": "API 密钥、新别名和自动行为的设置"
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "name": "Alias Buddy for SimpleLogin",
+  "summary": "Seol mar ailias SimpleLogin chuig gnáthsheoltaí. Cruthaíonn Alias Buddy na hailiais inbhéartaithe agus líonann sé iad duit agus cuireann sé bac ar theachtaireachtaí a nochtfadh do fhíorsheoladh.",
+  "description": "Le SimpleLogin is féidir leat scríobh chuig aon duine mar cheann de d'ailiasanna, ach amháin trí ailias inbhéartaithe a chaithfidh tú a chruthú agus a chóipeáil de láimh. Dearmad amháin agus tá do fhíorsheoladh nochtaithe. Déanann Alias Buddy é sin duit i láthair na huaire a bhrúnn tú Seol.\n\n<b>Gnéithe</b>\n<ul>\n<li><b>Scríobh chuig an bhfíorsheoladh:</b> roghnaigh ailias mar sheoltóir agus scríobh chuig do theagmhálaí mar is gnách. Agus tú ag seoladh, cruthaíonn an breiseán na hailiasanna inbhéartaithe agus seolann sé tríd an bpost-bhosca ceart.</li>\n<li><b>An t-ailias ceart do gach suíomh:</b> molann an preabfhuinneog san fhuinneog scríbhneoireachta an t-ailias do shuíomh an fhaighteora nó cruthaíonn sé ceann nua ó do theimpléid ainmneacha, mar shampla shop.amazon@yourdomain.com.</li>\n<li><b>An garda:</b> seiceálann sé seoltóir, faighteoirí, Reply-To, téacs, ceangaltáin, vCard, eochair OpenPGP agus sínithe sular fhágann an teachtaireacht, agus stopann sé aon rud a nochtfadh seoladh do phost-bhosca. Clúdaítear cuirí féilire freisin.</li>\n<li><b>Fanann freagraí ar an ailias:</b> imíonn freagra ar theachtaireacht a tháinig trí ailias, nó cur ar aghaidh uirthi, faoin ailias sin.</li>\n<li><b>Forbhreathnú ailiasanna:</b> cuardaigh, cuir nótaí in eagar, bioráin, múch nó scrios d'ailiasanna agus cuir bac ar theagmhálaithe, ar fad i gcluaisín Thunderbird.</li>\n<li><b>Teachtaireachtaí faighte:</b> cuireann cnaipe os cionn gach teachtaireachta an t-ailias trínar tháinig sí in iúl.</li>\n</ul>\n\nTeastaíonn eochair API SimpleLogin uait. Teastaíonn plean SimpleLogin a cheadaíonn é chun ailiasanna inbhéartaithe a chruthú. Ní chumarsáideann an breiseán ach le API SimpleLogin (app.simplelogin.io, nó do fhreastalaí SimpleLogin féin). Tá an chomhéadan i mBéarla.\n\nNíl aon cheangal le Proton AG ná le SimpleLogin, agus níl siad á formhuiniú acu.",
+  "releaseNotes": "An chéad leagan ar addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-compose.png",
+      "caption": "Roghnaigh nó cruthaigh an t-ailias do shuíomh an fhaighteora agus tú ag scríobh"
+    },
+    {
+      "file": "02-guard.png",
+      "caption": "Stopann an garda teachtaireacht a nochtfadh do fhíorsheoladh"
+    },
+    {
+      "file": "03-overview.png",
+      "caption": "Do chuid ailiasanna go léir i gcluaisín Thunderbird amháin"
+    },
+    {
+      "file": "04-settings.png",
+      "caption": "Socruithe d'eochair API, d'ailiasanna nua agus d'iompar uathoibríoch"
+    }
+  ]
+}

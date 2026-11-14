@@ -1,0 +1,24 @@
+{
+  "name": "Alias Buddy for SimpleLogin",
+  "summary": "Titaq achi jun alias SimpleLogin chi taq rub'i' tzij. Alias Buddy nuk'ayij xa nujotz' ri taq alias chi k'o chi ri kiqajb'äl chi nawajo', xa nuq'at ri taqoj ri xtik'üt ri tzij rub'i' awichin.",
+  "description": "Ruk'in SimpleLogin nitikir natz'ib'aj chi jun chi jun achi jun chi ri taq awalias, xa xa ruk'in jun alias chi rij (reverse alias) chi nawajo' nak'ayij xa nakopiyaj ruk'in a-q'ab'. Xa jun k'ayewal xa ri rutzij awichin nel. Alias Buddy nub'än chi awichin pa ri q'ij nachapa' Titaq.\n\n<b>Taq b'anob'äl</b>\n<ul>\n<li><b>Titz'ib'aj chi ri rub'i' tzij:</b> tacha' jun alias achi ri nitaqon xa tatz'ib'aj chi ri awachib'äl jun achi jantape'. Chi ri rutaqik, ri tz'aqat nuk'ayij ri taq alias chi rij xa nutaq pa ri rusamaj ütz.</li>\n<li><b>Ri alias ütz chi jujun ruwäch:</b> ri ventana pa ri tz'ib'ab'äl nuya' ri alias chi ri ruwäch ri nik'ul o nuk'ayij jun k'ak'a' ruk'in ri taq molde chi rub'i'.</li>\n<li><b>Ri q'ijib'äl:</b> nusik'ij ri nitaqon, ri nik'ul, Reply-To, tz'ib', taq k'olb'äl, vCard, OpenPGP xa ri rutz'ib'axik nab'ey chi nel ri taqoj, xa nuq'at konojel ri xtik'üt ri rub'i' awichin. Ri taq b'ey chi q'ij chuqa' k'o.</li>\n<li><b>Ri taq tzolin nik'oje' pa ri alias:</b> jun tzolin o ruya'ik chi jun taqoj chi xk'am pa jun alias nitaq achi ri alias.</li>\n<li><b>Ri rutzijol taq alias:</b> tikanoj, tijalöx taq tz'ib', tichap, tiq'at o tijosq'ij ri taq awalias xa tiq'at taq achi, konojel pa jun wi Thunderbird.</li>\n<li><b>Taq taqoj chi xk'ul:</b> jun b'otón chi ruwi' jujun taqoj nuk'üt achike alias xk'am wi.</li>\n</ul>\n\nNawajo' jun rusik'ib'äl API SimpleLogin. Ri rub'anik taq alias chi rij nuk'äm jun plan SimpleLogin chi nuya'. Ri tz'aqat xa nisik'ij ruk'in ri API SimpleLogin (app.simplelogin.io, o ri awichin SimpleLogin). Ri ruwäch k'o pa kaxlan tzij.\n\nMan k'o ta rik'in Proton AG o SimpleLogin.",
+  "releaseNotes": "Nab'ey ruwäch pa addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-compose.png",
+      "caption": "Tacha' o tak'ayij ri alias chi ri ruwäch ri nik'ul toq natz'ib'aj"
+    },
+    {
+      "file": "02-guard.png",
+      "caption": "Ri q'ijib'äl nuq'at jun taqoj ri xtik'üt ri rub'i' awichin"
+    },
+    {
+      "file": "03-overview.png",
+      "caption": "Konojel ri taq awalias pa jun wi Thunderbird"
+    },
+    {
+      "file": "04-settings.png",
+      "caption": "Taq rub'anikil chi ri API, taq alias k'ak'a' xa ri rub'anik pa ruyonil"
+    }
+  ]
+}

@@ -1,0 +1,24 @@
+{
+  "name": "Alias Buddy for SimpleLogin",
+  "summary": "Adi ünvanlara SimpleLogin aliası kimi göndərin. Alias Buddy tərs aliasları sizin üçün yaradır və doldurur, real ünvanınızı üzə çıxaracaq mesajları bloklayır.",
+  "description": "SimpleLogin ilə istənilən şəxsə aliaslarınızdan biri kimi yaza bilərsiniz, lakin bunu yalnız əllə yaratmalı və köçürməli olduğunuz tərs alias (reverse alias) vasitəsilə etmək olar. Bir səhv və real ünvanınız üzə çıxır. Alias Buddy bunu Göndər düyməsinə basdığınız anda sizin üçün edir.\n\n<b>Xüsusiyyətlər</b>\n<ul>\n<li><b>Real ünvana yazın:</b> göndərən kimi alias seçin və əlaqənizə həmişəki kimi yazın. Göndərərkən əlavə tərs aliasları yaradır və düzgün poçt qutusu vasitəsilə göndərir.</li>\n<li><b>Hər sayt üçün düzgün alias:</b> yazma pəncərəsindəki popup alıcının saytı üçün aliası təklif edir və ya ad şablonlarınızdan yenisini yaradır, məsələn shop.amazon@yourdomain.com.</li>\n<li><b>Qoruyucu:</b> mesaj çıxmazdan əvvəl göndərəni, alıcıları, Reply-To, mətni, qoşmaları, vCard, OpenPGP açarını və imzanı yoxlayır və poçt qutusu ünvanınızı üzə çıxaracaq hər şeyi dayandırır. Təqvim dəvətləri də əhatə olunur.</li>\n<li><b>Cavablar aliasda qalır:</b> alias vasitəsilə gələn mesaja cavab və ya yönləndirmə həmin alias kimi göndərilir.</li>\n<li><b>Alias icmalı:</b> aliaslarınızı axtarın, qeydləri redaktə edin, sancın, söndürün və ya silin, əlaqələri bloklayın, hamısı bir Thunderbird tabında.</li>\n<li><b>Alınmış mesajlar:</b> hər mesajın üstündəki düymə onun hansı alias vasitəsilə gəldiyini göstərir.</li>\n</ul>\n\nSimpleLogin API açarı lazımdır. Tərs alias yaratmaq buna icazə verən SimpleLogin planı tələb edir. Əlavə yalnız SimpleLogin API ilə (app.simplelogin.io və ya öz SimpleLogin serveriniz) danışır. İnterfeys ingilis dilindədir.\n\nProton AG və ya SimpleLogin ilə əlaqəsi yoxdur və onlar tərəfindən təsdiqlənməyib.",
+  "releaseNotes": "addons.thunderbird.net-də ilk versiya.",
+  "screenshots": [
+    {
+      "file": "01-compose.png",
+      "caption": "Yazarkən alıcının saytı üçün aliası seçin və ya yaradın"
+    },
+    {
+      "file": "02-guard.png",
+      "caption": "Qoruyucu real ünvanınızı üzə çıxaracaq mesajı dayandırır"
+    },
+    {
+      "file": "03-overview.png",
+      "caption": "Bütün aliaslarınız bir Thunderbird tabında"
+    },
+    {
+      "file": "04-settings.png",
+      "caption": "API açarı, yeni aliaslar və avtomatik davranış üçün ayarlar"
+    }
+  ]
+}

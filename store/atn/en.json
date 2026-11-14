@@ -1,0 +1,24 @@
+{
+  "name": "Alias Buddy for SimpleLogin",
+  "summary": "Send as a SimpleLogin alias to normal addresses. Alias Buddy creates and fills in the reverse aliases for you and blocks messages that would reveal your real address.",
+  "description": "With SimpleLogin you can write to anyone as one of your aliases, but only through a reverse alias that you have to create and copy by hand. One slip and your real address is out. Alias Buddy does this for you at the moment you press Send.\n\n<b>Features</b>\n<ul>\n<li><b>Write to the real address:</b> pick an alias as sender and write to your contact as usual. On sending, the add-on creates the reverse aliases and sends through the right mailbox.</li>\n<li><b>The right alias for each site:</b> the popup in the compose window suggests the alias for the recipient's site or creates a new one from your name templates, for example shop.amazon@yourdomain.com.</li>\n<li><b>The guard:</b> checks sender, recipients, Reply-To, text, attachments, vCard, OpenPGP key and signing before the message leaves, and stops anything that would reveal your mailbox address. Calendar invitations are covered too.</li>\n<li><b>Replies stay on the alias:</b> a reply to or forward of a message that came through an alias goes out as that alias.</li>\n<li><b>Alias overview:</b> search, edit notes, pin, turn off or delete your aliases, and block contacts, all in a Thunderbird tab.</li>\n<li><b>Received messages:</b> a button above each message names the alias it came through.</li>\n</ul>\n\nYou need a SimpleLogin API key. Creating reverse aliases needs a SimpleLogin plan that allows it. The add-on talks only to the SimpleLogin API (app.simplelogin.io, or your own SimpleLogin server). The interface is in English.\n\nNot affiliated with or endorsed by Proton AG or SimpleLogin.",
+  "releaseNotes": "First version on addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-compose.png",
+      "caption": "Pick or create the alias for the recipient's site while you write"
+    },
+    {
+      "file": "02-guard.png",
+      "caption": "The guard stops a message that would reveal your real address"
+    },
+    {
+      "file": "03-overview.png",
+      "caption": "All your aliases in one Thunderbird tab"
+    },
+    {
+      "file": "04-settings.png",
+      "caption": "Settings for the API key, new aliases and automatic behavior"
+    }
+  ]
+}

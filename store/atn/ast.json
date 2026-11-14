@@ -1,0 +1,24 @@
+{
+  "name": "Alias Buddy for SimpleLogin",
+  "summary": "Unvia como un alias de SimpleLogin a direiciones normales. Alias Buddy crea y rellena los alias inversos por ti y bloquia los mensaxes que revelaríen la to direición real.",
+  "description": "Con SimpleLogin pues escribir a cualesquier persona como ún de los tos alias, pero namás pente un alias inversu que tienes de crear y copiar a mano. Un descuidu y la to direición real queda espuesta. Alias Buddy fai esto por ti nel momentu que calques Unviar.\n\n<b>Carauterístiques</b>\n<ul>\n<li><b>Escribi a la direición real:</b> escueyi un alias como remitente y escribi al to contautu como siempre. Al unviar, el complementu crea los alias inversos y unvia pela bústia correuta.</li>\n<li><b>L'alias afayadizu pa cada sitiu:</b> la ventana emerxente de redaición suxer l'alias pal sitiu del destinatariu o crea unu nuevu a partir de les tos plantíes de nome, por exemplu shop.amazon@yourdomain.com.</li>\n<li><b>La proteición:</b> comprueba remitente, destinatarios, Reply-To, testu, axuntos, vCard, claviya OpenPGP y robla enantes de que salga'l mensaxe, y paga too lo que revelaría la direición de la to bústia. Tamién cubre les invitaciones de calendariu.</li>\n<li><b>Les rempuestes queden nel alias:</b> una rempuesta o un reunviu d'un mensaxe que llegó per un alias sal con esi alias.</li>\n<li><b>Resume d'alias:</b> busca, edita notes, fixa, desactiva o desanicia los tos alias y bloquia contautos, too nuna llingüeta de Thunderbird.</li>\n<li><b>Mensaxes recibíos:</b> un botón enriba de cada mensaxe indica l'alias pol que llegó.</li>\n</ul>\n\nNecesites una clave d'API de SimpleLogin. Crear alias inversos requier un plan de SimpleLogin que lo permita. El complementu namás se comunica cola API de SimpleLogin (app.simplelogin.io, o el to propiu sirvidor SimpleLogin). La interfaz ta n'inglés.\n\nEnsin afiliación nin aval de Proton AG nin de SimpleLogin.",
+  "releaseNotes": "Primer versión en addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-compose.png",
+      "caption": "Escueyi o crea l'alias pal sitiu del destinatariu mentanto escribes"
+    },
+    {
+      "file": "02-guard.png",
+      "caption": "La proteición paga un mensaxe que revelaría la to direición real"
+    },
+    {
+      "file": "03-overview.png",
+      "caption": "Tolos tos alias nuna llingüeta de Thunderbird"
+    },
+    {
+      "file": "04-settings.png",
+      "caption": "Axustes de la clave d'API, de los alias nuevos y del comportamientu automáticu"
+    }
+  ]
+}

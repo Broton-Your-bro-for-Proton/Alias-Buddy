@@ -1,0 +1,22 @@
+{
+  "categories": [
+    "Privacy and Security",
+    "Message Composition"
+  ],
+  "tags": [
+    "simplelogin",
+    "alias",
+    "privacy",
+    "reverse alias",
+    "email alias"
+  ],
+  "homepage": "https://github.com/Broton-Your-bro-for-Proton/Alias-Buddy",
+  "supportUrl": "https://github.com/Broton-Your-bro-for-Proton/Alias-Buddy/issues",
+  "supportEmail": "",
+  "license": "AGPL-3.0-only",
+  "privacyPolicy": "Alias Buddy sends data only to the SimpleLogin API at app.simplelogin.io, or to the SimpleLogin server address you enter in the settings. It sends your API key with every request, and, to create or look up aliases and contacts, the addresses of the recipients you write to, the alias notes and the names of new aliases. It does not send message contents. Your API key, settings and a copy of your alias list are stored locally in Thunderbird. There is no analytics, tracking or third party.",
+  "reviewerNotes": "What it does: when the user sends as a SimpleLogin alias, it replaces the recipients with SimpleLogin reverse aliases (created through the SimpleLogin API), switches to the identity of the alias's mailbox and blocks the send if anything would reveal the user's real mailbox address.\n\nHow to test: a SimpleLogin account is needed for the full flow; a free account with an API key (Dashboard > API Keys) works for alias lookup and creation, reverse aliases need a paid plan. Without an API key the guard still blocks sending from addresses listed in the settings.\n\nServices contacted: only the SimpleLogin API, https://app.simplelogin.io by default. The optional host permission *://*/* is requested at runtime only when the user enters a self-hosted SimpleLogin server address.\n\nWhy Experiment APIs: aliasBuddyCompose refreshes the sender list of open compose windows after the add-on created an identity, which the compose API cannot do. aliasBuddyItip checks calendar invitation emails, which Thunderbird sends without a compose window and without any WebExtension event, and tells which identities have no OpenPGP key or S/MIME certificate.\n\nNo bundled third-party libraries. All code is plain, unminified JavaScript. The package is built with `npm run build`, which zips the src folder unchanged.",
+  "slug": "alias-buddy",
+  "licenseUrl": "https://www.gnu.org/licenses/agpl-3.0.html",
+  "sourceCodeRequired": false
+}

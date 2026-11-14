@@ -1,0 +1,24 @@
+{
+  "name": "Alias Buddy for SimpleLogin",
+  "summary": "Envia com a àlies de SimpleLogin a adreces normals. Alias Buddy crea i omple els àlies inversos per tu i bloqueja els missatges que revelarien la teva adreça real.",
+  "description": "Amb SimpleLogin pots escriure a qualsevol persona com a un dels teus àlies, però només mitjançant un àlies invers que has de crear i copiar a mà. Una distracció i la teva adreça real queda exposada. Alias Buddy ho fa per tu en el moment en què prems Envia.\n\n<b>Característiques</b>\n<ul>\n<li><b>Escriu a l'adreça real:</b> tria un àlies com a remitent i escriu al teu contacte com sempre. En enviar, el complement crea els àlies inversos i envia per la bústia correcta.</li>\n<li><b>L'àlies adequat per a cada lloc:</b> la finestra emergent de redacció suggereix l'àlies per al lloc del destinatari o en crea un de nou a partir de les teves plantilles de nom, per exemple shop.amazon@yourdomain.com.</li>\n<li><b>La protecció:</b> comprova remitent, destinataris, Reply-To, text, adjunts, vCard, clau OpenPGP i signatura abans que surti el missatge, i atura tot el que revelaria l'adreça de la teva bústia. També cobreix les invitacions de calendari.</li>\n<li><b>Les respostes es queden a l'àlies:</b> una resposta o un reenviament d'un missatge que ha arribat per un àlies surt amb aquest àlies.</li>\n<li><b>Resum d'àlies:</b> cerca, edita notes, fixa, desactiva o suprimeix els teus àlies i bloqueja contactes, tot en una pestanya del Thunderbird.</li>\n<li><b>Missatges rebuts:</b> un botó damunt de cada missatge indica l'àlies pel qual ha arribat.</li>\n</ul>\n\nNecessites una clau d'API de SimpleLogin. Crear àlies inversos requereix un pla de SimpleLogin que ho permeti. El complement només es comunica amb l'API de SimpleLogin (app.simplelogin.io, o el teu propi servidor SimpleLogin). La interfície és en anglès.\n\nSense afiliació ni aval de Proton AG ni de SimpleLogin.",
+  "releaseNotes": "Primera versió a addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-compose.png",
+      "caption": "Tria o crea l'àlies per al lloc del destinatari mentre escrius"
+    },
+    {
+      "file": "02-guard.png",
+      "caption": "La protecció atura un missatge que revelaria la teva adreça real"
+    },
+    {
+      "file": "03-overview.png",
+      "caption": "Tots els teus àlies en una pestanya del Thunderbird"
+    },
+    {
+      "file": "04-settings.png",
+      "caption": "Configuració de la clau d'API, dels àlies nous i del comportament automàtic"
+    }
+  ]
+}

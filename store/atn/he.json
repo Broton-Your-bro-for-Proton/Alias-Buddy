@@ -1,0 +1,24 @@
+{
+  "name": "Alias Buddy for SimpleLogin",
+  "summary": "שלחו כ-alias של SimpleLogin לכתובות רגילות. Alias Buddy יוצר וממלא עבורכם את ה-reverse aliases וחוסם הודעות שחושפות את הכתובת האמיתית שלכם.",
+  "description": "עם SimpleLogin אפשר לכתוב לכל אחד בתור אחד מה-aliases שלכם, אבל רק דרך reverse alias שצריך ליצור ולהעתיק ביד. טעות אחת והכתובת האמיתית שלכם נחשפת. Alias Buddy עושה זאת עבורכם ברגע שאתם לוחצים על שליחה.\n\n<b>תכונות</b>\n<ul>\n<li><b>כתיבה לכתובת האמיתית:</b> בחרו alias כשולח וכתבו לאיש הקשר כרגיל. בעת השליחה התוסף יוצר את ה-reverse aliases ושולח דרך תיבת הדואר הנכונה.</li>\n<li><b>ה-alias הנכון לכל אתר:</b> החלון הקופץ בחלון הכתיבה מציע את ה-alias של אתר הנמען או יוצר חדש מתבניות השם שלכם, לדוגמה shop.amazon@yourdomain.com.</li>\n<li><b>השומר:</b> בודק שולח, נמענים, Reply-To, טקסט, קבצים מצורפים, vCard, מפתח OpenPGP וחתימה לפני שההודעה יוצאת, ועוצר כל דבר שעלול לחשוף את כתובת תיבת הדואר שלכם. גם הזמנות ליומן מכוסות.</li>\n<li><b>תשובות נשארות על ה-alias:</b> תשובה להודעה שהגיעה דרך alias או העברה שלה יוצאות בתור אותו alias.</li>\n<li><b>סקירת aliases:</b> חיפוש, עריכת הערות, הצמדה, כיבוי או מחיקה של ה-aliases שלכם וחסימת אנשי קשר, הכול בלשונית אחת ב-Thunderbird.</li>\n<li><b>הודעות שהתקבלו:</b> כפתור מעל כל הודעה מציין באיזה alias היא הגיעה.</li>\n</ul>\n\nנדרש מפתח API של SimpleLogin. ליצירת reverse aliases נדרשת תוכנית SimpleLogin שמאפשרת זאת. התוסף מתקשר רק עם ה-API של SimpleLogin (app.simplelogin.io או שרת SimpleLogin משלכם). הממשק באנגלית.\n\nאין קשר ל-Proton AG או ל-SimpleLogin, והן אינן תומכות בתוסף.",
+  "releaseNotes": "הגרסה הראשונה ב-addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-compose.png",
+      "caption": "בחרו או צרו את ה-alias לאתר הנמען תוך כדי כתיבה"
+    },
+    {
+      "file": "02-guard.png",
+      "caption": "השומר עוצר הודעה שהייתה חושפת את הכתובת האמיתית שלכם"
+    },
+    {
+      "file": "03-overview.png",
+      "caption": "כל ה-aliases שלכם בלשונית אחת ב-Thunderbird"
+    },
+    {
+      "file": "04-settings.png",
+      "caption": "הגדרות למפתח ה-API, ל-aliases חדשים ולהתנהגות אוטומטית"
+    }
+  ]
+}

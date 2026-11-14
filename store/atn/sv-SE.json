@@ -1,0 +1,24 @@
+{
+  "name": "Alias Buddy for SimpleLogin",
+  "summary": "Skicka som ett SimpleLogin-alias till vanliga adresser. Alias Buddy skapar och fyller i omvända alias åt dig och blockerar meddelanden som skulle avslöja din riktiga adress.",
+  "description": "Med SimpleLogin kan du skriva till vem som helst som ett av dina alias, men bara via ett omvänt alias (reverse alias) som du måste skapa och kopiera för hand. Ett enda misstag och din riktiga adress är avslöjad. Alias Buddy gör det åt dig i det ögonblick du trycker på Skicka.\n\n<b>Funktioner</b>\n<ul>\n<li><b>Skriv till den riktiga adressen:</b> välj ett alias som avsändare och skriv till din kontakt som vanligt. Vid sändning skapar tillägget de omvända aliasen och skickar via rätt brevlåda.</li>\n<li><b>Rätt alias för varje webbplats:</b> popup-fönstret i skrivfönstret föreslår aliaset för mottagarens webbplats eller skapar ett nytt utifrån dina namnmallar, till exempel shop.amazon@yourdomain.com.</li>\n<li><b>Vakten:</b> kontrollerar avsändare, mottagare, Reply-To, text, bilagor, vCard, OpenPGP-nyckel och signering innan meddelandet lämnar datorn och stoppar allt som skulle avslöja din brevlådeadress. Kalenderinbjudningar omfattas också.</li>\n<li><b>Svar stannar på aliaset:</b> ett svar på eller en vidarebefordran av ett meddelande som kom via ett alias skickas som det aliaset.</li>\n<li><b>Aliasöversikt:</b> sök, redigera anteckningar, fäst, stäng av eller radera dina alias och blockera kontakter, allt i en Thunderbird-flik.</li>\n<li><b>Mottagna meddelanden:</b> en knapp ovanför varje meddelande visar vilket alias det kom via.</li>\n</ul>\n\nDu behöver en SimpleLogin API-nyckel. För att skapa omvända alias krävs en SimpleLogin-plan som tillåter det. Tillägget pratar bara med SimpleLogin-API:et (app.simplelogin.io, eller din egen SimpleLogin-server). Gränssnittet är på engelska.\n\nInte knutet till eller godkänt av Proton AG eller SimpleLogin.",
+  "releaseNotes": "Första versionen på addons.thunderbird.net.",
+  "screenshots": [
+    {
+      "file": "01-compose.png",
+      "caption": "Välj eller skapa aliaset för mottagarens webbplats medan du skriver"
+    },
+    {
+      "file": "02-guard.png",
+      "caption": "Vakten stoppar ett meddelande som skulle avslöja din riktiga adress"
+    },
+    {
+      "file": "03-overview.png",
+      "caption": "Alla dina alias i en Thunderbird-flik"
+    },
+    {
+      "file": "04-settings.png",
+      "caption": "Inställningar för API-nyckel, nya alias och automatiskt beteende"
+    }
+  ]
+}

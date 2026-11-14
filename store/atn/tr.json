@@ -1,0 +1,24 @@
+{
+  "name": "Alias Buddy for SimpleLogin",
+  "summary": "Normal adreslere SimpleLogin takma adı olarak gönderin. Alias Buddy ters takma adları sizin için oluşturur ve doldurur, gerçek adresinizi ele verecek iletileri engeller.",
+  "description": "SimpleLogin ile herkese takma adlarınızdan biri olarak yazabilirsiniz, ancak bunu yalnızca elle oluşturup kopyalamanız gereken bir ters takma ad (reverse alias) üzerinden yapabilirsiniz. Tek bir hata ve gerçek adresiniz ortaya çıkar. Alias Buddy bunu, Gönder'e bastığınız anda sizin yerinize yapar.\n\n<b>Özellikler</b>\n<ul>\n<li><b>Gerçek adrese yazın:</b> gönderen olarak bir takma ad seçin ve kişiye her zamanki gibi yazın. Gönderirken eklenti ters takma adları oluşturur ve doğru posta kutusu üzerinden gönderir.</li>\n<li><b>Her site için doğru takma ad:</b> yazma penceresindeki açılır pencere, alıcının sitesi için takma adı önerir veya ad şablonlarınızdan yeni bir tane oluşturur, örneğin shop.amazon@yourdomain.com.</li>\n<li><b>Koruma:</b> ileti çıkmadan önce gönderen, alıcılar, Reply-To, metin, ekler, vCard, OpenPGP anahtarı ve imzayı denetler ve posta kutusu adresinizi ele verecek her şeyi durdurur. Takvim davetleri de kapsanır.</li>\n<li><b>Yanıtlar takma adda kalır:</b> bir takma ad üzerinden gelen iletiye yanıt veya iletme, o takma ad olarak gönderilir.</li>\n<li><b>Takma ad genel bakışı:</b> takma adlarınızı arayın, notları düzenleyin, sabitleyin, kapatın veya silin ve kişileri engelleyin, hepsi bir Thunderbird sekmesinde.</li>\n<li><b>Alınan iletiler:</b> her iletinin üzerindeki bir düğme, iletinin hangi takma ad üzerinden geldiğini söyler.</li>\n</ul>\n\nBir SimpleLogin API anahtarına ihtiyacınız var. Ters takma ad oluşturmak, buna izin veren bir SimpleLogin planı gerektirir. Eklenti yalnızca SimpleLogin API'siyle (app.simplelogin.io veya kendi SimpleLogin sunucunuz) konuşur. Arayüz İngilizcedir.\n\nProton AG veya SimpleLogin ile bağlantılı değildir ve onlar tarafından onaylanmamıştır.",
+  "releaseNotes": "addons.thunderbird.net üzerindeki ilk sürüm.",
+  "screenshots": [
+    {
+      "file": "01-compose.png",
+      "caption": "Yazarken alıcının sitesi için takma adı seçin veya oluşturun"
+    },
+    {
+      "file": "02-guard.png",
+      "caption": "Koruma, gerçek adresinizi ele verecek bir iletiyi durdurur"
+    },
+    {
+      "file": "03-overview.png",
+      "caption": "Tüm takma adlarınız tek bir Thunderbird sekmesinde"
+    },
+    {
+      "file": "04-settings.png",
+      "caption": "API anahtarı, yeni takma adlar ve otomatik davranış için ayarlar"
+    }
+  ]
+}
