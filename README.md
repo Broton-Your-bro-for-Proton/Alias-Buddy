@@ -5,7 +5,7 @@
 **Send as a SimpleLogin alias from Thunderbird without revealing your real address.**
 
 ![Thunderbird](https://img.shields.io/badge/Thunderbird-153%2B-0A84FF)
-![Status](https://img.shields.io/badge/Status-test%20version-orange)
+![Status](https://img.shields.io/badge/Status-stable-brightgreen)
 ![License](https://img.shields.io/badge/License-AGPL--3.0-blue)
 
 A Thunderbird add-on that lets you send as a [SimpleLogin](https://simplelogin.io) alias to normal addresses. It creates and fills in the reverse aliases for you, and it blocks messages that would reveal your real address.
