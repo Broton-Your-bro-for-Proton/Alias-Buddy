@@ -928,6 +928,17 @@ try {
     if (!/vCard/.test(after.reason ?? "")) throw new Error(`blocked for another reason: ${after.reason}`);
   });
 
+  await check("mailbox: a new contact of the same alias next to a known one is learned, not a mix", async () => {
+    api.contacts[1].push({ id: 90, contact: "late@x.example", reverse_alias_address: "ra-late@sl.example" });
+    const mail = nextMail();
+    await client.run(chrome(`await send("id5", { to: "ra-known@sl.example", cc: "ra-late@sl.example" });`));
+    expect((await mail)?.to?.sort(), ["ra-known@sl.example", "ra-late@sl.example"], "envelope recipients");
+  });
+
+  await check("mailbox: a reverse alias of another alias next to a known one stays a mix", () =>
+    expectBlocked(`await send("id5", { to: "ra-known@sl.example", cc: "ra-dan@sl.example" })`, /mixes reverse aliases/)
+  );
+
   await check("mailbox: a second reason after sending once is shown and can be sent once on its own", async () => {
     await expectBlocked(`await send("id5", { to: "ra-unknown2@sl.example", body: "<p>Reach me at ${PLAIN}</p>" })`, /ra-unknown2@sl\.example looks like a reverse alias/);
     const sendOnce = async () => {

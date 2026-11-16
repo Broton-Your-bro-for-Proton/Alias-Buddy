@@ -336,6 +336,13 @@ async function checkMailbox(tab, details, ctx, { sender, recipients, mine, isMin
     result = core.checkMailboxSend(recipients, knownReverseAliases(ctx), ctx.settings.allowlist, ownersOf(ctx, recipients));
     checkOwnReverseAliases(ctx, recipients, isMine);
   }
+  // Reply all reaches contacts SimpleLogin added after the add-on last listed the alias's contacts.
+  const owner = result.mixed && ctx.sl ? aliasById(ctx, ownerIdOf(ctx, result.viaAlias[0].email)) : null;
+  if (owner) {
+    await refreshContacts(ctx, owner, result.exposed.map(r => r.email));
+    result = core.checkMailboxSend(recipients, knownReverseAliases(ctx), ctx.settings.allowlist, ownersOf(ctx, recipients));
+    checkOwnReverseAliases(ctx, recipients, isMine);
+  }
   if (result.mixed) {
     throw new Blocked("SimpleLogin drops a message that mixes reverse aliases with other addresses. Send two messages.");
   }
