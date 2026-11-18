@@ -1087,7 +1087,11 @@ async function aliasPanel(ctx, tabId, wanted, wantedSite) {
   const mailbox = await creationMailbox(ctx);
   // A failing suggestion (for example an alias that is turned off) must not hide the other choices.
   let suggestion = null;
-  if (relevant) {
+  // A message to reverse aliases only already goes out as the alias they belong to.
+  const reverseDomains = await reverseDomainsOf(ctx);
+  const recipients = await recipientsOf(details).catch(() => []);
+  const toReverse = recipients.length > 0 && recipients.every(r => reverseDomains.has(domainOf(r.email)));
+  if (relevant && !toReverse) {
     try {
       suggestion = await planForSite(ctx, site, template);
     } catch (e) {

@@ -1248,6 +1248,15 @@ try {
   });
   await screenshot(client, "settings-creation");
 
+  await check("popup: a reply to a reverse alias from the mailbox suggests no new alias", async () => {
+    await client.run(chrome(`await compose("id5", { to: "ra-known@sl.example" });`));
+    await openPopup();
+    const hidden = await client.run(
+      inPage(popup, `await until(() => !doc.getElementById("aliasPanel").hidden, "panel shown"); await sleep(500); return doc.getElementById("suggestion").hidden;`)
+    );
+    expect(hidden, true, "suggestion hidden");
+  });
+
   await check("popup: a new alias for the recipient's site is created, gets an identity and sends the message", async () => {
     const created = api.created.length;
     await client.run(chrome(`await compose("id5", { to: "news@shop.example" });`));
