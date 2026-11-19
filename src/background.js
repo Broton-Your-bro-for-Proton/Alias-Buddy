@@ -709,7 +709,7 @@ messenger.compose.onBeforeSend.addListener(async (tab, details) => {
   }
 });
 
-messenger.aliasBuddyItip.onSend.addListener(async request => {
+messenger.aliasBuddyItip?.onSend.addListener(async request => {
   try {
     return await serialized(ctx => checkItip(ctx, request));
   } catch (e) {
@@ -934,15 +934,28 @@ async function ensureIdentity(ctx, alias, accountId) {
   }
   const created = await messenger.identities.create(mailbox.accountId, { email: alias.email, name: mailbox.name, label: IDENTITY_LABEL });
   // Open compose windows list their senders from when they opened.
-  await messenger.aliasBuddyCompose.refreshIdentities();
+  await messenger.aliasBuddyCompose?.refreshIdentities();
   return created;
+}
+
+/**
+ * Makes an identity the sender. Without the compose Experiment API (the
+ * addons.thunderbird.net variant), an identity created after the window opened
+ * is missing from its sender menu and cannot be selected there.
+ */
+async function setSender(tabId, identity) {
+  await messenger.compose.setComposeDetails(tabId, { identityId: identity.id });
+  if ((await messenger.compose.getComposeDetails(tabId)).identityId != identity.id) {
+    throw new Error(
+      `${identity.email} is ready as a sender, but this window only lists the senders it opened with. Save the message as a draft and open it again, then choose ${identity.email}.`
+    );
+  }
 }
 
 async function useAlias(ctx, tabId, alias) {
   const details = await messenger.compose.getComposeDetails(tabId);
   const current = await messenger.identities.get(details.identityId);
-  const identity = await ensureIdentity(ctx, alias, current.accountId);
-  await messenger.compose.setComposeDetails(tabId, { identityId: identity.id });
+  await setSender(tabId, await ensureIdentity(ctx, alias, current.accountId));
   return alias.email;
 }
 
@@ -1038,8 +1051,13 @@ async function matchSiteAlias(ctx, tabId) {
   // Only from one of its mailboxes, which SimpleLogin accepts the alias's mail from.
   const unchanged = async () => (await messenger.compose.getComposeDetails(tabId)).identityId == details.identityId;
   if (owner?.enabled && owner.mailboxes.includes(current) && (await unchanged())) {
-    await useAlias(ctx, tabId, owner);
-    firstSenders.set(tabId, null);
+    try {
+      await useAlias(ctx, tabId, owner);
+      firstSenders.set(tabId, null);
+    } catch (e) {
+      showSiteNote(tabId, e.message, "!");
+      return;
+    }
     showSiteNote(tabId, `The recipients are contacts of ${owner.email}, so it is set as sender.`, "✓");
     return;
   }
@@ -1065,8 +1083,13 @@ async function matchSiteAlias(ctx, tabId) {
     // The user may have picked a sender while this waited.
     const now = await messenger.compose.getComposeDetails(tabId);
     if (live?.enabled && now.identityId == details.identityId) {
-      await useAlias(ctx, tabId, live);
-      firstSenders.set(tabId, null);
+      try {
+        await useAlias(ctx, tabId, live);
+        firstSenders.set(tabId, null);
+      } catch (e) {
+        showSiteNote(tabId, e.message, "!");
+        return;
+      }
       showSiteNote(tabId, `Matching alias ${live.email} found for ${site} and set as sender.`, "✓");
       return;
     }
@@ -1251,7 +1274,7 @@ Object.assign(ALIAS_ACTIONS, {
       }
     }
     // Open compose windows list their senders from when they opened.
-    await messenger.aliasBuddyCompose.refreshIdentities();
+    await messenger.aliasBuddyCompose?.refreshIdentities();
     return { removed };
   },
   /** All contacts of an alias (up to 1000), in one go. */
@@ -1546,8 +1569,7 @@ messenger.tabs.onCreated.addListener(async tab => {
       }
       const current = await messenger.identities.get(details.identityId);
       if (alias && core.norm(current.email) != alias.email) {
-        const identity = await ensureIdentity(ctx, alias, current.accountId);
-        await messenger.compose.setComposeDetails(tab.id, { identityId: identity.id });
+        await setSender(tab.id, await ensureIdentity(ctx, alias, current.accountId)).catch(e => showSiteNote(tab.id, e.message, "!"));
       }
     });
   } catch (e) {

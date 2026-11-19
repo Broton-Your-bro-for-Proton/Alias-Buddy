@@ -14,6 +14,11 @@ Not affiliated with or endorsed by Proton AG or SimpleLogin.
 
 ## 📦 Setup
 
+There are two builds:
+
+- **Full** (GitHub releases): everything below.
+- **addons.thunderbird.net**: without the Experiment API, which the store does not accept. It does not check calendar emails, and an identity it creates while a message is open can only be chosen after saving the message as a draft and opening it again.
+
 1. Create an API key in the SimpleLogin dashboard under API Keys.
 2. Open the add-on settings, paste the key and save. The test lists your protected mailboxes.
 3. Choose the defaults for new aliases under Alias creation.
@@ -27,7 +32,7 @@ Creating reverse aliases needs a SimpleLogin plan that allows it.
 - The API key is stored in Thunderbird's extension storage in plain text, like other add-ons store their tokens.
 - Address books: to expand mailing lists among the recipients, and to keep reverse aliases in the address book "Alias Buddy".
 - Messages: to read the message you reply to or forward (its recipients and Message-ID), and the sender and SimpleLogin header of a displayed message.
-- Full access (Experiment API): for calendar emails, see above, and to show a newly created identity in open compose windows.
+- Full access (Experiment API, full build only): for calendar emails, see above, and to show a newly created identity in open compose windows.
 - Identities: to create the Thunderbird identity of an alias.
 - Clipboard (write only): for Copy in the alias overview.
 - SimpleLogin receives the addresses the add-on looks up: your identities, recipients that need a reverse alias, in a reply, a forward or a displayed message the alias SimpleLogin named in it, and for messages from a mailbox or an alias the sites of the recipients (to find their aliases).
@@ -138,10 +143,10 @@ Plain JavaScript, no runtime dependencies, no build step for the code.
 npm test                    # unit tests
 npm run setup:thunderbird   # downloads Thunderbird 153 ESR into .cache/
 npm run test:e2e            # real Thunderbird with a fake SMTP server and a fake SimpleLogin API
-npm run build               # dist/aliasbuddy-<version>.xpi
+npm run build               # dist/aliasbuddy-<version>.xpi and the store build -atn.xpi
 ```
 
-`TB_BINARY` points the end-to-end test at another Thunderbird, and `E2E_SCREENSHOTS=<dir>` saves screenshots.
+`TB_BINARY` points the end-to-end test at another Thunderbird, `E2E_SCREENSHOTS=<dir>` saves screenshots, and `E2E_ATN=1` tests the store build.
 
 ## 📄 License
 

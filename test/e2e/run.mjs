@@ -14,6 +14,17 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { binaryFor } from "../../scripts/fetch-thunderbird.mjs";
+import { stageAtn } from "../../scripts/build.mjs";
+
+// E2E_ATN=1 tests the addons.thunderbird.net variant, which has no calendar guard.
+const ATN = !!process.env.E2E_ATN;
+// They switch to an identity created after the compose window opened, which only the compose Experiment API can list.
+const ATN_SKIP = [
+  "automatic: a reply goes out as the alias the message came through, its identity is created",
+  "automatic: a forward goes out as the alias the message came through",
+  "popup: another template finds the user's own alias of that category",
+  "popup: an alias of a template with random parts is found again for its site",
+];
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const binary = process.argv[2] ?? process.env.TB_BINARY ?? binaryFor();
@@ -611,6 +622,10 @@ function chrome(body) {
 
 const results = [];
 async function check(name, fn) {
+  if (ATN && (name.startsWith("calendar:") || ATN_SKIP.includes(name))) {
+    console.log(`skip ${name}`);
+    return;
+  }
   try {
     await fn();
     results.push({ name, ok: true });
@@ -701,7 +716,7 @@ try {
   await client.send("WebDriver:SetWindowRect", { x: 0, y: 0, width: 1400, height: 900 });
   await client.run(chrome(`await until(() => window.document.getElementById("tabmail"), "main window", 60000);`));
 
-  const installed = await client.send("Addon:Install", { path: path.join(root, "src"), temporary: true });
+  const installed = await client.send("Addon:Install", { path: ATN ? stageAtn() : path.join(root, "src"), temporary: true });
   const addon = installed.value ?? installed.addon ?? installed;
   console.log(`installed ${addon}`);
   // A test cannot click the permission prompt, so the local API origin is granted up front.
@@ -1272,6 +1287,13 @@ try {
     await popupShot("popup-configurator");
     // Switching the sender may close the popup, so the result is checked in the compose window.
     await client.run(inPage(popup, `doc.getElementById("useSuggestion").click();`));
+    if (ATN) {
+      // Without the compose Experiment API the open window cannot list the new sender, so the popup says what to do.
+      const hint = await client.run(inPage(popup, `await until(() => !doc.getElementById("aliasError").hidden, "hint shown"); return doc.getElementById("aliasError").textContent;`));
+      if (!/is ready as a sender, but this window only lists the senders it opened with/.test(hint)) throw new Error("hint: " + hint);
+      expect((await identitiesFor(api.created[created].email)).map(i => i[1]), ["Alias Buddy"], "identity created");
+      return;
+    }
     await client.run(
       chrome(`await until(() => /^shop\.[a-z0-9]{5}@mine\.example$/.test(MailServices.accounts.getIdentity(composeWindows()[0].getCurrentIdentityKey()).email), "switched to the new alias");`)
     );
