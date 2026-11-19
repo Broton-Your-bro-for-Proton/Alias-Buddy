@@ -9,7 +9,7 @@
 A change counts as checked only when:
 
 1. `npm test` passes.
-2. `npm run test:e2e` passes in Thunderbird 153 ESR. It sends through a fake SMTP server and checks what actually left Thunderbird (envelope sender, recipients, headers, body).
+2. `npm run test:e2e` passes in Thunderbird 153 ESR, and with `E2E_ATN=1` for the addons.thunderbird.net build without Experiment APIs. It sends through a fake SMTP server and checks what actually left Thunderbird (envelope sender, recipients, headers, body).
 3. Every touched UI (popup, settings page, compose window) was looked at in screenshots from `E2E_SCREENSHOTS=<dir> npm run test:e2e`.
 4. A change to the guard comes with a counter-check: the new e2e check fails when the guard is switched off.
 
