@@ -997,7 +997,8 @@ function showSiteNote(tabId, note, badge) {
  * After the recipients change: with one site and the real address the window
  * opened with as sender, a single alias of that site becomes the sender; several
  * are offered in the popup. It switches once per window and never after the user
- * picked a sender. Replies and forwards are left to their own automation.
+ * picked a sender. Replies and forwards are left to their own automation,
+ * except that recipients who are all contacts of one alias make it the sender.
  */
 async function matchSiteAlias(ctx, tabId) {
   const details = await messenger.compose.getComposeDetails(tabId);
@@ -1009,12 +1010,39 @@ async function matchSiteAlias(ctx, tabId) {
   }
   const mine = await protectedAddresses(ctx);
   const sites = await sitesOf(ctx, details, mine);
-  const key = sites.join(" ");
+  const headers = await recipientsOf(details).catch(() => []);
+  const reverseDomains = await reverseDomainsOf(ctx);
+  // Reverse aliases the add-on does not know yet add no site, so they are part of the key.
+  const key = [...sites, ...headers.filter(r => reverseDomains.has(domainOf(r.email))).map(r => r.email)].join(" ");
   if (siteChecks.get(tabId) == key) {
     return;
   }
   siteChecks.set(tabId, key);
   const current = core.norm((await messenger.identities.get(details.identityId)).email);
+  // To reverse aliases of one alias only (Bcc included), the message goes out as that alias anyway, so the sender shows it.
+  const owners = () => headers.map(r => ownerIdOf(ctx, r.email));
+  const known = [...new Set(owners().filter(Boolean))];
+  let owner = null;
+  if (known.length == 1 && ctx.settings.creation.matchSite && firstSenders.get(tabId) && mine.has(core.canonical(current))) {
+    const email = (aliasById(ctx, known[0]) ?? (await aliasStore(ctx)).aliases.find(a => a.id == known[0]))?.email;
+    owner = email ? await aliasFor(ctx, email).catch(() => null) : null;
+    // Contacts SimpleLogin added since the add-on last listed them, as in checkMailbox.
+    const unknown = headers.filter(r => !ownerIdOf(ctx, r.email) && reverseDomains.has(domainOf(r.email))).map(r => r.email);
+    if (owner && unknown.length) {
+      await refreshContacts(ctx, owner, unknown).catch(() => {});
+    }
+    if (!owners().every(id => id == known[0])) {
+      owner = null;
+    }
+  }
+  // Only from one of its mailboxes, which SimpleLogin accepts the alias's mail from.
+  const unchanged = async () => (await messenger.compose.getComposeDetails(tabId)).identityId == details.identityId;
+  if (owner?.enabled && owner.mailboxes.includes(current) && (await unchanged())) {
+    await useAlias(ctx, tabId, owner);
+    firstSenders.set(tabId, null);
+    showSiteNote(tabId, `The recipients are contacts of ${owner.email}, so it is set as sender.`, "✓");
+    return;
+  }
   const automated = ["reply", "forward"].includes(details.type) && details.relatedMessageId && ctx.settings.creation.replyFromAlias;
   if (sites.length != 1 || !ctx.sl || !ctx.settings.creation.matchSite || automated || !mine.has(core.canonical(current))) {
     showSiteNote(tabId, null, "");
