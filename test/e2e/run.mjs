@@ -2035,6 +2035,25 @@ try {
     await popupShot("popup-matches");
   });
 
+  await check("automatic: to reverse aliases of one alias, that alias becomes the sender", async () => {
+    // Sending as the alias once fills its contacts.
+    const primed = nextMail();
+    await client.run(chrome(`await send("id2", { to: "known@x.example" });`));
+    expect((await primed)?.to, ["ra-known@sl.example"], "sent as the alias");
+    // Typed after the window opened, the way a user adds them.
+    await client.run(
+      chrome(`
+        const win = await compose("id5");
+        await sleep(3000);
+        win.addressRowAddRecipientsArray(win.document.querySelector(".address-row[data-recipienttype='addr_to']"), ["ra-known@sl.example", "ra-known2@sl.example"]);
+      `)
+    );
+    await client.run(chrome(`await until(() => MailServices.accounts.getIdentity(composeWindows()[0].getCurrentIdentityKey()).email == "shop@alias.example", "switched to the owning alias", 15000);`));
+    // Contacts of two aliases leave the sender alone.
+    await client.run(chrome(`await compose("id5", { to: "ra-known@sl.example", cc: "ra-bea@sl.example" }); await sleep(5000);`));
+    expect(await client.run(chrome(`return composeWindows()[0].getCurrentIdentityKey();`)), "id5", "sender unchanged with two owners");
+  });
+
   await check("API down: an unknown identity is blocked", async () => {
     api.down = true;
     const mail = nextMail(4000);
