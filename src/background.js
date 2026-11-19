@@ -1051,9 +1051,9 @@ async function matchSiteAlias(ctx, tabId) {
   // Only from one of its mailboxes, which SimpleLogin accepts the alias's mail from.
   const unchanged = async () => (await messenger.compose.getComposeDetails(tabId)).identityId == details.identityId;
   if (owner?.enabled && owner.mailboxes.includes(current) && (await unchanged())) {
-    firstSenders.set(tabId, null);
     try {
       await useAlias(ctx, tabId, owner);
+      firstSenders.set(tabId, null);
     } catch (e) {
       showSiteNote(tabId, e.message, "!");
       return;
@@ -1083,9 +1083,9 @@ async function matchSiteAlias(ctx, tabId) {
     // The user may have picked a sender while this waited.
     const now = await messenger.compose.getComposeDetails(tabId);
     if (live?.enabled && now.identityId == details.identityId) {
-      firstSenders.set(tabId, null);
       try {
         await useAlias(ctx, tabId, live);
+        firstSenders.set(tabId, null);
       } catch (e) {
         showSiteNote(tabId, e.message, "!");
         return;
