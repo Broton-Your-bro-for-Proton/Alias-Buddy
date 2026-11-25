@@ -64,7 +64,9 @@ export function isAllowed(email, allowlist) {
 export function leaks(texts, protectedCanonical) {
   const found = new Set();
   for (const text of texts) {
-    for (const token of String(text ?? "").match(/[\p{L}\p{N}_.+-]+@[\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)+/gu) ?? []) {
+    // Both spellings: with non-ASCII letters (jörg@), and ASCII only, so an address next to other script still counts.
+    const tokens = [/[\p{L}\p{N}_.+-]+@[\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)+/gu, /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g].flatMap(re => String(text ?? "").match(re) ?? []);
+    for (const token of tokens) {
       if (protectedCanonical.has(canonical(token))) {
         found.add(norm(token));
       }

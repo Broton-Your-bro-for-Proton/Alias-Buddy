@@ -504,15 +504,25 @@ async function check(tab, details, ctx, options = {}) {
       throw e;
     }
     const sender = core.norm((await messenger.identities.get(details.identityId)).email);
-    const senders = [sender, details.from && core.addressOf(details.from)].filter(Boolean);
+    // Every address the recipients would see: sender, a typed From and the Reply-To.
+    const senders = [sender, details.from && core.addressOf(details.from), ...(await recipientsOf(details, ["replyTo"])).map(r => r.email)].filter(Boolean);
+    // The stored alias list survives saving the settings, which empties the cache.
+    const stored = (await aliasStore(ctx)).aliases;
+    if (!ctx.cache.mailboxes && !stored.length) {
+      throw e; // nothing known about this account, so any sender may be one of its addresses
+    }
     const known = new Set(
       [
         ...ctx.settings.protected,
         ...(ctx.cache.mailboxes?.value ?? []).map(m => m.email),
         ...Object.values(ctx.cache.aliases).flatMap(entry => (entry.value ? [entry.value.email] : [])),
+        ...stored.flatMap(a => [a.email, ...a.mailboxes]),
       ].map(core.canonical)
     );
-    const slDomains = new Set(core.creationDomains(ctx.cache.suffixes?.value ?? []).map(d => d.domain));
+    const slDomains = new Set([
+      ...core.creationDomains(ctx.cache.suffixes?.value ?? []).map(d => d.domain),
+      ...stored.map(a => domainOf(a.email)),
+    ]);
     for (const email of senders) {
       if ((await wasAlias(email)) || !core.unansweredOverridable(email, { known, slDomains })) {
         throw e;
@@ -945,7 +955,10 @@ async function switchToSiteAlias(tab, details, ctx, options, blocked) {
   const template = knownTemplate(ctx, chosenTemplates.get(tab.id)) ?? ctx.settings.creation.template;
   try {
     // The alias created for this window before, when the send failed after its creation.
-    const made = switchAliases.get(tab.id);
+    let made = switchAliases.get(tab.id);
+    if (made && (await goneAliases()).includes(made.alias.email)) {
+      made = null; // deleted in the overview meanwhile
+    }
     const plan = made?.site == site && made.template == template ? { alias: made.alias, email: made.alias.email, existing: true } : await planForSite(ctx, site, template);
     const planned = plan.alias ?? { id: null, email: plan.email, mailboxes: [plan.mailbox] };
     const preview = await checkAlias(tab, details, ctx, { ...options, alias: planned, resumed: false, apply: false });
@@ -1220,10 +1233,10 @@ async function aliasPanel(ctx, tabId, wanted, wantedSite) {
 }
 
 /** Throws what would stop the switch to a new alias of the mailbox, so no alias is left unused on the server. */
-async function canSwitchToNew(ctx, tabId, mailboxId) {
+async function canSwitchToNew(ctx, tabId, mailboxId, email = "") {
   const mailbox = ctx.cache.mailboxes?.value?.find(b => b.id == mailboxId) ?? (await creationMailbox(ctx));
   const { identityId } = await messenger.compose.getComposeDetails(tabId);
-  await ensureIdentity(ctx, { email: "", mailboxes: [mailbox.email] }, (await messenger.identities.get(identityId)).accountId, { create: false });
+  await ensureIdentity(ctx, { email, mailboxes: [mailbox.email] }, (await messenger.identities.get(identityId)).accountId, { create: false });
 }
 
 /** A template the popup sent, if it is still in the settings (they may have changed meanwhile). */
@@ -1244,7 +1257,7 @@ const ALIAS_ACTIONS = {
     const template = knownTemplate(ctx, m.template);
     const plan = await planForSite(ctx, m.site, template);
     if (!plan.alias) {
-      await canSwitchToNew(ctx, m.tabId);
+      await canSwitchToNew(ctx, m.tabId, undefined, plan.email);
     }
     return useAlias(ctx, m.tabId, plan.alias ?? (await createAlias(ctx, m.site, { template })));
   },

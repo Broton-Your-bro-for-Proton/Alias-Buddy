@@ -341,6 +341,8 @@ test("leaks finds addresses with non-ASCII letters and either spelling of an IDN
   assert.deepEqual(core.leaks(["Mail jörg@bücher.example"], mine), ["jörg@bücher.example"]);
   assert.deepEqual(core.leaks(["Mail jörg@xn--bcher-kva.example"], mine), ["jörg@xn--bcher-kva.example"]);
   assert.deepEqual(core.leaks(["Mail rg@bücher.example"], mine), []);
+  const ascii = new Set([core.canonical("max@example.com")]);
+  assert.deepEqual(core.leaks(["请联系max@example.com谢谢", "max@example.comまで"], ascii), ["max@example.com"]);
 });
 
 test("siteOf keeps companies apart below generic endings of country codes", () => {
