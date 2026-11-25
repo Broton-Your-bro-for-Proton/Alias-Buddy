@@ -292,7 +292,7 @@ const prefs = {
   "mail.accountmanager.defaultaccount": "account1",
   "mail.accountmanager.localfoldersserver": "server1",
   "mail.account.account1.server": "server1",
-  "mail.account.account1.identities": "id1,id2,id3,id4,id5,id6,id7,id8,id9,id10,id12,id13,id14",
+  "mail.account.account1.identities": "id1,id2,id3,id4,id5,id6,id7,id8,id9,id10,id12,id13,id14,id15",
   "mail.server.server1.type": "none",
   "mail.server.server1.hostname": "Local Folders",
   "mail.server.server1.userName": "nobody",
@@ -326,6 +326,8 @@ const prefs = {
   ...identity("id13", "nobody@mine.example"),
   // On a SimpleLogin domain, for example an alias deleted in the dashboard, without the add-on's label.
   ...identity("id14", "lost.cat@aleeas.example"),
+  // An account that has nothing to do with SimpleLogin, never looked up before the revoked key.
+  ...identity("id15", "max@example.com"),
 };
 fs.writeFileSync(
   path.join(profile, "user.js"),
@@ -1465,7 +1467,7 @@ try {
           return doc.getElementById("aliasError").textContent;`
         )
       );
-      if (!/Thunderbird has no identity for the new alias/.test(error)) throw new Error("error: " + error);
+      if (!/Thunderbird has no identity for nextsite\.[a-z0-9]{5}@mine\.example/.test(error)) throw new Error("error: " + error);
     } finally {
       await setOptions({ autoIdentity: true });
     }
@@ -2157,7 +2159,9 @@ try {
   await check("API key revoked: an unrelated identity can be sent once", async () => {
     api.revoked = true;
     try {
-      await expectBlocked(`await send("id4", { to: "bob@x.example" })`, /Send once if fresh@alias\.example has nothing to do with SimpleLogin/);
+      // An address on a domain of the user's aliases may itself be one, so it stays blocked.
+      await expectBlocked(`await send("id4", { to: "bob@x.example" })`, /cannot tell whether fresh@alias\.example is an alias\.$/);
+      await expectBlocked(`await send("id15", { to: "bob@x.example" })`, /Send once if max@example\.com has nothing to do with SimpleLogin/);
       const mail = nextMail();
       await client.run(
         chrome(`
@@ -2168,7 +2172,7 @@ try {
       );
       await popupShot("popup-unanswered");
       await client.run(inPage(popup, `await until(() => !doc.getElementById("sendOnce").hidden, "send button shown"); doc.getElementById("sendOnce").click();`));
-      expect((await mail)?.from, "fresh@alias.example", "sent once");
+      expect((await mail)?.from, "max@example.com", "sent once");
     } finally {
       api.revoked = false;
     }
