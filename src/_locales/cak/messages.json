@@ -1,0 +1,17 @@
+{
+  "extensionDescription": {
+    "message": "Tataq achi'el jun alias richin SimpleLogin chi taq rub'ey ri k'o, ri tob'al nuchajij ri taq alias nitzolin. Nutz'apij ri taq mensaje ri nikik'üt ri ruwäch rub'ey correo. Man k'o ta rukamolem rik'in Proton AG o SimpleLogin."
+  },
+  "overviewTitle": {
+    "message": "Alias Buddy: taq ri aalias"
+  },
+  "overviewLabel": {
+    "message": "Taq alias"
+  },
+  "messageTitle": {
+    "message": "Alias Buddy: ri alias rik'in xtaq re mensaje re'"
+  },
+  "messageLabel": {
+    "message": "Alias"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "extensionDescription": {
+    "message": "Надсилайте як псевдонім SimpleLogin на звичайні адреси, а зворотними псевдонімами займається додаток. Блокує листи, які розкрили б вашу справжню адресу. Не пов'язано з Proton AG чи SimpleLogin."
+  },
+  "overviewTitle": {
+    "message": "Alias Buddy: ваші псевдоніми"
+  },
+  "overviewLabel": {
+    "message": "Псевдоніми"
+  },
+  "messageTitle": {
+    "message": "Alias Buddy: псевдонім, через який надійшов цей лист"
+  },
+  "messageLabel": {
+    "message": "Псевдонім"
+  }
+}

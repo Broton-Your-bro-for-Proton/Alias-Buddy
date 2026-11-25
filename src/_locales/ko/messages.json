@@ -1,0 +1,17 @@
+{
+  "extensionDescription": {
+    "message": "일반 주소로 SimpleLogin 별칭으로 보내며, 역방향 별칭은 부가 기능이 처리합니다. 실제 주소가 드러날 메시지는 차단합니다. Proton AG 또는 SimpleLogin과 제휴 관계가 아닙니다."
+  },
+  "overviewTitle": {
+    "message": "Alias Buddy: 내 별칭"
+  },
+  "overviewLabel": {
+    "message": "별칭"
+  },
+  "messageTitle": {
+    "message": "Alias Buddy: 이 메시지가 도착한 별칭"
+  },
+  "messageLabel": {
+    "message": "별칭"
+  }
+}

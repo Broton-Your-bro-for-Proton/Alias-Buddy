@@ -1,0 +1,17 @@
+{
+  "extensionDescription": {
+    "message": "שליחה בתור כינוי של SimpleLogin לכתובות רגילות, התוסף מטפל בכינויים ההפוכים. חוסם הודעות שהיו חושפות את הכתובת האמיתית שלך. אין קשר ל-Proton AG או ל-SimpleLogin."
+  },
+  "overviewTitle": {
+    "message": "Alias Buddy: הכינויים שלך"
+  },
+  "overviewLabel": {
+    "message": "כינויים"
+  },
+  "messageTitle": {
+    "message": "Alias Buddy: הכינוי שדרכו הגיעה ההודעה"
+  },
+  "messageLabel": {
+    "message": "כינוי"
+  }
+}

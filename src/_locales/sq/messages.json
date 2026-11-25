@@ -1,0 +1,17 @@
+{
+  "extensionDescription": {
+    "message": "Dërgoni si një alias SimpleLogin te adresa normale, shtesa merret me aliaset e kundërta. Bllokon mesazhet që do të zbulonin adresën tuaj të vërtetë. Pa lidhje me Proton AG ose SimpleLogin."
+  },
+  "overviewTitle": {
+    "message": "Alias Buddy: aliaset tuaja"
+  },
+  "overviewLabel": {
+    "message": "Aliaset"
+  },
+  "messageTitle": {
+    "message": "Alias Buddy: aliasi përmes të cilit erdhi ky mesazh"
+  },
+  "messageLabel": {
+    "message": "Alias"
+  }
+}

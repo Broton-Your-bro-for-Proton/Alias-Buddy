@@ -2,7 +2,8 @@
   "manifest_version": 2,
   "name": "Alias Buddy for SimpleLogin",
   "version": "0.7.1",
-  "description": "Send as a SimpleLogin alias to normal addresses, the add-on handles the reverse aliases. Blocks messages that would reveal your real address. Not affiliated with Proton AG or SimpleLogin.",
+  "description": "__MSG_extensionDescription__",
+  "default_locale": "en",
   "author": "HyperCriSiS",
   "homepage_url": "https://github.com/Broton-Your-bro-for-Proton/Alias-Buddy",
   "browser_specific_settings": {
@@ -29,8 +30,8 @@
   "background": { "page": "background.html" },
   "browser_action": {
     "default_icon": "icons/icon.svg",
-    "default_title": "Alias Buddy: your aliases",
-    "default_label": "Aliases"
+    "default_title": "__MSG_overviewTitle__",
+    "default_label": "__MSG_overviewLabel__"
   },
   "compose_action": {
     "default_icon": "icons/icon.svg",
@@ -40,8 +41,8 @@
   },
   "message_display_action": {
     "default_icon": "icons/icon.svg",
-    "default_title": "Alias Buddy: the alias this message came through",
-    "default_label": "Alias",
+    "default_title": "__MSG_messageTitle__",
+    "default_label": "__MSG_messageLabel__",
     "default_popup": "message/message.html"
   },
   "options_ui": { "page": "options/options.html", "open_in_tab": true },

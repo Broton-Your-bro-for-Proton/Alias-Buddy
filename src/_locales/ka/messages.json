@@ -1,0 +1,17 @@
+{
+  "extensionDescription": {
+    "message": "გაგზავნეთ SimpleLogin-ის ალიასიდან ჩვეულებრივ მისამართებზე, საპირისპირო ალიასებს დამატება მართავს. ბლოკავს შეტყობინებებს, რომლებიც თქვენს რეალურ მისამართს გასცემდა. არ არის დაკავშირებული Proton AG-თან ან SimpleLogin-თან."
+  },
+  "overviewTitle": {
+    "message": "Alias Buddy: თქვენი ალიასები"
+  },
+  "overviewLabel": {
+    "message": "ალიასები"
+  },
+  "messageTitle": {
+    "message": "Alias Buddy: ალიასი, რომლითაც ეს შეტყობინება მოვიდა"
+  },
+  "messageLabel": {
+    "message": "ალიასი"
+  }
+}

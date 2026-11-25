@@ -1,0 +1,17 @@
+{
+  "extensionDescription": {
+    "message": "با نام مستعار SimpleLogin به نشانی‌های عادی بفرستید، افزونه نام‌های مستعار معکوس را مدیریت می‌کند. پیام‌هایی را که نشانی واقعی شما را فاش می‌کنند مسدود می‌کند. وابسته به Proton AG یا SimpleLogin نیست."
+  },
+  "overviewTitle": {
+    "message": "Alias Buddy: نام‌های مستعار شما"
+  },
+  "overviewLabel": {
+    "message": "نام‌های مستعار"
+  },
+  "messageTitle": {
+    "message": "Alias Buddy: نام مستعاری که این پیام از طریق آن رسیده است"
+  },
+  "messageLabel": {
+    "message": "نام مستعار"
+  }
+}

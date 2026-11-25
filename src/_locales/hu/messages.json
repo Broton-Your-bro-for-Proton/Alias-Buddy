@@ -1,0 +1,17 @@
+{
+  "extensionDescription": {
+    "message": "Küldés SimpleLogin-aliasként normál címekre, a fordított aliasokat a bővítmény kezeli. Letiltja azokat az üzeneteket, amelyek felfednék a valódi címedet. Nem áll kapcsolatban a Proton AG-vel vagy a SimpleLogin-nel."
+  },
+  "overviewTitle": {
+    "message": "Alias Buddy: az aliasaid"
+  },
+  "overviewLabel": {
+    "message": "Aliasok"
+  },
+  "messageTitle": {
+    "message": "Alias Buddy: az alias, amelyen az üzenet érkezett"
+  },
+  "messageLabel": {
+    "message": "Alias"
+  }
+}

@@ -1,5 +1,6 @@
 import { SimpleLogin } from "../lib/api.js";
 import { accountChanged, apiUrlProblem, creationDomains, prefixFrom, templateProblem, templatesOf } from "../lib/core.js";
+import { t } from "../lib/i18n.js";
 import { getSettings } from "../lib/settings.js";
 
 const $ = id => document.getElementById(id);
@@ -40,13 +41,13 @@ async function loadCreationChoices(current) {
     const [suffixes, mailboxes] = await Promise.all([sl.suffixes(), sl.mailboxes()]);
     const domains = creationDomains(suffixes).map(d => ({
       value: d.domain,
-      label: `${d.domain} (${d.custom ? "your domain" : "SimpleLogin, adds a random word"})`,
+      label: d.custom ? t("{domain} (your domain)", { domain: d.domain }) : t("{domain} (SimpleLogin, adds a random word)", { domain: d.domain }),
     }));
     fill($("domain"), domains, current.creation.domain);
     fill($("mailboxId"), mailboxes.filter(m => m.verified !== false).map(m => ({ value: m.id, label: m.email })), current.creation.mailboxId);
-    $("creationState").textContent = `${domains.length} domains and ${mailboxes.length} mailboxes available.`;
+    $("creationState").textContent = t("{domains} domains and {mailboxes} mailboxes available.", { domains: domains.length, mailboxes: mailboxes.length });
   } catch (e) {
-    $("creationState").textContent = `Could not load the domains: ${e.message}`;
+    $("creationState").textContent = t("Could not load the domains: {error}", { error: e.message });
   }
 }
 loadCreationChoices(settings);
@@ -56,7 +57,7 @@ $("form").addEventListener("submit", async event => {
   const templates = templatesOf({ templates: lines($("templates").value) });
   const problem = templates.map(templateProblem).find(Boolean);
   if (problem) {
-    $("result").textContent = `Not saved: ${problem}.`;
+    $("result").textContent = t("Not saved: {problem}.", { problem });
     return;
   }
   const next = {
@@ -74,7 +75,7 @@ $("form").addEventListener("submit", async event => {
   };
   const urlProblem = apiUrlProblem(next.apiUrl);
   if (urlProblem) {
-    $("result").textContent = `Not saved: ${urlProblem}.`;
+    $("result").textContent = t("Not saved: {problem}.", { problem: urlProblem });
     return;
   }
   const url = new URL(next.apiUrl);
@@ -87,7 +88,7 @@ $("form").addEventListener("submit", async event => {
     granted = await messenger.permissions.contains({ origins });
   }
   if (!granted) {
-    $("result").textContent = `Not saved: access to ${next.apiUrl} was not granted.`;
+    $("result").textContent = t("Not saved: access to {url} was not granted.", { url: next.apiUrl });
     return;
   }
   // Saving also refreshes what the add-on knows, for example a mailbox added in SimpleLogin.
@@ -97,12 +98,12 @@ $("form").addEventListener("submit", async event => {
     await messenger.storage.local.remove("aliasStore");
   }
   Object.assign(settings, next);
-  $("result").textContent = "Saved. Testing...";
+  $("result").textContent = t("Saved. Testing...");
   try {
     const mailboxes = await new SimpleLogin(next.apiUrl, next.apiKey).mailboxes();
-    $("result").textContent = `Saved. Connected, protected mailboxes: ${mailboxes.map(m => m.email).join(", ")}`;
+    $("result").textContent = t("Saved. Connected, protected mailboxes: {list}", { list: mailboxes.map(m => m.email).join(", ") });
     await loadCreationChoices(next);
   } catch (e) {
-    $("result").textContent = `Saved, but the test failed: ${e.message}`;
+    $("result").textContent = t("Saved, but the test failed: {error}", { error: e.message });
   }
 });

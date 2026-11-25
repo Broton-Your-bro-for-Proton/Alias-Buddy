@@ -1,6 +1,7 @@
 # Agent notes
 
-- Language for code, comments, UI texts, commits and docs: American English.
+- Language for code, comments, UI source texts, commits and docs: American English.
+- The UI is translated into the store's 56 languages (`LOCALES` in `src/lib/i18n.js`). English is the key in `t("...")`; each language has `src/lib/locales/<code>.js` and `src/_locales/<code>/messages.json`. Every new UI text goes through `t()` or the page's static text and gets an entry in every catalog; `npm test` fails otherwise (`scripts/i18n-keys.mjs`, `test/i18n.test.js`). Stored values such as alias notes and identity labels stay English.
 - No runtime dependencies. The add-on is plain ES modules loaded by Thunderbird directly.
 - Decision logic goes into `src/lib/core.js` so `npm test` covers it without Thunderbird.
 

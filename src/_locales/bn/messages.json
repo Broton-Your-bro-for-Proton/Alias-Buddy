@@ -1,0 +1,17 @@
+{
+  "extensionDescription": {
+    "message": "সাধারণ ঠিকানায় SimpleLogin অ্যালিয়াস হিসেবে পাঠান, রিভার্স অ্যালিয়াস অ্যাড-অন সামলায়। আপনার আসল ঠিকানা প্রকাশ করে এমন বার্তা আটকায়। Proton AG বা SimpleLogin-এর সাথে সম্পর্কিত নয়।"
+  },
+  "overviewTitle": {
+    "message": "Alias Buddy: আপনার অ্যালিয়াস"
+  },
+  "overviewLabel": {
+    "message": "অ্যালিয়াস"
+  },
+  "messageTitle": {
+    "message": "Alias Buddy: এই বার্তা যে অ্যালিয়াসের মাধ্যমে এসেছে"
+  },
+  "messageLabel": {
+    "message": "অ্যালিয়াস"
+  }
+}

@@ -1490,7 +1490,7 @@ try {
         `await until(() => !doc.getElementById("sendOnce").hidden, "button shown"); return [doc.getElementById("summary").textContent, doc.getElementById("sendOnce").textContent];`
       )
     );
-    if (!/would show your real address\. On send it switches to the alias another\.[a-z0-9]{5}@mine\.example \(new\)/.test(summary)) throw new Error("summary: " + summary);
+    if (!/would show your real address\. On send it switches to the new alias another\.[a-z0-9]{5}@mine\.example,/.test(summary)) throw new Error("summary: " + summary);
     expect([button, api.created.length - created], ["Send from my real address instead", 0], "button and nothing created");
   });
 

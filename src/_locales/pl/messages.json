@@ -1,0 +1,17 @@
+{
+  "extensionDescription": {
+    "message": "Wysyłaj jako alias SimpleLogin do zwykłych adresów, dodatek obsługuje aliasy zwrotne. Blokuje wiadomości, które ujawniłyby Twój prawdziwy adres. Brak powiązań z Proton AG ani SimpleLogin."
+  },
+  "overviewTitle": {
+    "message": "Alias Buddy: Twoje aliasy"
+  },
+  "overviewLabel": {
+    "message": "Aliasy"
+  },
+  "messageTitle": {
+    "message": "Alias Buddy: alias, przez który przyszła ta wiadomość"
+  },
+  "messageLabel": {
+    "message": "Alias"
+  }
+}

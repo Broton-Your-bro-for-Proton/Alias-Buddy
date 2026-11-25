@@ -1,0 +1,17 @@
+{
+  "extensionDescription": {
+    "message": "Στείλτε ως ψευδώνυμο SimpleLogin σε κανονικές διευθύνσεις, το πρόσθετο χειρίζεται τα αντίστροφα ψευδώνυμα. Μπλοκάρει μηνύματα που θα αποκάλυπταν την πραγματική σας διεύθυνση. Δεν σχετίζεται με την Proton AG ή το SimpleLogin."
+  },
+  "overviewTitle": {
+    "message": "Alias Buddy: τα ψευδώνυμά σας"
+  },
+  "overviewLabel": {
+    "message": "Ψευδώνυμα"
+  },
+  "messageTitle": {
+    "message": "Alias Buddy: το ψευδώνυμο μέσω του οποίου ήρθε το μήνυμα"
+  },
+  "messageLabel": {
+    "message": "Ψευδώνυμο"
+  }
+}

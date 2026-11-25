@@ -2,6 +2,7 @@
 // page sizes differ between servers.
 // Docs: https://github.com/simple-login/app/blob/master/docs/api.md
 import { addressOf, noteNamesSite, norm } from "./core.js";
+import { t } from "./i18n.js";
 
 /** The parts of an alias the add-on uses. */
 const aliasInfo = a => ({
@@ -64,14 +65,14 @@ export class SimpleLogin {
         signal: AbortSignal.timeout(15000),
       });
     } catch (e) {
-      throw new ApiError(0, `cannot reach ${this.url} (${e.message})`);
+      throw new ApiError(0, t("cannot reach {url} ({error})", { url: this.url, error: e.message }));
     }
     const data = await response.json().catch(() => null);
     if (!response.ok) {
       throw new ApiError(response.status, data?.error ?? `HTTP ${response.status}`);
     }
     if (!data || typeof data != "object") {
-      throw new ApiError(0, `unexpected answer from ${this.url}`);
+      throw new ApiError(0, t("unexpected answer from {url}", { url: this.url }));
     }
     return data;
   }
@@ -92,7 +93,7 @@ export class SimpleLogin {
         return null;
       }
     }
-    throw new ApiError(TOO_MANY, `too many search results for ${email}`);
+    throw new ApiError(TOO_MANY, t("too many search results for {email}", { email }));
   }
 
   /**
@@ -114,7 +115,7 @@ export class SimpleLogin {
         return result;
       }
     }
-    throw new ApiError(TOO_MANY, "too many contacts to search");
+    throw new ApiError(TOO_MANY, t("too many contacts to search"));
   }
 
   /** Aliases matching a search (address, note or name), one page. */
@@ -171,7 +172,7 @@ export class SimpleLogin {
         return alias ?? null;
       }
     }
-    throw new ApiError(TOO_MANY, `too many search results for ${site}`);
+    throw new ApiError(TOO_MANY, t("too many search results for {site}", { site }));
   }
 
   /** Suffixes the user may create aliases with: own domains, subdomains and SimpleLogin domains. */

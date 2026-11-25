@@ -1,0 +1,17 @@
+{
+  "extensionDescription": {
+    "message": "Envoyez en tant qu’alias SimpleLogin à des adresses normales, le module gère les alias inverses. Bloque les messages qui révéleraient votre adresse réelle. Sans lien avec Proton AG ni SimpleLogin."
+  },
+  "overviewTitle": {
+    "message": "Alias Buddy : vos alias"
+  },
+  "overviewLabel": {
+    "message": "Alias"
+  },
+  "messageTitle": {
+    "message": "Alias Buddy : l’alias par lequel ce message est arrivé"
+  },
+  "messageLabel": {
+    "message": "Alias"
+  }
+}

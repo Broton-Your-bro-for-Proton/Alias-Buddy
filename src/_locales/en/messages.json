@@ -1,0 +1,7 @@
+{
+  "extensionDescription": { "message": "Send as a SimpleLogin alias to normal addresses, the add-on handles the reverse aliases. Blocks messages that would reveal your real address. Not affiliated with Proton AG or SimpleLogin." },
+  "overviewTitle": { "message": "Alias Buddy: your aliases" },
+  "overviewLabel": { "message": "Aliases" },
+  "messageTitle": { "message": "Alias Buddy: the alias this message came through" },
+  "messageLabel": { "message": "Alias" }
+}

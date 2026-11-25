@@ -1,0 +1,17 @@
+{
+  "extensionDescription": {
+    "message": "Hantar sebagai alias SimpleLogin kepada alamat biasa, tambahan mengendalikan alias songsang. Menyekat mesej yang akan mendedahkan alamat sebenar anda. Tiada kaitan dengan Proton AG atau SimpleLogin."
+  },
+  "overviewTitle": {
+    "message": "Alias Buddy: alias anda"
+  },
+  "overviewLabel": {
+    "message": "Alias"
+  },
+  "messageTitle": {
+    "message": "Alias Buddy: alias yang menerima mesej ini"
+  },
+  "messageLabel": {
+    "message": "Alias"
+  }
+}

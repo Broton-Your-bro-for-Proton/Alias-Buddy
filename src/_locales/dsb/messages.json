@@ -1,0 +1,17 @@
+{
+  "extensionDescription": {
+    "message": "Pósćel ako alias SimpleLogin k normalnym adresam, dodank zastarajo reverse aliasy. Blokěrujo powěsći, kótarež by twóju napšawdnu adresu wujawili. Njejo zwězany z Proton AG abo SimpleLogin."
+  },
+  "overviewTitle": {
+    "message": "Alias Buddy: twóje aliasy"
+  },
+  "overviewLabel": {
+    "message": "Aliasy"
+  },
+  "messageTitle": {
+    "message": "Alias Buddy: alias, pśez kótaryž powěsć dojšła"
+  },
+  "messageLabel": {
+    "message": "Alias"
+  }
+}

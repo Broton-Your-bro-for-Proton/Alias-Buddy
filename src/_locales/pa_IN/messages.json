@@ -1,0 +1,17 @@
+{
+  "extensionDescription": {
+    "message": "ਆਮ ਪਤਿਆਂ ਨੂੰ SimpleLogin ਅਲਿਆਸ ਵਜੋਂ ਭੇਜੋ, ਐਡ-ਆਨ ਰਿਵਰਸ ਅਲਿਆਸ ਸੰਭਾਲਦਾ ਹੈ। ਉਹ ਸੁਨੇਹੇ ਰੋਕਦਾ ਹੈ ਜੋ ਤੁਹਾਡਾ ਅਸਲੀ ਪਤਾ ਜ਼ਾਹਰ ਕਰ ਦੇਣ। Proton AG ਜਾਂ SimpleLogin ਨਾਲ ਸੰਬੰਧਿਤ ਨਹੀਂ।"
+  },
+  "overviewTitle": {
+    "message": "Alias Buddy: ਤੁਹਾਡੇ ਅਲਿਆਸ"
+  },
+  "overviewLabel": {
+    "message": "ਅਲਿਆਸ"
+  },
+  "messageTitle": {
+    "message": "Alias Buddy: ਉਹ ਅਲਿਆਸ ਜਿਸ ਰਾਹੀਂ ਇਹ ਸੁਨੇਹਾ ਆਇਆ"
+  },
+  "messageLabel": {
+    "message": "ਅਲਿਆਸ"
+  }
+}

@@ -1,5 +1,7 @@
 // Decision logic without browser APIs, so node --test can run it.
 
+import { t } from "./i18n.js";
+
 export const norm = email => String(email ?? "").trim().toLowerCase();
 
 /** Takes the address out of "Name <a@b.c>" or returns the input. */
@@ -124,11 +126,11 @@ export function rewriteForAlias(recipients, alias, contacts) {
 export function ownerProblem(viaAlias, ownerIdOf, aliasById, sender) {
   const ids = new Set(viaAlias.map(r => ownerIdOf(norm(r.email))));
   if (ids.size > 1) {
-    return "The reverse aliases belong to different aliases, and each contact would see the others' real addresses. Send one message per alias.";
+    return t("The reverse aliases belong to different aliases, and each contact would see the others' real addresses. Send one message per alias.");
   }
   const owner = ids.size ? aliasById([...ids][0]) : null;
   if (owner && !owner.mailboxes.some(m => canonical(m) == canonical(sender))) {
-    return `${sender} is not a mailbox of ${owner.email}, so SimpleLogin would reject the message. Send it from ${owner.mailboxes.join(" or ")}.`;
+    return t("{sender} is not a mailbox of {owner}, so SimpleLogin would reject the message. Send it from {list}.", { sender, owner: owner.email, list: owner.mailboxes.join(t(" or ")) });
   }
   return null;
 }
@@ -193,17 +195,17 @@ export function decodeText(bytes) {
 export function sendProblems(details) {
   const problems = [];
   if (details.attachVCard) {
-    problems.push("a vCard would be attached");
+    problems.push(t("a vCard would be attached"));
   }
   if (details.attachPublicPGPKey) {
-    problems.push("the OpenPGP key would be attached");
+    problems.push(t("the OpenPGP key would be attached"));
   }
   const crypto = details.selectedEncryptionTechnology;
   if (crypto?.signMessage || crypto?.encryptBody) {
-    problems.push(`${crypto.name} signing or encryption is on and would reveal the mailbox`);
+    problems.push(t("{name} signing or encryption is on and would reveal the mailbox", { name: crypto.name }));
   }
   if ([].concat(details.newsgroups ?? []).filter(Boolean).length || [].concat(details.followupTo ?? []).length) {
-    problems.push("newsgroups cannot be posted through SimpleLogin");
+    problems.push(t("newsgroups cannot be posted through SimpleLogin"));
   }
   return problems;
 }
@@ -213,16 +215,16 @@ export function verifyAliasSend(final, { identityId, alias, contacts, isProtecte
   const allowed = new Set([norm(alias), ...contacts.values()]);
   const problems = sendProblems(final);
   if (final.identityId != identityId) {
-    problems.push("the sender identity did not switch to the mailbox");
+    problems.push(t("the sender identity did not switch to the mailbox"));
   }
   for (const r of final.recipients) {
     if (!allowed.has(norm(r.email))) {
-      problems.push(`${r.email} is not a reverse alias of ${alias}`);
+      problems.push(t("{address} is not a reverse alias of {alias}", { address: r.email, alias }));
     }
   }
   for (const r of final.replyTo) {
     if (isProtected(r.email)) {
-      problems.push(`Reply-To contains ${r.email}`);
+      problems.push(t("Reply-To contains {address}", { address: r.email }));
     }
   }
   return problems;
@@ -380,7 +382,7 @@ export function noteNamesSite(note, site, template) {
 /** Why a name template cannot be used, or null. Each one needs a placeholder, or every site would get the same name. */
 export function templateProblem(template) {
   if (!/\{(domain|random|word)\}/.test(template)) {
-    return `${template} has no {domain}, {random} or {word}, so every site would get the same name`;
+    return t("{template} has no {domain}, {random} or {word}, so every site would get the same name", { template });
   }
   return null;
 }
@@ -502,12 +504,12 @@ export function apiUrlProblem(text) {
   try {
     url = new URL(text);
   } catch {
-    return `${text || "The API address"} is not a web address`;
+    return text ? t("{address} is not a web address", { address: text }) : t("The API address is not a web address");
   }
   if (url.protocol == "https:" || (url.protocol == "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname))) {
     return null;
   }
-  return `${text} must start with https://, plain http only works for this computer`;
+  return t("{address} must start with https://, plain http only works for this computer", { address: text });
 }
 
 /** Whether saved settings point at another SimpleLogin account, so data of the old one is dropped. */

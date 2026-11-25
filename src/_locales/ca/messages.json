@@ -1,0 +1,17 @@
+{
+  "extensionDescription": {
+    "message": "Envieu com a àlies de SimpleLogin a adreces normals; el complement s'encarrega dels àlies inversos. Bloqueja els missatges que revelarien la vostra adreça real. No té cap relació amb Proton AG ni SimpleLogin."
+  },
+  "overviewTitle": {
+    "message": "Alias Buddy: els vostres àlies"
+  },
+  "overviewLabel": {
+    "message": "Àlies"
+  },
+  "messageTitle": {
+    "message": "Alias Buddy: l'àlies pel qual ha arribat aquest missatge"
+  },
+  "messageLabel": {
+    "message": "Àlies"
+  }
+}

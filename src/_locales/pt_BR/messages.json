@@ -1,0 +1,17 @@
+{
+  "extensionDescription": {
+    "message": "Envie como um alias do SimpleLogin para endereços comuns, o complemento cuida dos aliases reversos. Bloqueia mensagens que revelariam seu endereço real. Sem vínculo com a Proton AG nem com o SimpleLogin."
+  },
+  "overviewTitle": {
+    "message": "Alias Buddy: seus aliases"
+  },
+  "overviewLabel": {
+    "message": "Aliases"
+  },
+  "messageTitle": {
+    "message": "Alias Buddy: o alias pelo qual esta mensagem chegou"
+  },
+  "messageLabel": {
+    "message": "Alias"
+  }
+}

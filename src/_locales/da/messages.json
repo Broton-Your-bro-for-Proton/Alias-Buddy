@@ -1,0 +1,17 @@
+{
+  "extensionDescription": {
+    "message": "Send som et SimpleLogin-alias til almindelige adresser, tilføjelsen håndterer reverse aliasserne. Blokerer beskeder, der ville afsløre din rigtige adresse. Ikke tilknyttet Proton AG eller SimpleLogin."
+  },
+  "overviewTitle": {
+    "message": "Alias Buddy: dine aliasser"
+  },
+  "overviewLabel": {
+    "message": "Aliasser"
+  },
+  "messageTitle": {
+    "message": "Alias Buddy: det alias, som beskeden kom igennem"
+  },
+  "messageLabel": {
+    "message": "Alias"
+  }
+}

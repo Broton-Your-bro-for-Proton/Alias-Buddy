@@ -1,0 +1,17 @@
+{
+  "extensionDescription": {
+    "message": "Энгийн хаягууд руу SimpleLogin алиасаар илгээнэ, урвуу алиасуудыг нэмэлт зохицуулна. Таны жинхэнэ хаягийг илчлэх захидлыг хориглоно. Proton AG эсвэл SimpleLogin-тэй холбоогүй."
+  },
+  "overviewTitle": {
+    "message": "Alias Buddy: таны алиасууд"
+  },
+  "overviewLabel": {
+    "message": "Алиасууд"
+  },
+  "messageTitle": {
+    "message": "Alias Buddy: энэ захидал ирсэн алиас"
+  },
+  "messageLabel": {
+    "message": "Алиас"
+  }
+}
