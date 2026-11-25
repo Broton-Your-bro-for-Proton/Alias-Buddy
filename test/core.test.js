@@ -335,3 +335,77 @@ test("siteAliases finds aliases of a site by a word in the address or by the not
   assert.deepEqual(core.siteAliases([alias("a@w3b.world", { note: "For x.com orders" })], "x.com").length, 1);
   assert.deepEqual(core.siteAliases([alias("x1192@w3b.world")], "192.168.1.1"), []);
 });
+
+test("leaks finds addresses with non-ASCII letters and either spelling of an IDN domain", () => {
+  const mine = new Set([core.canonical("jörg@bücher.example")]);
+  assert.deepEqual(core.leaks(["Mail jörg@bücher.example"], mine), ["jörg@bücher.example"]);
+  assert.deepEqual(core.leaks(["Mail jörg@xn--bcher-kva.example"], mine), ["jörg@xn--bcher-kva.example"]);
+  assert.deepEqual(core.leaks(["Mail rg@bücher.example"], mine), []);
+});
+
+test("siteOf keeps companies apart below generic endings of country codes", () => {
+  assert.equal(core.siteOf("a@shop.com.pl"), "shop.com.pl");
+  assert.equal(core.siteOf("b@other.com.pl"), "other.com.pl");
+  assert.equal(core.siteOf("c@news.firma.co.id"), "firma.co.id");
+  assert.equal(core.siteOf("d@news.dhl.de"), "dhl.de");
+  assert.equal(core.siteOf("e@mail.bbc.co.uk"), "bbc.co.uk");
+});
+
+test("isFreemail names mail providers, not sites", () => {
+  assert.ok(core.isFreemail(core.siteOf("max@gmail.com")));
+  assert.ok(core.isFreemail(core.siteOf("max@web.de")));
+  assert.ok(!core.isFreemail(core.siteOf("info@shop.example")));
+});
+
+test("cacheAnswers uses a fresh entry, and a stale one only shortly after an outage", () => {
+  const limits = { ttl: 10, maxStale: 1000, quiet: 60 };
+  assert.ok(core.cacheAnswers({ at: 95 }, 100, limits));
+  assert.ok(!core.cacheAnswers({ at: 50 }, 100, limits));
+  assert.ok(core.cacheAnswers({ at: 50, downAt: 90 }, 100, limits));
+  assert.ok(!core.cacheAnswers({ at: 50, downAt: 20 }, 100, limits));
+  assert.ok(!core.cacheAnswers({ at: 0, downAt: 1990 }, 2000, limits));
+  assert.ok(!core.cacheAnswers(undefined, 100, limits));
+});
+
+test("unansweredOverridable allows sending once only from addresses unrelated to SimpleLogin", () => {
+  const known = new Set([core.canonical("me@real.example"), core.canonical("shop@alias.example")]);
+  const slDomains = new Set(["aleeas.example", "mine.example"]);
+  assert.ok(core.unansweredOverridable("work@other.example", { known, slDomains }));
+  assert.ok(!core.unansweredOverridable("Me+x@real.example", { known, slDomains }));
+  assert.ok(!core.unansweredOverridable("shop@alias.example", { known, slDomains }));
+  assert.ok(!core.unansweredOverridable("lost.cat@aleeas.example", { known, slDomains }));
+});
+
+test("sendOnceOffer offers a block again when its accepted send was canceled", () => {
+  const blocked = { state: "blocked", reason: "R", overridable: true };
+  assert.equal(core.sendOnceOffer(blocked, null), "R");
+  assert.equal(core.sendOnceOffer({ ...blocked, overridable: false }, null), null);
+  assert.equal(core.sendOnceOffer({ state: "switch", override: "S" }, null), "S");
+  assert.equal(core.sendOnceOffer({ state: "mailbox" }, blocked, ["R"]), "R");
+  assert.equal(core.sendOnceOffer({ state: "mailbox" }, blocked, []), null);
+  assert.equal(core.sendOnceOffer({ state: "mailbox" }, null, ["R"]), null);
+});
+
+test("sendOnceReason accepts only the block the popup showed", () => {
+  assert.equal(core.sendOnceReason({ blocked: { message: "R", overridable: true } }, [], "R"), "R");
+  assert.equal(core.sendOnceReason({ blocked: { message: "R", overridable: false } }, [], "R"), null);
+  assert.equal(core.sendOnceReason({ blocked: { message: "Q", overridable: true } }, [], "R"), null);
+  assert.equal(core.sendOnceReason({ override: "S" }, [], "S"), "S");
+  assert.equal(core.sendOnceReason({}, ["R"], "R"), "R");
+  assert.equal(core.sendOnceReason({}, [], "R"), null);
+});
+
+test("apiUrlProblem accepts https and plain http only on this computer", () => {
+  assert.equal(core.apiUrlProblem("https://app.simplelogin.io"), null);
+  assert.equal(core.apiUrlProblem("http://127.0.0.1:8080"), null);
+  assert.equal(core.apiUrlProblem("http://localhost"), null);
+  assert.match(core.apiUrlProblem("http://sl.example"), /must start with https/);
+  assert.match(core.apiUrlProblem("sl.example"), /not a web address/);
+});
+
+test("accountChanged notices another key or address", () => {
+  const a = { apiUrl: "https://a.example", apiKey: "k" };
+  assert.ok(!core.accountChanged(a, { ...a }));
+  assert.ok(core.accountChanged(a, { ...a, apiKey: "" }));
+  assert.ok(core.accountChanged(a, { ...a, apiUrl: "https://b.example" }));
+});

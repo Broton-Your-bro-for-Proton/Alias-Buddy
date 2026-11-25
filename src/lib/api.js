@@ -41,7 +41,11 @@ const MAX_PAGES = 500;
 /** Status of an ApiError when paging gave up; unlike 0 (unreachable) it is no outage. */
 export const TOO_MANY = -1;
 
-/** Errors after which an older answer may stand in: no connection, rate limit, server trouble. */
+/**
+ * Errors after which an older answer may stand in: no connection (also an
+ * answer that is not SimpleLogin's JSON, as from a captive portal), rate
+ * limit, server trouble.
+ */
 export const isOutage = e => e instanceof ApiError && (e.status == 0 || e.status == 429 || e.status >= 500);
 
 export class SimpleLogin {
@@ -67,7 +71,7 @@ export class SimpleLogin {
       throw new ApiError(response.status, data?.error ?? `HTTP ${response.status}`);
     }
     if (!data || typeof data != "object") {
-      throw new ApiError(response.status, `unexpected answer from ${this.url}`);
+      throw new ApiError(0, `unexpected answer from ${this.url}`);
     }
     return data;
   }
@@ -154,10 +158,14 @@ export class SimpleLogin {
     await this.call("DELETE", `/api/contacts/${id}`);
   }
 
-  /** The enabled alias whose note ties it to the site and template, or null. */
+  /**
+   * The enabled alias whose note ties it to the site and template, or null.
+   * The search names the note's tie, not the bare site, which may be part of
+   * every alias address (a site on the user's own domain).
+   */
   async findSiteAlias(site, template) {
     for (let page = 0; page < MAX_PAGES; page++) {
-      const aliases = await this.searchAliases(site, page);
+      const aliases = await this.searchAliases(`Alias Buddy: ${site}`, page);
       const alias = aliases.find(a => a.enabled && noteNamesSite(a.note, site, template));
       if (alias || !aliases.length) {
         return alias ?? null;

@@ -19,6 +19,7 @@ export function canonical(email) {
     return local;
   }
   local = local.split("+")[0];
+  domain = asciiDomain(domain);
   if (domain == "gmail.com" || domain == "googlemail.com") {
     return `${local.replaceAll(".", "")}@gmail.com`;
   }
@@ -28,6 +29,15 @@ export function canonical(email) {
   return `${local}@${domain}`;
 }
 const PROTON = new Set(["proton.me", "protonmail.com", "protonmail.ch", "pm.me"]);
+
+/** An internationalized domain in its punycode form, so both spellings compare equal. */
+function asciiDomain(domain) {
+  try {
+    return new URL(`http://${domain}`).hostname;
+  } catch {
+    return domain;
+  }
+}
 
 /** Joins folded iCalendar lines (RFC 5545), so an address split by a fold is found. */
 export const unfold = text => String(text ?? "").replace(/\r?\n[ \t]/g, "");
@@ -54,7 +64,7 @@ export function isAllowed(email, allowlist) {
 export function leaks(texts, protectedCanonical) {
   const found = new Set();
   for (const text of texts) {
-    for (const token of String(text ?? "").match(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g) ?? []) {
+    for (const token of String(text ?? "").match(/[\p{L}\p{N}_.+-]+@[\p{L}\p{N}-]+(?:\.[\p{L}\p{N}-]+)+/gu) ?? []) {
       if (protectedCanonical.has(canonical(token))) {
         found.add(norm(token));
       }
@@ -239,13 +249,16 @@ export function fingerprint(details) {
 // ---- alias creation ------------------------------------------------------------
 
 // Endings registered below a country code. A short list instead of the full
-// public suffix list: a miss only splits one company into two sites.
+// public suffix list. A missed ending would merge every company below it into
+// one site, so below a two-letter country code the usual generic labels
+// (com.pl, co.id, org.mx) count as endings too.
 const MULTI_PART = new Set([
   "co.uk", "org.uk", "ac.uk", "gov.uk", "me.uk", "ltd.uk", "plc.uk",
   "com.au", "net.au", "org.au", "co.nz", "org.nz", "co.jp", "ne.jp", "or.jp",
   "co.kr", "co.in", "co.za", "co.il", "com.br", "com.mx", "com.ar", "com.tr",
   "com.cn", "com.hk", "com.tw", "com.sg", "com.my", "co.at", "or.at",
 ]);
+const GENERIC_SECOND = new Set(["co", "com", "net", "org", "gov", "edu", "ac", "gob", "mil"]);
 
 /**
  * The registrable part of an address's domain, as a stand-in for "the site":
@@ -257,8 +270,19 @@ export function siteOf(email) {
     return host; // an IP address has no site
   }
   const labels = host.split(".").filter(Boolean);
-  return labels.slice(MULTI_PART.has(labels.slice(-2).join(".")) ? -3 : -2).join(".");
+  const ending = MULTI_PART.has(labels.slice(-2).join(".")) || (labels.at(-1)?.length == 2 && GENERIC_SECOND.has(labels.at(-2)));
+  return labels.slice(ending ? -3 : -2).join(".");
 }
+
+// Mail providers whose addresses are people, not one site: an alias of such a
+// "site" is offered, but never chosen or created automatically.
+const FREEMAIL = new Set([
+  "gmail.com", "googlemail.com", "outlook.com", "outlook.de", "hotmail.com", "hotmail.de", "live.com", "msn.com",
+  "yahoo.com", "yahoo.de", "icloud.com", "me.com", "mac.com", "aol.com", "gmx.de", "gmx.net", "gmx.at", "gmx.ch",
+  "web.de", "t-online.de", "freenet.de", "mail.com", "proton.me", "protonmail.com", "pm.me", "tutanota.com",
+  "tuta.io", "posteo.de", "mailbox.org", "yandex.ru", "mail.ru", "zoho.com", "fastmail.com",
+]);
+export const isFreemail = site => FREEMAIL.has(site);
 
 /**
  * The sites a message goes to, in recipient order, to choose an alias for:
@@ -418,3 +442,71 @@ export function siteAliases(aliases, site) {
   const named = note => new RegExp(`(^|[^a-z0-9.-])${escaped}([^a-z0-9-]|$)`).test(note.toLowerCase());
   return aliases.filter(a => a.enabled && ((name.length >= 3 && word(a.email.split("@")[0])) || named(a.note)));
 }
+
+// ---- SimpleLogin answers and sending once ---------------------------------------------
+
+/**
+ * Whether a cached SimpleLogin answer stands without asking again: it is
+ * fresh, or SimpleLogin failed moments ago (downAt) and it is at most
+ * maxStale old, so a bad connection does not cost a timeout per check.
+ */
+export function cacheAnswers(entry, now, { ttl, maxStale, quiet }) {
+  return !!entry && (now - entry.at < ttl || (now - (entry.downAt ?? -Infinity) < quiet && now - entry.at < maxStale));
+}
+
+/**
+ * Whether a send SimpleLogin could not check may be sent once anyway: only
+ * from an address that is none of the known mailboxes, protected addresses or
+ * aliases and is not on a SimpleLogin domain, such as an unrelated account.
+ */
+export function unansweredOverridable(sender, { known, slDomains }) {
+  return !known.has(canonical(sender)) && !slDomains.has(norm(sender).split("@").pop());
+}
+
+/**
+ * The block the popup's "send once" button accepts, or null to hide it. A send
+ * the user accepted that Thunderbird canceled afterwards (an empty subject, an
+ * SMTP error) offers its block again, although the preview now passes.
+ */
+export function sendOnceOffer(preview, last, accepted = []) {
+  if (preview.state == "switch") {
+    return preview.override;
+  }
+  if (preview.state == "blocked") {
+    return preview.overridable ? preview.reason : null;
+  }
+  return last?.state == "blocked" && accepted.includes(last.reason) ? last.reason : null;
+}
+
+/**
+ * The reason a "send once" click accepts, from the check's outcome: the block
+ * it reports, the switch it plans, or a block accepted before. Null unless it
+ * is the one the popup showed.
+ */
+export function sendOnceReason(outcome, accepted, shown) {
+  const reason = outcome.blocked
+    ? outcome.blocked.overridable
+      ? outcome.blocked.message
+      : null
+    : (outcome.override ?? (accepted.includes(shown) ? shown : null));
+  return reason && reason == shown ? reason : null;
+}
+
+// ---- settings ----------------------------------------------------------------------
+
+/** Why an API address cannot be used, or null: https, or http only on this computer. */
+export function apiUrlProblem(text) {
+  let url;
+  try {
+    url = new URL(text);
+  } catch {
+    return `${text || "The API address"} is not a web address`;
+  }
+  if (url.protocol == "https:" || (url.protocol == "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname))) {
+    return null;
+  }
+  return `${text} must start with https://, plain http only works for this computer`;
+}
+
+/** Whether saved settings point at another SimpleLogin account, so data of the old one is dropped. */
+export const accountChanged = (before, after) => before.apiUrl != after.apiUrl || before.apiKey != after.apiKey;

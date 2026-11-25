@@ -1,5 +1,5 @@
 import { SimpleLogin } from "../lib/api.js";
-import { creationDomains, prefixFrom, templateProblem, templatesOf } from "../lib/core.js";
+import { accountChanged, apiUrlProblem, creationDomains, prefixFrom, templateProblem, templatesOf } from "../lib/core.js";
 import { getSettings } from "../lib/settings.js";
 
 const $ = id => document.getElementById(id);
@@ -72,6 +72,11 @@ $("form").addEventListener("submit", async event => {
       ...Object.fromEntries(FLAGS.map(flag => [flag, $(flag).checked])),
     },
   };
+  const urlProblem = apiUrlProblem(next.apiUrl);
+  if (urlProblem) {
+    $("result").textContent = `Not saved: ${urlProblem}.`;
+    return;
+  }
   const url = new URL(next.apiUrl);
   const origins = [`${url.protocol}//${url.hostname}/*`]; // match patterns have no port
   // request() needs the click, so it comes before any other await.
@@ -87,6 +92,10 @@ $("form").addEventListener("submit", async event => {
   }
   // Saving also refreshes what the add-on knows, for example a mailbox added in SimpleLogin.
   await messenger.storage.local.set({ settings: next, cache: {} });
+  if (accountChanged(settings, next)) {
+    // The alias list of the old key, with its addresses and notes, is not kept.
+    await messenger.storage.local.remove("aliasStore");
+  }
   Object.assign(settings, next);
   $("result").textContent = "Saved. Testing...";
   try {

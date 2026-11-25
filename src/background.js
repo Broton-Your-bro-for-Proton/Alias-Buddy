@@ -4,11 +4,14 @@ import { getSettings } from "./lib/settings.js";
 
 const TTL = 10 * 60 * 1000;
 const MAX_STALE = 24 * 60 * 60 * 1000;
+// After a failed request the cached answer stands this long, so each check does not wait for a timeout again.
+const QUIET = 60 * 1000;
 const CONTACTS_TTL = 24 * 60 * 60 * 1000;
 const MAX_ATTACHMENT_SCAN = 10 * 1024 * 1024;
 const status = new Map(); // tab id: last result, shown in the popup
 const overrides = new Map(); // tab id: { reasons, active }, the blocks the user chose to send once anyway in this window
 const rewritten = new Map(); // tab id: { alias, mailboxId } after a rewrite, in case the send does not finish
+const switchAliases = new Map(); // tab id: { site, template, alias } the switch on send created, reused when that send failed
 const chosenTemplates = new Map(); // tab id: the template picked in the popup, also used by the switch on send
 
 class Blocked extends Error {
@@ -17,6 +20,8 @@ class Blocked extends Error {
     this.overridable = overridable;
   }
 }
+/** SimpleLogin could not answer, so the add-on cannot tell what the sender is. */
+class Unanswered extends Blocked {}
 
 // ---- cache: { owner, mailboxes: {at, value: [{email, verified}]}, aliases: {email: {at, value}},
 //               contacts: {aliasId: {address: reverse}}, contactsAt: {aliasId: time} }
@@ -26,14 +31,14 @@ class Blocked extends Error {
  * error) the cached one if it is at most a day old.
  */
 async function cached(entry, fetchValue) {
-  if (entry && Date.now() - entry.at < TTL) {
+  if (core.cacheAnswers(entry, Date.now(), { ttl: TTL, maxStale: MAX_STALE, quiet: QUIET })) {
     return entry;
   }
   try {
     return { at: Date.now(), value: await fetchValue() };
   } catch (e) {
     if (entry && isOutage(e) && Date.now() - entry.at < MAX_STALE) {
-      return entry;
+      return { ...entry, downAt: Date.now() };
     }
     throw e;
   }
@@ -70,7 +75,7 @@ async function protectedAddresses(ctx) {
       (await ctx.sl.mailboxes()).map(m => ({ id: m.id, email: core.norm(m.email), verified: m.verified !== false, default: !!m.default }))
     );
   } catch (e) {
-    throw new Blocked(`SimpleLogin: ${e.message}. Without the mailbox list the add-on cannot tell which addresses are yours.`);
+    throw new Unanswered(`SimpleLogin: ${e.message}. Without the mailbox list the add-on cannot tell which addresses are yours.`);
   }
   return new Set([...ctx.cache.mailboxes.value.map(m => core.canonical(m.email)), ...manual]);
 }
@@ -116,7 +121,7 @@ async function aliasFor(ctx, email) {
   try {
     ctx.cache.aliases[email] = await cached(ctx.cache.aliases[email], () => ctx.sl.findAlias(email));
   } catch (e) {
-    throw new Blocked(`SimpleLogin: ${e.message}. The add-on cannot tell whether ${email} is an alias.`);
+    throw new Unanswered(`SimpleLogin: ${e.message}. The add-on cannot tell whether ${email} is an alias.`);
   }
   return ctx.cache.aliases[email].value;
 }
@@ -369,6 +374,12 @@ async function checkMailbox(tab, details, ctx, { sender, recipients, mine, isMin
   }
   if (result.viaAlias.length || unknownReverse.length) {
     const hard = core.sendProblems(details);
+    // As in checkAlias: a Reply-To with a real address would reach the contact.
+    for (const r of await recipientsOf(details, ["replyTo"])) {
+      if (isMine(r.email)) {
+        hard.push(`Reply-To contains ${r.email}`);
+      }
+    }
     if (hard.length) {
       throw new Blocked(`Not sent through SimpleLogin: ${hard.join("; ")}. Turn it off in this message.`);
     }
@@ -481,9 +492,38 @@ async function checkAlias(tab, details, ctx, { identity, alias, resumed, recipie
 
 /**
  * Throws Blocked when the message must not go out. With `apply` false it only
- * reports what would happen, for the popup.
+ * reports what would happen, for the popup. When SimpleLogin cannot answer, a
+ * sender that is none of the user's known addresses and on no SimpleLogin
+ * domain, such as an unrelated account, may be sent once anyway.
  */
-async function check(tab, details, ctx, { override = [], apply = true } = {}) {
+async function check(tab, details, ctx, options = {}) {
+  try {
+    return await checkSender(tab, details, ctx, options);
+  } catch (e) {
+    if (!(e instanceof Unanswered)) {
+      throw e;
+    }
+    const sender = core.norm((await messenger.identities.get(details.identityId)).email);
+    const senders = [sender, details.from && core.addressOf(details.from)].filter(Boolean);
+    const known = new Set(
+      [
+        ...ctx.settings.protected,
+        ...(ctx.cache.mailboxes?.value ?? []).map(m => m.email),
+        ...Object.values(ctx.cache.aliases).flatMap(entry => (entry.value ? [entry.value.email] : [])),
+      ].map(core.canonical)
+    );
+    const slDomains = new Set(core.creationDomains(ctx.cache.suffixes?.value ?? []).map(d => d.domain));
+    for (const email of senders) {
+      if ((await wasAlias(email)) || !core.unansweredOverridable(email, { known, slDomains })) {
+        throw e;
+      }
+    }
+    accept(options.override ?? [], new Blocked(`${e.message} Send once if ${sender} has nothing to do with SimpleLogin.`, true));
+    return { state: "other", sender };
+  }
+}
+
+async function checkSender(tab, details, ctx, { override = [], apply = true } = {}) {
   const identity = await messenger.identities.get(details.identityId);
   const sender = core.norm(identity.email);
   const recipients = await recipientsOf(details);
@@ -539,10 +579,15 @@ async function check(tab, details, ctx, { override = [], apply = true } = {}) {
   if (exposedAs) {
     return checkMailbox(tab, details, ctx, { ...options, sender: exposedAs });
   }
-  if (ctx.sl && (await ownDomains(ctx)).has(domainOf(sender))) {
+  // A sender on a SimpleLogin domain that is no alias (deleted, or never one) would go out directly.
+  const domain = ctx.sl ? (await suffixDomains(ctx)).find(d => d.domain == domainOf(sender)) : null;
+  if (domain && !domain.random) {
     throw new Blocked(
       `${sender} is on your SimpleLogin domain but is not an alias, so a message from it would go out directly. Create it as a new alias in the Alias Buddy popup first.`
     );
+  }
+  if (domain) {
+    throw new Blocked(`${sender} is on a SimpleLogin domain but is not one of your aliases, so a message from it would go out directly. Choose another sender.`);
   }
   return ctx.sl ? { state: "other", sender } : { state: "unconfigured" };
 }
@@ -567,15 +612,18 @@ const directSendProblem = (ctx, email) =>
     ? `${email} is no longer an alias in SimpleLogin, so a message from it would go out directly. Choose another sender.`
     : `${email} is an alias. Without the SimpleLogin API key a message from it would go out directly, past SimpleLogin. Add the key in the settings.`;
 
-/** The domains you can create any alias name on, as SimpleLogin lists them. */
-async function ownDomains(ctx) {
+/** The domains SimpleLogin offers for new aliases; `random` ones are SimpleLogin's own, which add a random word. */
+async function suffixDomains(ctx) {
   try {
     ctx.cache.suffixes = await cached(ctx.cache.suffixes, () => ctx.sl.suffixes());
   } catch (e) {
-    throw new Blocked(`SimpleLogin: ${e.message}. The add-on cannot tell which domains are yours.`);
+    throw new Unanswered(`SimpleLogin: ${e.message}. The add-on cannot tell which domains are yours.`);
   }
-  return new Set(core.creationDomains(ctx.cache.suffixes.value).filter(d => !d.random).map(d => d.domain));
+  return core.creationDomains(ctx.cache.suffixes.value);
 }
+
+/** The domains you can create any alias name on, as SimpleLogin lists them. */
+const ownDomains = async ctx => new Set((await suffixDomains(ctx)).filter(d => !d.random).map(d => d.domain));
 
 /**
  * Calendar emails (invitations, replies) that Thunderbird sends without a
@@ -881,12 +929,6 @@ async function typedAlias(ctx, email) {
   return { id: null, email, prefix, domain, mailboxes: [(await creationMailbox(ctx)).email] };
 }
 
-/** The alias for a site: the one tied to it or named like the plan, else a new one. */
-async function aliasForSite(ctx, site, template) {
-  const plan = await planForSite(ctx, site, template);
-  return plan.alias ?? createAlias(ctx, site, { template });
-}
-
 /**
  * Instead of blocking a real mailbox, sends as the alias for the recipients'
  * site: only when all exposed recipients share one site and no allowlisted
@@ -896,19 +938,22 @@ async function aliasForSite(ctx, site, template) {
  */
 async function switchToSiteAlias(tab, details, ctx, options, blocked) {
   const sites = new Set(blocked.exposed.map(r => core.siteOf(r.email)));
-  if (sites.size != 1 || options.recipients.some(r => core.isAllowed(r.email, ctx.settings.allowlist))) {
+  const [site] = sites;
+  if (sites.size != 1 || core.isFreemail(site) || options.recipients.some(r => core.isAllowed(r.email, ctx.settings.allowlist))) {
     throw blocked;
   }
-  const [site] = sites;
   const template = knownTemplate(ctx, chosenTemplates.get(tab.id)) ?? ctx.settings.creation.template;
   try {
-    const plan = await planForSite(ctx, site, template);
+    // The alias created for this window before, when the send failed after its creation.
+    const made = switchAliases.get(tab.id);
+    const plan = made?.site == site && made.template == template ? { alias: made.alias, email: made.alias.email, existing: true } : await planForSite(ctx, site, template);
     const planned = plan.alias ?? { id: null, email: plan.email, mailboxes: [plan.mailbox] };
     const preview = await checkAlias(tab, details, ctx, { ...options, alias: planned, resumed: false, apply: false });
     if (!options.apply) {
       return { ...preview, state: "switch", sender: options.sender, alias: plan.email, existing: plan.existing, template, override: blocked.message };
     }
     const alias = plan.alias ?? (await createAlias(ctx, site, { template }));
+    switchAliases.set(tab.id, { site, template, alias });
     return await checkAlias(tab, details, ctx, { ...options, alias, resumed: false });
   } catch (e) {
     const failed = new Blocked(`Sending as the alias for ${site} failed: ${e.message}`, true);
@@ -918,19 +963,27 @@ async function switchToSiteAlias(tab, details, ctx, options, blocked) {
   }
 }
 
-/** The Thunderbird identity for an alias, created next to its mailbox identity if allowed. */
-async function ensureIdentity(ctx, alias, accountId) {
+/**
+ * The Thunderbird identity for an alias, created next to its mailbox identity
+ * if allowed. With `create` false it only throws what would stop it, so a new
+ * alias is not created on the server for nothing.
+ */
+async function ensureIdentity(ctx, alias, accountId, { create = true } = {}) {
   const identities = await messenger.identities.list();
   const existing = identities.find(i => core.norm(i.email) == alias.email);
   if (existing) {
     return existing;
   }
+  const name = alias.email || "the new alias";
   if (!ctx.settings.creation.autoIdentity) {
-    throw new Blocked(`Thunderbird has no identity for ${alias.email}. Add one, or let the add-on create identities in the settings.`);
+    throw new Blocked(`Thunderbird has no identity for ${name}. Add one, or let the add-on create identities in the settings.`);
   }
   const mailbox = core.pickMailboxIdentity(identities, verifiedMailboxes(ctx, alias), accountId).candidates[0];
   if (!mailbox) {
-    throw new Blocked(`No Thunderbird identity uses a verified mailbox of ${alias.email}, so the add-on cannot tell which account it belongs to.`);
+    throw new Blocked(`No Thunderbird identity uses a verified mailbox of ${name}, so the add-on cannot tell which account it belongs to.`);
+  }
+  if (!create) {
+    return null;
   }
   const created = await messenger.identities.create(mailbox.accountId, { email: alias.email, name: mailbox.name, label: IDENTITY_LABEL });
   // Open compose windows list their senders from when they opened.
@@ -1077,7 +1130,8 @@ async function matchSiteAlias(ctx, tabId) {
     return;
   }
   const { matches, complete } = found;
-  if (matches.length == 1 && complete && firstSenders.get(tabId)) {
+  // At a mail provider each address is a person of its own, so its alias is only offered.
+  if (matches.length == 1 && complete && firstSenders.get(tabId) && !core.isFreemail(site)) {
     // The local list may be hours old: the alias must still exist and be on.
     const live = await ctx.sl.findAlias(matches[0].email).catch(() => null);
     // The user may have picked a sender while this waited.
@@ -1165,6 +1219,13 @@ async function aliasPanel(ctx, tabId, wanted, wantedSite) {
   };
 }
 
+/** Throws what would stop the switch to a new alias of the mailbox, so no alias is left unused on the server. */
+async function canSwitchToNew(ctx, tabId, mailboxId) {
+  const mailbox = ctx.cache.mailboxes?.value?.find(b => b.id == mailboxId) ?? (await creationMailbox(ctx));
+  const { identityId } = await messenger.compose.getComposeDetails(tabId);
+  await ensureIdentity(ctx, { email: "", mailboxes: [mailbox.email] }, (await messenger.identities.get(identityId)).accountId, { create: false });
+}
+
 /** A template the popup sent, if it is still in the settings (they may have changed meanwhile). */
 const knownTemplate = (ctx, template) => (ctx.settings.creation.templates.includes(template) ? template : undefined);
 
@@ -1179,13 +1240,22 @@ const ALIAS_ACTIONS = {
     }
     return useAlias(ctx, m.tabId, alias);
   },
-  useSuggestion: async (ctx, m) => useAlias(ctx, m.tabId, await aliasForSite(ctx, m.site, knownTemplate(ctx, m.template))),
-  createAlias: async (ctx, m) =>
-    useAlias(
+  useSuggestion: async (ctx, m) => {
+    const template = knownTemplate(ctx, m.template);
+    const plan = await planForSite(ctx, m.site, template);
+    if (!plan.alias) {
+      await canSwitchToNew(ctx, m.tabId);
+    }
+    return useAlias(ctx, m.tabId, plan.alias ?? (await createAlias(ctx, m.site, { template })));
+  },
+  createAlias: async (ctx, m) => {
+    await canSwitchToNew(ctx, m.tabId, m.mailboxId);
+    return useAlias(
       ctx,
       m.tabId,
       await createAlias(ctx, m.site, { prefix: m.prefix, domain: m.domain, mailboxId: m.mailboxId, template: knownTemplate(ctx, m.template) })
-    ),
+    );
+  },
 };
 
 // ---- alias overview -------------------------------------------------------------
@@ -1318,6 +1388,7 @@ Object.assign(ALIAS_ACTIONS, {
 // Pause between list requests, so the sync leaves most of SimpleLogin's limit to the guard.
 const SYNC_PACE = 3000;
 const FULL_SYNC_EVERY = 6 * 60 * 60 * 1000;
+const MAX_SYNC_PAGES = 500;
 
 /** The stored alias list of the current API key: { aliases, at } with at the time of the last full sync. */
 async function aliasStore(ctx) {
@@ -1371,7 +1442,8 @@ async function fetchAliasList(full) {
     });
   editedDuringSync.clear();
   let fetched = [];
-  for (let page = 0; ; page++) {
+  // A server that ignores page_id would otherwise be paged forever.
+  for (let page = 0; page < MAX_SYNC_PAGES; page++) {
     if (page) {
       await new Promise(r => setTimeout(r, SYNC_PACE));
     }
@@ -1403,7 +1475,13 @@ async function fetchAliasList(full) {
 }
 
 const fullSync = () => syncAliases(true).catch(e => console.warn("Alias Buddy: could not sync the alias list", e));
-setTimeout(fullSync, 30 * 1000);
+// After a start only when the last full sync is due, so frequent restarts do not page through every alias each time.
+setTimeout(async () => {
+  const store = await serialized(ctx => aliasStore(ctx)).catch(() => null);
+  if (!store || Date.now() - store.at > FULL_SYNC_EVERY) {
+    fullSync();
+  }
+}, 30 * 1000);
 setInterval(fullSync, FULL_SYNC_EVERY);
 
 // ---- address book ------------------------------------------------------------------
@@ -1581,6 +1659,7 @@ messenger.tabs.onRemoved.addListener(tabId => {
   status.delete(tabId);
   overrides.delete(tabId);
   rewritten.delete(tabId);
+  switchAliases.delete(tabId);
   chosenTemplates.delete(tabId);
   displays.delete(tabId);
   siteChecks.delete(tabId);
@@ -1599,7 +1678,7 @@ messenger.runtime.onMessage.addListener(async message => {
     } catch (e) {
       preview = blockedResult(e);
     }
-    return { preview, last: status.get(tabId), found: siteNotes.get(tabId) };
+    return { preview, last: status.get(tabId), found: siteNotes.get(tabId), accepted: acceptedFor(tabId) };
   }
   if (message.type == "aliasStore") {
     // A full sync when asked, else a quick one for the newest aliases; the list either way.
@@ -1625,17 +1704,18 @@ messenger.runtime.onMessage.addListener(async message => {
     // before in this window stay accepted.
     const details = await messenger.compose.getComposeDetails(tabId);
     const reasons = acceptedFor(tabId);
-    let reason = null;
+    let outcome;
     try {
-      reason = (await run({ id: tabId }, details, { override: reasons, apply: false })).override ?? null;
+      outcome = { override: (await run({ id: tabId }, details, { override: reasons, apply: false })).override };
     } catch (e) {
-      reason = e instanceof Blocked && e.overridable ? e.message : null;
+      outcome = { blocked: { message: e.message, overridable: e instanceof Blocked && e.overridable } };
     }
     // Only the reason the popup showed; anything else the user has not seen.
-    if (!reason || reason != message.reason) {
+    const reason = core.sendOnceReason(outcome, reasons, message.reason);
+    if (!reason) {
       return;
     }
-    const accepted = { reasons: [...reasons, reason], active: true };
+    const accepted = { reasons: [...new Set([...reasons, reason])], active: true };
     overrides.set(tabId, accepted);
     try {
       await messenger.compose.sendMessage(tabId);
