@@ -1,0 +1,17 @@
+{
+  "extensionDescription": {
+    "message": "Kirim sebagai alias SimpleLogin ke alamat biasa, add-on mengurus alias balasan. Memblokir pesan yang akan mengungkap alamat asli Anda. Tidak berafiliasi dengan Proton AG atau SimpleLogin."
+  },
+  "overviewTitle": {
+    "message": "Alias Buddy: alias Anda"
+  },
+  "overviewLabel": {
+    "message": "Alias"
+  },
+  "messageTitle": {
+    "message": "Alias Buddy: alias tempat pesan ini masuk"
+  },
+  "messageLabel": {
+    "message": "Alias"
+  }
+}

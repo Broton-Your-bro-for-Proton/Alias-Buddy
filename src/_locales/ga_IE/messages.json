@@ -1,0 +1,17 @@
+{
+  "extensionDescription": {
+    "message": "Seol mar ailias SimpleLogin chuig gnáthsheoltaí, láimhseálann an breiseán na hailiasanna droim ar ais. Cuireann sé bac ar theachtaireachtaí a nochtfadh do sheoladh fíor. Níl baint aige le Proton AG ná le SimpleLogin."
+  },
+  "overviewTitle": {
+    "message": "Alias Buddy: d'ailiasanna"
+  },
+  "overviewLabel": {
+    "message": "Ailiasanna"
+  },
+  "messageTitle": {
+    "message": "Alias Buddy: an ailias trína ndeachaigh an teachtaireacht seo"
+  },
+  "messageLabel": {
+    "message": "Ailias"
+  }
+}

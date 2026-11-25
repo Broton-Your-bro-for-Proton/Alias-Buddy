@@ -1,0 +1,17 @@
+{
+  "extensionDescription": {
+    "message": "Испраќајте како SimpleLogin алијас до обични адреси, додатокот се грижи за обратните алијаси. Ги блокира пораките што би ја откриле вашата вистинска адреса. Не е поврзан со Proton AG или SimpleLogin."
+  },
+  "overviewTitle": {
+    "message": "Alias Buddy: вашите алијаси"
+  },
+  "overviewLabel": {
+    "message": "Алијаси"
+  },
+  "messageTitle": {
+    "message": "Alias Buddy: алијасот преку кој пристигна пораката"
+  },
+  "messageLabel": {
+    "message": "Алијас"
+  }
+}

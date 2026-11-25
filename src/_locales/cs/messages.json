@@ -1,0 +1,17 @@
+{
+  "extensionDescription": {
+    "message": "Odesílejte jako alias SimpleLogin na běžné adresy, reverzní aliasy zařídí doplněk. Blokuje zprávy, které by prozradily vaši skutečnou adresu. Nepatří k Proton AG ani SimpleLogin."
+  },
+  "overviewTitle": {
+    "message": "Alias Buddy: vaše aliasy"
+  },
+  "overviewLabel": {
+    "message": "Aliasy"
+  },
+  "messageTitle": {
+    "message": "Alias Buddy: alias, přes který zpráva přišla"
+  },
+  "messageLabel": {
+    "message": "Alias"
+  }
+}

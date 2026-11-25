@@ -1,0 +1,17 @@
+{
+  "extensionDescription": {
+    "message": "SimpleLogin のエイリアスとして通常のアドレスに送信します。リバースエイリアスはアドオンが処理します。実際のアドレスが分かってしまうメッセージはブロックします。Proton AG および SimpleLogin とは無関係です。"
+  },
+  "overviewTitle": {
+    "message": "Alias Buddy: あなたのエイリアス"
+  },
+  "overviewLabel": {
+    "message": "エイリアス"
+  },
+  "messageTitle": {
+    "message": "Alias Buddy: このメッセージが届いたエイリアス"
+  },
+  "messageLabel": {
+    "message": "エイリアス"
+  }
+}

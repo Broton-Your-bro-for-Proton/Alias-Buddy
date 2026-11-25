@@ -1,0 +1,17 @@
+{
+  "extensionDescription": {
+    "message": "SimpleLogin ઉપનામ તરીકે સામાન્ય સરનામાં પર મોકલો, ઍડ-ઑન રિવર્સ ઉપનામો સંભાળે છે. તમારું વાસ્તવિક સરનામું જાહેર કરી દે તેવા સંદેશાઓને અવરોધે છે. Proton AG અથવા SimpleLogin સાથે સંકળાયેલ નથી."
+  },
+  "overviewTitle": {
+    "message": "Alias Buddy: તમારા ઉપનામો"
+  },
+  "overviewLabel": {
+    "message": "ઉપનામો"
+  },
+  "messageTitle": {
+    "message": "Alias Buddy: સંદેશો જે ઉપનામ દ્વારા આવ્યો"
+  },
+  "messageLabel": {
+    "message": "ઉપનામ"
+  }
+}

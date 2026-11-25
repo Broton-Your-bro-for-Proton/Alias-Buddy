@@ -1,0 +1,17 @@
+{
+  "extensionDescription": {
+    "message": "ส่งในนามนามแฝง SimpleLogin ถึงที่อยู่ทั่วไป ส่วนเสริมจัดการนามแฝงย้อนกลับให้ บล็อกข้อความที่จะเปิดเผยที่อยู่จริงของคุณ ไม่มีส่วนเกี่ยวข้องกับ Proton AG หรือ SimpleLogin"
+  },
+  "overviewTitle": {
+    "message": "Alias Buddy: นามแฝงของคุณ"
+  },
+  "overviewLabel": {
+    "message": "นามแฝง"
+  },
+  "messageTitle": {
+    "message": "Alias Buddy: นามแฝงที่ข้อความนี้ผ่านเข้ามา"
+  },
+  "messageLabel": {
+    "message": "นามแฝง"
+  }
+}

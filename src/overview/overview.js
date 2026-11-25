@@ -1,4 +1,5 @@
 import * as core from "../lib/core.js";
+import { t } from "../lib/i18n.js";
 
 const $ = id => document.getElementById(id);
 const date = seconds => (seconds ? new Date(seconds * 1000).toLocaleDateString() : "");
@@ -23,28 +24,34 @@ async function act(type, args = {}, quiet = false) {
     answer = { ok: false, error: e.message };
   }
   if (!answer?.ok) {
-    $("error").textContent = answer?.error ?? "No answer from the add-on.";
+    $("error").textContent = answer?.error ?? t("No answer from the add-on.");
     $("error").hidden = false;
     return undefined;
   }
   return answer.value ?? true;
 }
 
+const deleteTexts = name => ({
+  aria: t("Delete {name}", { name }),
+  confirm: t("Confirm delete"),
+  hint: t("Click again to delete {name}.", { name }),
+});
+
 /**
  * A button that asks for a second click before it acts. The second click
  * counts only after half a second, so a double click cannot delete.
  */
-function confirmButton(label, target, onConfirm) {
+function confirmButton(label, { aria, confirm, hint }, onConfirm) {
   const button = element("button", { type: "button", className: "btn btn-danger", textContent: label });
-  button.setAttribute("aria-label", `${label} ${target}`);
+  button.setAttribute("aria-label", aria);
   let armedAt = 0;
   let reset;
   button.addEventListener("click", async () => {
     if (!armedAt) {
       armedAt = Date.now();
       button.dataset.armed = "true";
-      button.textContent = `Confirm ${label.toLowerCase()}`;
-      say(`Click again to ${label.toLowerCase()} ${target}.`);
+      button.textContent = confirm;
+      say(hint);
       reset = setTimeout(() => {
         armedAt = 0;
         delete button.dataset.armed;
@@ -79,22 +86,22 @@ async function showContacts(alias, row, toggle) {
     return;
   }
   toggle.setAttribute("aria-expanded", "true");
-  const cell = element("td", { colSpan: 6 }, element("p", { className: "muted", textContent: "Loading contacts..." }));
+  const cell = element("td", { colSpan: 6 }, element("p", { className: "muted", textContent: t("Loading contacts...") }));
   row.after(element("tr", { className: "contacts" }, cell));
   const result = await act("listContacts", { aliasId: alias.id });
   if (!result) {
-    cell.replaceChildren(element("p", { className: "state-blocked", textContent: "Could not load the contacts." }));
+    cell.replaceChildren(element("p", { className: "state-blocked", textContent: t("Could not load the contacts.") }));
     return;
   }
   const body = element("tbody");
   for (const contact of result.contacts) {
     const blocked = element("input", { type: "checkbox", checked: contact.blocked });
-    blocked.setAttribute("aria-label", `Block mail from ${contact.email}`);
+    blocked.setAttribute("aria-label", t("Block mail from {address}", { address: contact.email }));
     blocked.addEventListener("change", async () => {
       const now = await act("toggleContact", { contactId: contact.id });
       blocked.checked = now === undefined ? !blocked.checked : now;
       if (now !== undefined) {
-        say(`${contact.email} is ${now ? "blocked" : "no longer blocked"}.`);
+        say(now ? t("{address} is blocked.", { address: contact.email }) : t("{address} is no longer blocked.", { address: contact.email }));
       }
     });
     const tr = element(
@@ -107,10 +114,10 @@ async function showContacts(alias, row, toggle) {
       element(
         "td",
         {},
-        confirmButton("Delete", contact.email, async () => {
+        confirmButton(t("Delete"), deleteTexts(contact.email), async () => {
           if (await act("deleteContact", { aliasId: alias.id, contactId: contact.id, email: contact.email, reverse: contact.reverse })) {
             tr.remove();
-            say(`Contact ${contact.email} deleted.`);
+            say(t("Contact {address} deleted.", { address: contact.email }));
           }
         })
       )
@@ -120,11 +127,11 @@ async function showContacts(alias, row, toggle) {
   const head = element(
     "thead",
     {},
-    element("tr", {}, ...["Contact", "Reverse alias", "Last written to", "Blocked", ""].map(text => element("th", { scope: "col", textContent: text })))
+    element("tr", {}, ...[t("Contact"), t("Reverse alias"), t("Last written to"), t("Blocked"), ""].map(text => element("th", { scope: "col", textContent: text })))
   );
   cell.replaceChildren(
-    result.contacts.length ? element("table", { className: "inner" }, head, body) : element("p", { className: "muted", textContent: "No contacts yet." }),
-    ...(result.complete ? [] : [element("p", { className: "muted", textContent: "Only the first 1000 contacts are shown." })])
+    result.contacts.length ? element("table", { className: "inner" }, head, body) : element("p", { className: "muted", textContent: t("No contacts yet.") }),
+    ...(result.complete ? [] : [element("p", { className: "muted", textContent: t("Only the first 1000 contacts are shown.") })])
   );
 }
 
@@ -161,19 +168,19 @@ function aliasRow(alias) {
     }
   });
 
-  const note = element("input", { type: "text", value: alias.note, placeholder: "Note" });
-  note.setAttribute("aria-label", `Note for ${alias.email}`);
+  const note = element("input", { type: "text", value: alias.note, placeholder: t("Note") });
+  note.setAttribute("aria-label", t("Note for {alias}", { alias: alias.email }));
   note.addEventListener("change", async () => {
     if (await act("updateAlias", { id: alias.id, email: alias.email, fields: { note: note.value } })) {
       alias.note = note.value;
-      say(`Note of ${alias.email} saved.`);
+      say(t("Note of {alias} saved.", { alias: alias.email }));
     } else {
       note.value = alias.note;
     }
   });
 
   const enabled = element("input", { type: "checkbox", checked: alias.enabled });
-  enabled.setAttribute("aria-label", `${alias.email} receives mail`);
+  enabled.setAttribute("aria-label", t("{alias} receives mail", { alias: alias.email }));
   enabled.addEventListener("change", async () => {
     const now = await act("toggleAlias", { id: alias.id, email: alias.email });
     if (now === undefined) {
@@ -183,7 +190,7 @@ function aliasRow(alias) {
     alias.enabled = now;
     enabled.checked = now;
     showEnabled(row, alias);
-    say(`${alias.email} is turned ${now ? "on" : "off"}.`);
+    say(now ? t("{alias} is turned on.", { alias: alias.email }) : t("{alias} is turned off.", { alias: alias.email }));
     if ($("filter").value == "enabled" || $("filter").value == "disabled") {
       await reload();
     }
@@ -195,33 +202,33 @@ function aliasRow(alias) {
     b.addEventListener("click", () => onClick(b));
     return b;
   };
-  const contacts = button("Contacts", `Contacts of ${alias.email}`, b => showContacts(alias, row, b));
+  const contacts = button(t("Contacts"), t("Contacts of {alias}", { alias: alias.email }), b => showContacts(alias, row, b));
   contacts.setAttribute("aria-expanded", "false");
   const actions = element(
     "td",
     { className: "row-actions" },
     contacts,
-    button("Write", `Write as ${alias.email}`, async () => {
+    button(t("Write"), t("Write as {alias}", { alias: alias.email }), async () => {
       if (await act("composeAs", { email: alias.email })) {
-        say(`New message as ${alias.email} opened.`);
+        say(t("New message as {alias} opened.", { alias: alias.email }));
       }
     }),
-    button("Copy", `Copy ${alias.email}`, async () => {
+    button(t("Copy"), t("Copy {alias}", { alias: alias.email }), async () => {
       try {
         await navigator.clipboard.writeText(alias.email);
-        say(`Copied ${alias.email}.`);
+        say(t("Copied {alias}.", { alias: alias.email }));
       } catch (e) {
-        say(`Could not copy ${alias.email}: ${e.message}`);
+        say(t("Could not copy {alias}: {error}", { alias: alias.email, error: e.message }));
       }
     }),
-    confirmButton("Delete", alias.email, async () => {
+    confirmButton(t("Delete"), deleteTexts(alias.email), async () => {
       const result = await act("deleteAlias", { id: alias.id, email: alias.email });
       if (result) {
         await reload();
         say(
           result.keptIdentities
-            ? `${alias.email} deleted. Remove its ${result.keptIdentities} identity in the account settings, the add-on blocks sending from it.`
-            : `${alias.email} deleted.`
+            ? t("{alias} deleted. Remove its {identity} identity in the account settings, the add-on blocks sending from it.", { alias: alias.email, identity: result.keptIdentities })
+            : t("{alias} deleted.", { alias: alias.email })
         );
       }
     })
@@ -246,10 +253,10 @@ let page = 0;
 
 function age(at) {
   if (!at) {
-    return "not fully loaded yet";
+    return t("not fully loaded yet");
   }
   const minutes = Math.round((Date.now() - at) / 60000);
-  return minutes < 1 ? "just now" : minutes < 120 ? `${minutes} minutes ago` : `${Math.round(minutes / 60)} hours ago`;
+  return minutes < 1 ? t("just now") : minutes < 120 ? t("{count} minutes ago", { count: minutes }) : t("{count} hours ago", { count: Math.round(minutes / 60) });
 }
 
 /** Shows the current page of the local list. */
@@ -258,14 +265,14 @@ function render() {
   page = view.page;
   $("aliases").tBodies[0].replaceChildren(...view.rows.map(aliasRow));
   $("pager").hidden = view.pages < 2;
-  $("pageInfo").textContent = `Page ${view.page + 1} of ${view.pages}`;
+  $("pageInfo").textContent = t("Page {page} of {pages}", { page: view.page + 1, pages: view.pages });
   $("prev").disabled = view.page == 0;
   $("next").disabled = view.page == view.pages - 1;
-  $("synced").textContent = `List updated ${age(syncedAt)}.`;
+  $("synced").textContent = t("List updated {age}.", { age: age(syncedAt) });
   return view;
 }
 
-const shownText = view => (view.total ? `${view.total} aliases, ${view.rows.length} shown.` : "No aliases found.");
+const shownText = view => (view.total ? t("{total} aliases, {shown} shown.", { total: view.total, shown: view.rows.length }) : t("No aliases found."));
 
 /**
  * Loads the local list from the add-on, after a quick or full sync if asked. A quiet
@@ -283,9 +290,9 @@ async function load(sync, quiet = false) {
   // Not while the user works in a row: an armed Delete, open contacts or a note being typed.
   const busy = document.querySelector("#aliases [data-armed], #aliases tr.contacts, #aliases input:focus");
   const view = !quiet || (changed && !busy) ? render() : null;
-  $("synced").textContent = `List updated ${age(syncedAt)}.`;
+  $("synced").textContent = t("List updated {age}.", { age: age(syncedAt) });
   if (store.error) {
-    say(`Could not update the list: ${store.error}`);
+    say(t("Could not update the list: {error}", { error: store.error }));
   } else if (!quiet) {
     say(shownText(view));
   }
@@ -316,7 +323,7 @@ $("search").addEventListener("input", () => {
     }
     await load(undefined, true);
     if (found.added) {
-      say(`${shownText(render())} ${found.added} came from the online search.`);
+      say(t("{shown} {count} came from the online search.", { shown: shownText(render()), count: found.added }));
     }
   }, 600);
 });
@@ -338,17 +345,17 @@ $("next").addEventListener("click", () => {
 });
 $("update").addEventListener("click", async () => {
   $("update").disabled = true;
-  say("Updating the list from SimpleLogin...");
+  say(t("Updating the list from SimpleLogin..."));
   await load("full");
   $("update").disabled = false;
 });
-const tidy = confirmButton("Tidy up", "the sender list", async () => {
+const tidy = confirmButton(t("Tidy up"), { aria: t("Tidy up the sender list"), confirm: t("Confirm tidy up"), hint: t("Click again to tidy up the sender list.") }, async () => {
   const result = await act("tidyIdentities");
   if (result) {
     say(
       result.removed
-        ? `Removed ${result.removed} sender identities the add-on created. They come back when you use their alias.`
-        : "No sender identities of the add-on to remove."
+        ? t("Removed {count} sender identities the add-on created. They come back when you use their alias.", { count: result.removed })
+        : t("No sender identities of the add-on to remove.")
     );
   }
 });

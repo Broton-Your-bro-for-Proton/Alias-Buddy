@@ -1,0 +1,17 @@
+{
+  "extensionDescription": {
+    "message": "以 SimpleLogin 別名寄信給一般位址，反向別名由附加元件處理。攔截會洩露您真實位址的郵件。與 Proton AG 或 SimpleLogin 無關聯。"
+  },
+  "overviewTitle": {
+    "message": "Alias Buddy：您的別名"
+  },
+  "overviewLabel": {
+    "message": "別名"
+  },
+  "messageTitle": {
+    "message": "Alias Buddy：此郵件所經過的別名"
+  },
+  "messageLabel": {
+    "message": "別名"
+  }
+}

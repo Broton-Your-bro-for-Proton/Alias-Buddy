@@ -1,0 +1,17 @@
+{
+  "extensionDescription": {
+    "message": "Пишете като псевдоним на SimpleLogin до обикновени адреси, добавката се грижи за обратните псевдоними. Блокира съобщения, които биха разкрили истинския ви адрес. Няма връзка с Proton AG или SimpleLogin."
+  },
+  "overviewTitle": {
+    "message": "Alias Buddy: вашите псевдоними"
+  },
+  "overviewLabel": {
+    "message": "Псевдоними"
+  },
+  "messageTitle": {
+    "message": "Alias Buddy: псевдонимът, през който е дошло това съобщение"
+  },
+  "messageLabel": {
+    "message": "Псевдоним"
+  }
+}

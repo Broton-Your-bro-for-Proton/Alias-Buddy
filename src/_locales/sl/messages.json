@@ -1,0 +1,17 @@
+{
+  "extensionDescription": {
+    "message": "Pošiljajte kot vzdevek SimpleLogin na navadne naslove, obratne vzdevke uredi dodatek. Blokira sporočila, ki bi razkrila vaš pravi naslov. Ni povezano s podjetjem Proton AG ali s storitvijo SimpleLogin."
+  },
+  "overviewTitle": {
+    "message": "Alias Buddy: vaši vzdevki"
+  },
+  "overviewLabel": {
+    "message": "Vzdevki"
+  },
+  "messageTitle": {
+    "message": "Alias Buddy: vzdevek, prek katerega je to sporočilo prispelo"
+  },
+  "messageLabel": {
+    "message": "Vzdevek"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "extensionDescription": {
+    "message": "Adi ünvanlara SimpleLogin ləqəbi kimi göndərin, əks ləqəbləri əlavə idarə edir. Həqiqi ünvanınızı aça bilən mesajları bloklayır. Proton AG və ya SimpleLogin ilə əlaqəsi yoxdur."
+  },
+  "overviewTitle": {
+    "message": "Alias Buddy: ləqəbləriniz"
+  },
+  "overviewLabel": {
+    "message": "Ləqəblər"
+  },
+  "messageTitle": {
+    "message": "Alias Buddy: bu mesajın gəldiyi ləqəb"
+  },
+  "messageLabel": {
+    "message": "Ləqəb"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "extensionDescription": {
+    "message": "Unvia como un alias de SimpleLogin a direiciones normales; el complementu xestiona los alias inversos. Bloquia los mensaxes que revelaríen la to direición real. Ensin rellación con Proton AG nin SimpleLogin."
+  },
+  "overviewTitle": {
+    "message": "Alias Buddy: los tos alias"
+  },
+  "overviewLabel": {
+    "message": "Alias"
+  },
+  "messageTitle": {
+    "message": "Alias Buddy: l'alias pol que llegó esti mensaxe"
+  },
+  "messageLabel": {
+    "message": "Alias"
+  }
+}

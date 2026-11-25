@@ -1,0 +1,17 @@
+{
+  "extensionDescription": {
+    "message": "Gửi bằng bí danh SimpleLogin đến các địa chỉ thông thường, tiện ích xử lý các bí danh ngược. Chặn các thư có thể làm lộ địa chỉ thật của bạn. Không liên kết với Proton AG hay SimpleLogin."
+  },
+  "overviewTitle": {
+    "message": "Alias Buddy: các bí danh của bạn"
+  },
+  "overviewLabel": {
+    "message": "Bí danh"
+  },
+  "messageTitle": {
+    "message": "Alias Buddy: bí danh mà thư này đã đi qua"
+  },
+  "messageLabel": {
+    "message": "Bí danh"
+  }
+}

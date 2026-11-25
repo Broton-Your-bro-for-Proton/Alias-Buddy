@@ -1,3 +1,4 @@
+import { t } from "../lib/i18n.js";
 const $ = id => document.getElementById(id);
 const [tab] = await messenger.tabs.query({ active: true, currentWindow: true });
 
@@ -14,7 +15,7 @@ async function act(type, args = {}) {
   }
   buttons.forEach(b => (b.disabled = false));
   if (!answer?.ok) {
-    $("error").textContent = answer?.error ?? "No answer from the add-on.";
+    $("error").textContent = answer?.error ?? t("No answer from the add-on.");
     $("error").hidden = false;
     return null;
   }
@@ -22,12 +23,15 @@ async function act(type, args = {}) {
 }
 
 const SUMMARY = {
-  none: () => "Open a single message to see the alias it came through.",
-  direct: () => "This message did not come through a SimpleLogin alias.",
+  none: () => t("Open a single message to see the alias it came through."),
+  direct: () => t("This message did not come through a SimpleLogin alias."),
   unconfirmed: o =>
-    `This message names your alias ${o.named}, but its sender is not a contact of that alias, so it did not come through SimpleLogin.`,
+    t("This message names your alias {alias}, but its sender is not a contact of that alias, so it did not come through SimpleLogin.", { alias: o.named }),
   alias: o =>
-    `Came through your alias ${o.alias.email}${o.alias.enabled ? "" : " (turned off)"} from ${o.contact?.email ?? o.sender}${o.contact?.blocked ? " (blocked)" : ""}.`,
+    t("Came through your alias {alias} from {sender}.", {
+      alias: o.alias.enabled ? o.alias.email : t("{alias} (turned off)", { alias: o.alias.email }),
+      sender: o.contact?.blocked ? t("{sender} (blocked)", { sender: o.contact.email }) : (o.contact?.email ?? o.sender),
+    }),
 };
 
 let origin = null;
@@ -43,8 +47,8 @@ async function load() {
   if (origin.state == "alias") {
     const { alias, contact } = origin;
     $("toggleContact").hidden = !contact;
-    $("toggleContact").textContent = contact?.blocked ? `Unblock ${contact.email}` : `Block ${contact?.email}`;
-    $("toggleAlias").textContent = alias.enabled ? `Turn off ${alias.email}` : `Turn on ${alias.email}`;
+    $("toggleContact").textContent = contact?.blocked ? t("Unblock {address}", { address: contact.email }) : t("Block {address}", { address: contact?.email });
+    $("toggleAlias").textContent = alias.enabled ? t("Turn off {alias}", { alias: alias.email }) : t("Turn on {alias}", { alias: alias.email });
   }
 }
 

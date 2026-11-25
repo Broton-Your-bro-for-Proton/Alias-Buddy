@@ -1,0 +1,17 @@
+{
+  "extensionDescription": {
+    "message": "Lähetä SimpleLogin-aliaksena tavallisiin osoitteisiin, lisäosa hoitaa käänteiset aliakset. Estää viestit, jotka paljastaisivat oikean osoitteesi. Ei yhteydessä Proton AG:hen tai SimpleLoginiin."
+  },
+  "overviewTitle": {
+    "message": "Alias Buddy: aliaksesi"
+  },
+  "overviewLabel": {
+    "message": "Aliakset"
+  },
+  "messageTitle": {
+    "message": "Alias Buddy: alias, jonka kautta tämä viesti saapui"
+  },
+  "messageLabel": {
+    "message": "Alias"
+  }
+}

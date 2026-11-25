@@ -1,16 +1,19 @@
 import { sendOnceOffer } from "../lib/core.js";
+import { t } from "../lib/i18n.js";
 
 const $ = id => document.getElementById(id);
 const [tab] = await messenger.tabs.query({ active: true, currentWindow: true });
 
 const SUMMARY = {
-  unconfigured: () => "Not set up yet. Add your SimpleLogin API key in the settings.",
-  other: p => `${p.sender} is not a SimpleLogin address. The add-on leaves this message alone.`,
-  mailbox: p => `Sending from your real address ${p.sender}.`,
-  alias: p => `Sending as ${p.sender}. SimpleLogin receives it from ${p.mailbox}.`,
+  unconfigured: () => t("Not set up yet. Add your SimpleLogin API key in the settings."),
+  other: p => t("{sender} is not a SimpleLogin address. The add-on leaves this message alone.", { sender: p.sender }),
+  mailbox: p => t("Sending from your real address {sender}.", { sender: p.sender }),
+  alias: p => t("Sending as {sender}. SimpleLogin receives it from {mailbox}.", { sender: p.sender, mailbox: p.mailbox }),
   switch: p =>
-    `Sending from ${p.sender} would show your real address. On send it switches to the alias ${p.alias}${p.existing ? "" : " (new)"}, from the template ${p.template}.`,
-  blocked: p => `This message would be blocked: ${p.reason}`,
+    (p.existing
+      ? t("Sending from {sender} would show your real address. On send it switches to the alias {alias}, from the template {template}.", p)
+      : t("Sending from {sender} would show your real address. On send it switches to the new alias {alias}, from the template {template}.", p)),
+  blocked: p => t("This message would be blocked: {reason}", { reason: p.reason }),
 };
 
 let offer = null; // the block "send once" accepts
@@ -33,9 +36,9 @@ function render({ preview, last, found, accepted }) {
   $("rows").hidden = !body.rows.length;
   const lastBlocked = last?.state == "blocked" && last.reason != preview.reason;
   $("last").hidden = !lastBlocked;
-  $("last").textContent = lastBlocked ? `Last send was blocked: ${last.reason}` : "";
+  $("last").textContent = lastBlocked ? t("Last send was blocked: {reason}", { reason: last.reason }) : "";
   $("sendOnce").hidden = !offer;
-  $("sendOnce").textContent = preview.state == "switch" ? "Send from my real address instead" : "Send this message unchanged";
+  $("sendOnce").textContent = preview.state == "switch" ? t("Send from my real address instead") : t("Send this message unchanged");
 }
 
 const refresh = async () => render(await messenger.runtime.sendMessage({ type: "preview", tabId: tab.id }));
@@ -47,7 +50,7 @@ async function act(type, args = {}) {
   buttons.forEach(b => (b.disabled = true));
   const answer = await messenger.runtime.sendMessage({ type, tabId: tab.id, ...args }).finally(() => buttons.forEach(b => (b.disabled = false)));
   if (!answer?.ok) {
-    $("aliasError").textContent = answer?.error ?? "No answer from the add-on.";
+    $("aliasError").textContent = answer?.error ?? t("No answer from the add-on.");
     $("aliasError").hidden = false;
     return null;
   }
@@ -82,9 +85,9 @@ async function loadPanel(template, site) {
     $("suggestionText").textContent = panel.suggestion.error;
   } else if (panel.suggestion) {
     $("suggestionText").textContent = panel.suggestion.existing
-      ? `Your alias for ${panel.site}:`
-      : `No alias for ${panel.site} yet. A new one would be:`;
-    $("useSuggestion").textContent = `${panel.suggestion.existing ? "Use" : "Create and use"} ${panel.suggestion.email}`;
+      ? t("Your alias for {site}:", { site: panel.site })
+      : t("No alias for {site} yet. A new one would be:", { site: panel.site });
+    $("useSuggestion").textContent = (panel.suggestion.existing ? t("Use {alias}", { alias: panel.suggestion.email }) : t("Create and use {alias}", { alias: panel.suggestion.email }));
   }
   if ($("search").value.trim().length < 2) {
     showAliases(panel.matches);
@@ -95,9 +98,9 @@ async function loadPanel(template, site) {
   $("template").replaceChildren(...panel.templates.map(t => new Option(t, t, false, t == panel.template)));
   $("prefix").value = panel.prefix;
   $("domain").replaceChildren(
-    ...panel.domains.map(d => new Option(d.random ? `${d.domain} (adds a random word)` : d.domain, d.domain, false, d.domain == panel.domain))
+    ...panel.domains.map(d => new Option(d.random ? t("{domain} (adds a random word)", { domain: d.domain }) : d.domain, d.domain, false, d.domain == panel.domain))
   );
-  $("mailbox").replaceChildren(...panel.mailboxes.map(m => new Option(`to ${m.email}`, m.id, false, m.id == panel.mailboxId)));
+  $("mailbox").replaceChildren(...panel.mailboxes.map(m => new Option(t("to {mailbox}", { mailbox: m.email }), m.id, false, m.id == panel.mailboxId)));
 }
 
 /** Alias buttons under "Existing alias": search results, or the site's aliases while the search is empty. */

@@ -1,0 +1,17 @@
+{
+  "extensionDescription": {
+    "message": "Bidali SimpleLogin alias gisa helbide arruntetara, gehigarriak alias inbertituak kudeatzen ditu. Zure benetako helbidea agerian utziko luketen mezuak blokeatzen ditu. Ez dago loturarik Proton AG edo SimpleLogin-ekin."
+  },
+  "overviewTitle": {
+    "message": "Alias Buddy: zure aliasak"
+  },
+  "overviewLabel": {
+    "message": "Aliasak"
+  },
+  "messageTitle": {
+    "message": "Alias Buddy: mezu honek jaso duen aliasa"
+  },
+  "messageLabel": {
+    "message": "Aliasa"
+  }
+}

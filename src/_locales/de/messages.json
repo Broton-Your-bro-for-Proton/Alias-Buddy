@@ -1,0 +1,17 @@
+{
+  "extensionDescription": {
+    "message": "Als SimpleLogin-Alias an normale Adressen senden, das Add-on kümmert sich um die Reverse-Aliasse. Blockiert Nachrichten, die Ihre echte Adresse verraten würden. Nicht mit Proton AG oder SimpleLogin verbunden."
+  },
+  "overviewTitle": {
+    "message": "Alias Buddy: Ihre Aliasse"
+  },
+  "overviewLabel": {
+    "message": "Aliasse"
+  },
+  "messageTitle": {
+    "message": "Alias Buddy: der Alias, über den diese Nachricht kam"
+  },
+  "messageLabel": {
+    "message": "Alias"
+  }
+}

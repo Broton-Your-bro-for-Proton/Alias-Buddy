@@ -1,0 +1,17 @@
+{
+  "extensionDescription": {
+    "message": "Отправляйте с алиаса SimpleLogin на обычные адреса, обратными алиасами занимается расширение. Блокирует письма, которые раскрыли бы ваш настоящий адрес. Не связано с Proton AG и SimpleLogin."
+  },
+  "overviewTitle": {
+    "message": "Alias Buddy: ваши алиасы"
+  },
+  "overviewLabel": {
+    "message": "Алиасы"
+  },
+  "messageTitle": {
+    "message": "Alias Buddy: алиас, через который пришло это письмо"
+  },
+  "messageLabel": {
+    "message": "Алиас"
+  }
+}

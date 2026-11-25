@@ -1,0 +1,17 @@
+{
+  "extensionDescription": {
+    "message": "Šaljite kao SimpleLogin alias na obične adrese, dodatak vodi računa o obrnutim aliasima. Blokira poruke koje bi otkrile vašu pravu adresu. Nije povezano s Proton AG ili SimpleLogin."
+  },
+  "overviewTitle": {
+    "message": "Alias Buddy: vaši aliasi"
+  },
+  "overviewLabel": {
+    "message": "Aliasi"
+  },
+  "messageTitle": {
+    "message": "Alias Buddy: alias preko kojeg je ova poruka stigla"
+  },
+  "messageLabel": {
+    "message": "Alias"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "extensionDescription": {
+    "message": "Normal adreslere SimpleLogin takma adı olarak gönderin, eklenti ters takma adları halleder. Gerçek adresinizi açığa çıkaracak iletileri engeller. Proton AG veya SimpleLogin ile bağlantısı yoktur."
+  },
+  "overviewTitle": {
+    "message": "Alias Buddy: takma adlarınız"
+  },
+  "overviewLabel": {
+    "message": "Takma adlar"
+  },
+  "messageTitle": {
+    "message": "Alias Buddy: bu iletinin geldiği takma ad"
+  },
+  "messageLabel": {
+    "message": "Takma ad"
+  }
+}

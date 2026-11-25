@@ -1,5 +1,6 @@
 import { ApiError, SimpleLogin, isOutage } from "./lib/api.js";
 import * as core from "./lib/core.js";
+import { t } from "./lib/i18n.js";
 import { getSettings } from "./lib/settings.js";
 
 const TTL = 10 * 60 * 1000;
@@ -75,7 +76,7 @@ async function protectedAddresses(ctx) {
       (await ctx.sl.mailboxes()).map(m => ({ id: m.id, email: core.norm(m.email), verified: m.verified !== false, default: !!m.default }))
     );
   } catch (e) {
-    throw new Unanswered(`SimpleLogin: ${e.message}. Without the mailbox list the add-on cannot tell which addresses are yours.`);
+    throw new Unanswered(t("SimpleLogin: {error}. Without the mailbox list the add-on cannot tell which addresses are yours.", { error: e.message }));
   }
   return new Set([...ctx.cache.mailboxes.value.map(m => core.canonical(m.email)), ...manual]);
 }
@@ -96,7 +97,7 @@ function checkOwnReverseAliases(ctx, recipients, isMine) {
   const toSelf = recipients.filter(r => r.field != "bcc" && own.has(r.email));
   if (toSelf.length && toSelf.length < recipients.length) {
     throw new Blocked(
-      `${toSelf.map(r => r.email).join(", ")} is the reverse alias of your own address, so the other recipients would see that address. Remove it.`
+      t("{list} is the reverse alias of your own address, so the other recipients would see that address. Remove it.", { list: toSelf.map(r => r.email).join(", ") })
     );
   }
 }
@@ -121,7 +122,7 @@ async function aliasFor(ctx, email) {
   try {
     ctx.cache.aliases[email] = await cached(ctx.cache.aliases[email], () => ctx.sl.findAlias(email));
   } catch (e) {
-    throw new Unanswered(`SimpleLogin: ${e.message}. The add-on cannot tell whether ${email} is an alias.`);
+    throw new Unanswered(t("SimpleLogin: {error}. The add-on cannot tell whether {email} is an alias.", { error: e.message, email }));
   }
   return ctx.cache.aliases[email].value;
 }
@@ -173,7 +174,7 @@ async function addContact(ctx, alias, email) {
     if (!contacts.has(email) && ![...contacts.values()].includes(email)) {
       throw new Blocked(
         knownReverseAliases(ctx).has(email)
-          ? `${email} is a reverse alias of another alias. Send from that alias instead.`
+          ? t("{email} is a reverse alias of another alias. Send from that alias instead.", { email })
           : `${email}: ${e.message}`
       );
     }
@@ -202,7 +203,7 @@ async function originOf(ctx, messageId, envelope) {
   const origin = { ...envelope, alias: null };
   const key = `${ctx.cache.owner}\n${messageId}`;
   if (!ctx.sl) {
-    return { ...origin, error: "Add your SimpleLogin API key in the settings first." };
+    return { ...origin, error: t("Add your SimpleLogin API key in the settings first.") };
   }
   if (!origin.named.includes("@") || unconfirmed.has(key)) {
     return origin;
@@ -255,7 +256,7 @@ async function recipientsOf(details, fields = ["to", "cc", "bcc"]) {
   for (const field of fields) {
     for (const entry of [].concat(details[field] ?? [])) {
       if (typeof entry != "string") {
-        throw new Blocked("A recipient is an address book entry the add-on cannot read.");
+        throw new Blocked(t("A recipient is an address book entry the add-on cannot read."));
       }
       const parsed = await messenger.messengerUtilities.parseMailboxString(entry, { expandMailingLists: true });
       for (const { name, email } of parsed) {
@@ -266,7 +267,7 @@ async function recipientsOf(details, fields = ["to", "cc", "bcc"]) {
         // A list with a description shows as "Name <Description>", which Thunderbird does not expand here.
         const members = await mailingListMembers(name ?? email);
         if (!members) {
-          throw new Blocked(`Cannot read the address "${entry}".`);
+          throw new Blocked(t("Cannot read the address \"{entry}\".", { entry }));
         }
         list.push(...members.map(m => ({ field, email: core.norm(m) })));
       }
@@ -295,7 +296,7 @@ async function attachmentTexts(tabId) {
       }
       texts.push(core.decodeText(new Uint8Array(await file.arrayBuffer())));
     } catch (e) {
-      unchecked.push(`the attachment ${attachment.name} cannot be checked (${e.message})`);
+      unchecked.push(t("the attachment {name} cannot be checked ({error})", { name: attachment.name, error: e.message }));
     }
   }
   return { texts, unchecked };
@@ -313,15 +314,15 @@ async function inReplyTo(messageId) {
 
 /** Leaks a contact would see in a message passing through SimpleLogin. */
 async function softLeaks(tabId, details, mine, domain) {
-  const found = core.leaks([details.subject, details.body, details.plainTextBody], mine).map(a => `the text contains ${a}`);
+  const found = core.leaks([details.subject, details.body, details.plainTextBody], mine).map(a => t("the text contains {address}", { address: a }));
   const { texts, unchecked } = await attachmentTexts(tabId);
-  found.push(...core.leaks(texts, mine).map(a => `an attachment contains ${a}`), ...unchecked);
+  found.push(...core.leaks(texts, mine).map(a => t("an attachment contains {address}", { address: a })), ...unchecked);
   if (!details.isPlainText && core.hasEmbeddedImages(details.body)) {
-    found.push(`embedded images or files would carry the domain ${domain}, attach them as files instead`);
+    found.push(t("embedded images or files would carry the domain {domain}, attach them as files instead", { domain }));
   }
   const domains = new Set([domain, ...[...mine].map(domainOf)]);
   if (core.idsInDomains(await inReplyTo(details.relatedMessageId), domains).length) {
-    found.push(`the reply refers to a message whose ID ends in your mailbox domain, start a new message instead`);
+    found.push(t("the reply refers to a message whose ID ends in your mailbox domain, start a new message instead"));
   }
   return found;
 }
@@ -349,7 +350,7 @@ async function checkMailbox(tab, details, ctx, { sender, recipients, mine, isMin
     checkOwnReverseAliases(ctx, recipients, isMine);
   }
   if (result.mixed) {
-    throw new Blocked("SimpleLogin drops a message that mixes reverse aliases with other addresses. Send two messages.");
+    throw new Blocked(t("SimpleLogin drops a message that mixes reverse aliases with other addresses. Send two messages."));
   }
   const ownership = core.ownerProblem(result.viaAlias, ra => ownerIdOf(ctx, ra), id => aliasById(ctx, id), sender);
   if (ownership) {
@@ -363,11 +364,11 @@ async function checkMailbox(tab, details, ctx, { sender, recipients, mine, isMin
     let blocked;
     if (unknownReverse.length == result.exposed.length) {
       blocked = new Blocked(
-        `${who} looks like a reverse alias the add-on does not know yet, so it cannot tell whether it belongs to you. Reply from the alias, or send once if you are sure.`,
+        t("{who} looks like a reverse alias the add-on does not know yet, so it cannot tell whether it belongs to you. Reply from the alias, or send once if you are sure.", { who }),
         true
       );
     } else {
-      blocked = new Blocked(`Your real address ${sender} would be visible to ${who}. Choose an alias as sender.`, true);
+      blocked = new Blocked(t("Your real address {sender} would be visible to {who}. Choose an alias as sender.", { sender, who }), true);
       blocked.exposed = result.exposed;
     }
     accept(override, blocked);
@@ -377,15 +378,15 @@ async function checkMailbox(tab, details, ctx, { sender, recipients, mine, isMin
     // As in checkAlias: a Reply-To with a real address would reach the contact.
     for (const r of await recipientsOf(details, ["replyTo"])) {
       if (isMine(r.email)) {
-        hard.push(`Reply-To contains ${r.email}`);
+        hard.push(t("Reply-To contains {address}", { address: r.email }));
       }
     }
     if (hard.length) {
-      throw new Blocked(`Not sent through SimpleLogin: ${hard.join("; ")}. Turn it off in this message.`);
+      throw new Blocked(t("Not sent through SimpleLogin: {list}. Turn it off in this message.", { list: hard.join("; ") }));
     }
     const soft = await softLeaks(tab.id, details, mine, domainOf(sender));
     if (soft.length) {
-      accept(override, new Blocked(`Not sent through SimpleLogin: ${soft.join("; ")}.`, true));
+      accept(override, new Blocked(t("Not sent through SimpleLogin: {list}.", { list: soft.join("; ") }), true));
     }
   }
   if (apply) {
@@ -399,11 +400,11 @@ async function checkAlias(tab, details, ctx, { identity, alias, resumed, recipie
   if (!resumed) {
     const pick = core.pickMailboxIdentity(await messenger.identities.list(), verifiedMailboxes(ctx, alias), identity.accountId);
     if (!pick.candidates.length) {
-      throw new Blocked(`No Thunderbird identity uses a verified mailbox of ${alias.email} (${alias.mailboxes.join(", ")}). Add one.`);
+      throw new Blocked(t("No Thunderbird identity uses a verified mailbox of {alias} ({list}). Add one.", { alias: alias.email, list: alias.mailboxes.join(", ") }));
     }
     if (!pick.identity) {
       throw new Blocked(
-        `The identity ${pick.candidates[0].email} has an OpenPGP key or S/MIME certificate, and signing would reveal it. Add a second identity for that address without keys.`
+        t("The identity {identity} has an OpenPGP key or S/MIME certificate, and signing would reveal it. Add a second identity for that address without keys.", { identity: pick.candidates[0].email })
       );
     }
     mailbox = pick.identity;
@@ -411,7 +412,7 @@ async function checkAlias(tab, details, ctx, { identity, alias, resumed, recipie
   const own = recipients.filter(r => isMine(r.email));
   if (own.length) {
     // A reverse alias for it would make SimpleLogin write the real address into the copy every contact gets.
-    throw new Blocked(`Your real address ${own.map(r => r.email).join(", ")} is a recipient of a message sent as ${alias.email}. Remove it, for example the automatic Cc of the identity.`);
+    throw new Blocked(t("Your real address {list} is a recipient of a message sent as {alias}. Remove it, for example the automatic Cc of the identity.", { list: own.map(r => r.email).join(", "), alias: alias.email }));
   }
   const hard = core.sendProblems({
     selectedEncryptionTechnology: details.selectedEncryptionTechnology,
@@ -421,15 +422,15 @@ async function checkAlias(tab, details, ctx, { identity, alias, resumed, recipie
   // The rewrite keeps the Reply-To, so it is checked before anything is created.
   for (const r of await recipientsOf(details, ["replyTo"])) {
     if (isMine(r.email)) {
-      hard.push(`Reply-To contains ${r.email}`);
+      hard.push(t("Reply-To contains {address}", { address: r.email }));
     }
   }
   if (hard.length) {
-    throw new Blocked(`Not sent: ${hard.join("; ")}.`);
+    throw new Blocked(t("Not sent: {list}.", { list: hard.join("; ") }));
   }
   const soft = await softLeaks(tab.id, details, mine, domainOf(mailbox.email));
   if (soft.length) {
-    accept(override, new Blocked(`Not sent: ${soft.join("; ")}.`, true));
+    accept(override, new Blocked(t("Not sent: {list}.", { list: soft.join("; ") }), true));
   }
 
   let plan = core.rewriteForAlias(recipients, alias.email, contactsOf(ctx, alias));
@@ -442,7 +443,7 @@ async function checkAlias(tab, details, ctx, { identity, alias, resumed, recipie
   }
   plan = core.rewriteForAlias(recipients, alias.email, contactsOf(ctx, alias));
   if (plan.missing.length) {
-    throw new Blocked(`No reverse alias for ${plan.missing.map(r => r.email).join(", ")}.`);
+    throw new Blocked(t("No reverse alias for {list}.", { list: plan.missing.map(r => r.email).join(", ") }));
   }
   checkOwnReverseAliases(ctx, recipients, isMine);
 
@@ -467,10 +468,10 @@ async function checkAlias(tab, details, ctx, { identity, alias, resumed, recipie
       )
     );
     // Only a leak the user accepted before may stay; anything the switch added blocks.
-    const leaked = core.leaks([final.subject, final.body, final.plainTextBody], mine).map(a => `the text contains ${a}`);
+    const leaked = core.leaks([final.subject, final.body, final.plainTextBody], mine).map(a => t("the text contains {address}", { address: a }));
     problems.push(...leaked.filter(p => !soft.includes(p)));
   } catch (e) {
-    problems.push(`the rewrite failed (${e.message})`);
+    problems.push(t("the rewrite failed ({error})", { error: e.message }));
   }
   if (problems.length) {
     await messenger.compose.setComposeDetails(tab.id, {
@@ -483,7 +484,7 @@ async function checkAlias(tab, details, ctx, { identity, alias, resumed, recipie
       attachPublicPGPKey: details.attachPublicPGPKey,
       ...bodyOf(details),
     });
-    throw new Blocked(`Not sent, the final check failed: ${problems.join("; ")}.`);
+    throw new Blocked(t("Not sent, the final check failed: {list}.", { list: problems.join("; ") }));
   }
   rewritten.set(tab.id, { alias: alias.email, mailboxId: mailbox.id });
   bindContacts(ctx, plan.rows.map(r => r.via));
@@ -528,7 +529,7 @@ async function check(tab, details, ctx, options = {}) {
         throw e;
       }
     }
-    accept(options.override ?? [], new Blocked(`${e.message} Send once if ${sender} has nothing to do with SimpleLogin.`, true));
+    accept(options.override ?? [], new Blocked(t("{error} Send once if {sender} has nothing to do with SimpleLogin.", { error: e.message, sender }), true));
     return { state: "other", sender };
   }
 }
@@ -593,11 +594,11 @@ async function checkSender(tab, details, ctx, { override = [], apply = true } = 
   const domain = ctx.sl ? (await suffixDomains(ctx)).find(d => d.domain == domainOf(sender)) : null;
   if (domain && !domain.random) {
     throw new Blocked(
-      `${sender} is on your SimpleLogin domain but is not an alias, so a message from it would go out directly. Create it as a new alias in the Alias Buddy popup first.`
+      t("{sender} is on your SimpleLogin domain but is not an alias, so a message from it would go out directly. Create it as a new alias in the Alias Buddy popup first.", { sender })
     );
   }
   if (domain) {
-    throw new Blocked(`${sender} is on a SimpleLogin domain but is not one of your aliases, so a message from it would go out directly. Choose another sender.`);
+    throw new Blocked(t("{sender} is on a SimpleLogin domain but is not one of your aliases, so a message from it would go out directly. Choose another sender.", { sender }));
   }
   return ctx.sl ? { state: "other", sender } : { state: "unconfigured" };
 }
@@ -619,15 +620,15 @@ async function wasAlias(email) {
 
 const directSendProblem = (ctx, email) =>
   ctx.sl
-    ? `${email} is no longer an alias in SimpleLogin, so a message from it would go out directly. Choose another sender.`
-    : `${email} is an alias. Without the SimpleLogin API key a message from it would go out directly, past SimpleLogin. Add the key in the settings.`;
+    ? t("{email} is no longer an alias in SimpleLogin, so a message from it would go out directly. Choose another sender.", { email })
+    : t("{email} is an alias. Without the SimpleLogin API key a message from it would go out directly, past SimpleLogin. Add the key in the settings.", { email });
 
 /** The domains SimpleLogin offers for new aliases; `random` ones are SimpleLogin's own, which add a random word. */
 async function suffixDomains(ctx) {
   try {
     ctx.cache.suffixes = await cached(ctx.cache.suffixes, () => ctx.sl.suffixes());
   } catch (e) {
-    throw new Unanswered(`SimpleLogin: ${e.message}. The add-on cannot tell which domains are yours.`);
+    throw new Unanswered(t("SimpleLogin: {error}. The add-on cannot tell which domains are yours.", { error: e.message }));
   }
   return core.creationDomains(ctx.cache.suffixes.value);
 }
@@ -653,11 +654,11 @@ async function checkItip(ctx, { sender, actor, to, cc = [], bcc = [], subject, b
   if (alias) {
     const own = recipients.filter(r => isMine(r.email));
     if (own.length) {
-      throw new Blocked(`Your real address ${own.map(r => r.email).join(", ")} is a recipient of a calendar email sent as ${alias.email}.`);
+      throw new Blocked(t("Your real address {list} is a recipient of a calendar email sent as {alias}.", { list: own.map(r => r.email).join(", "), alias: alias.email }));
     }
     const leaked = core.leaks([subject, body, calendar], mine);
     if (leaked.length) {
-      throw new Blocked(`The calendar email contains your real address ${leaked.join(", ")}.`);
+      throw new Blocked(t("The calendar email contains your real address {list}.", { list: leaked.join(", ") }));
     }
     // Thunderbird does not sign calendar emails, so keys do not matter here. The
     // transport adds the identity's automatic Cc/Bcc and Reply-To, so it has to be without them.
@@ -667,7 +668,7 @@ async function checkItip(ctx, { sender, actor, to, cc = [], bcc = [], subject, b
     const mailbox = pick.identity ?? pick.candidates[0];
     if (!mailbox) {
       throw new Blocked(
-        `No identity for a verified mailbox of ${alias.email} is free of automatic Cc/Bcc and Reply-To. Add one for ${alias.mailboxes[0]} without them.`
+        t("No identity for a verified mailbox of {alias} is free of automatic Cc/Bcc and Reply-To. Add one for {mailbox} without them.", { alias: alias.email, mailbox: alias.mailboxes[0] })
       );
     }
     for (const r of core.rewriteForAlias(recipients, alias.email, contactsOf(ctx, alias)).missing) {
@@ -675,7 +676,7 @@ async function checkItip(ctx, { sender, actor, to, cc = [], bcc = [], subject, b
     }
     const plan = core.rewriteForAlias(recipients, alias.email, contactsOf(ctx, alias));
     if (plan.missing.length) {
-      throw new Blocked(`No reverse alias for ${plan.missing.map(r => r.email).join(", ")}.`);
+      throw new Blocked(t("No reverse alias for {list}.", { list: plan.missing.map(r => r.email).join(", ") }));
     }
     return { action: "rewrite", identityId: mailbox.id, to: plan.fields.to };
   }
@@ -693,12 +694,12 @@ async function checkItip(ctx, { sender, actor, to, cc = [], bcc = [], subject, b
     if (result.exposed.length || result.mixed) {
       const who = (result.exposed.length ? result.exposed : all).map(r => r.email).join(", ");
       throw new Blocked(
-        `A calendar email from your real address ${shown} would go to ${who}. Answer from an alias: add an identity for the alias the invitation was sent to, or allow the organizer in the settings.`
+        t("A calendar email from your real address {address} would go to {who}. Answer from an alias: add an identity for the alias the invitation was sent to, or allow the organizer in the settings.", { address: shown, who })
       );
     }
     const leaked = result.viaAlias.length ? core.leaks([subject, body, calendar], mine) : [];
     if (leaked.length) {
-      throw new Blocked(`The calendar email names your real address ${leaked.join(", ")}.`);
+      throw new Blocked(t("The calendar email names your real address {list}.", { list: leaked.join(", ") }));
     }
   }
   return { action: "send" };
@@ -728,7 +729,7 @@ function serialized(work) {
 const run = (tab, details, options = {}) =>
   serialized(async ctx => {
     if (options.apply !== false && core.fingerprint(await messenger.compose.getComposeDetails(tab.id)) != core.fingerprint(details)) {
-      throw new Blocked("The message changed while it was checked, for example by a sender change in the popup. Check it and send again.");
+      throw new Blocked(t("The message changed while it was checked, for example by a sender change in the popup. Check it and send again."));
     }
     return check(tab, details, ctx, options);
   });
@@ -745,7 +746,7 @@ function show(tabId, result) {
 }
 
 function blockedResult(e) {
-  const blocked = e instanceof Blocked ? e : new Blocked(`Unexpected error: ${e.message}`);
+  const blocked = e instanceof Blocked ? e : new Blocked(t("Unexpected error: {error}", { error: e.message }));
   return { state: "blocked", reason: blocked.message, overridable: blocked.overridable };
 }
 
@@ -762,7 +763,7 @@ messenger.compose.onBeforeSend.addListener(async (tab, details) => {
   } catch (e) {
     const result = blockedResult(e);
     show(tab.id, result);
-    messenger.notifications.create({ type: "basic", title: "Alias Buddy: message not sent", message: result.reason });
+    messenger.notifications.create({ type: "basic", title: t("Alias Buddy: message not sent"), message: result.reason });
     return { cancel: true };
   }
 });
@@ -772,7 +773,7 @@ messenger.aliasBuddyItip?.onSend.addListener(async request => {
     return await serialized(ctx => checkItip(ctx, request));
   } catch (e) {
     const { reason } = blockedResult(e);
-    messenger.notifications.create({ type: "basic", title: "Alias Buddy: calendar email not sent", message: reason });
+    messenger.notifications.create({ type: "basic", title: t("Alias Buddy: calendar email not sent"), message: reason });
     return { action: "drop" };
   }
 });
@@ -799,7 +800,7 @@ async function creationMailbox(ctx) {
   const verified = ctx.cache.mailboxes.value.filter(m => m.verified);
   const chosen = verified.find(m => m.id == ctx.settings.creation.mailboxId) ?? verified.find(m => m.default) ?? verified[0];
   if (!chosen) {
-    throw new Blocked("SimpleLogin lists no verified mailbox for new aliases.");
+    throw new Blocked(t("SimpleLogin lists no verified mailbox for new aliases."));
   }
   return chosen;
 }
@@ -815,7 +816,7 @@ async function siteAlias(ctx, site, template) {
   try {
     entry = await cached(ctx.cache.sites[key], () => ctx.sl.findSiteAlias(site, template));
   } catch (e) {
-    throw new Blocked(`SimpleLogin: ${e.message}. The add-on cannot tell whether an alias for ${site} exists.`);
+    throw new Blocked(t("SimpleLogin: {error}. The add-on cannot tell whether an alias for {site} exists.", { error: e.message, site }));
   }
   // Only a found alias is kept: one created on another device must be found next time.
   if (!entry.value) {
@@ -845,8 +846,8 @@ async function newAliasPlan(ctx, site, { prefix, domain, template: chosen } = {}
     if (!suffix) {
       throw new Blocked(
         wanted
-          ? `SimpleLogin does not offer ${wanted} for new aliases. Choose another domain.`
-          : "SimpleLogin offers no domain for new aliases."
+          ? t("SimpleLogin does not offer {wanted} for new aliases. Choose another domain.", { wanted })
+          : t("SimpleLogin offers no domain for new aliases.")
       );
     }
   }
@@ -874,7 +875,7 @@ async function planForSite(ctx, site, template = ctx.settings.creation.template)
   const plan = await newAliasPlan(ctx, site, { template });
   const named = plan.random ? null : await aliasFor(ctx, plan.email);
   if (named && !named.enabled) {
-    throw new Blocked(`${named.email} exists but is turned off. Turn it on in the alias overview, or change the name template.`);
+    throw new Blocked(t("{alias} exists but is turned off. Turn it on in the alias overview, or change the name template.", { alias: named.email }));
   }
   if (named) {
     return { alias: named, email: named.email, existing: true };
@@ -912,12 +913,12 @@ async function createAlias(ctx, site, choices = {}) {
       }
       // A taken name is retried only while the name has random parts.
       if (!(plan.random && e instanceof ApiError && e.status == 409)) {
-        throw new Blocked(`SimpleLogin could not create ${plan.email}: ${e.message}`);
+        throw new Blocked(t("SimpleLogin could not create {alias}: {error}", { alias: plan.email, error: e.message }));
       }
       plannedNames.delete(plan.key);
     }
   }
-  throw new Blocked("SimpleLogin could not create an alias, every generated name was taken.");
+  throw new Blocked(t("SimpleLogin could not create an alias, every generated name was taken."));
 }
 
 /**
@@ -969,7 +970,7 @@ async function switchToSiteAlias(tab, details, ctx, options, blocked) {
     switchAliases.set(tab.id, { site, template, alias });
     return await checkAlias(tab, details, ctx, { ...options, alias, resumed: false });
   } catch (e) {
-    const failed = new Blocked(`Sending as the alias for ${site} failed: ${e.message}`, true);
+    const failed = new Blocked(t("Sending as the alias for {site} failed: {error}", { site, error: e.message }), true);
     // Sent once anyway, the message goes out from the real address, with every other check.
     accept(options.override, failed);
     return checkMailbox(tab, details, ctx, { ...options, override: [...options.override, blocked.message] });
@@ -989,11 +990,11 @@ async function ensureIdentity(ctx, alias, accountId, { create = true } = {}) {
   }
   const name = alias.email || "the new alias";
   if (!ctx.settings.creation.autoIdentity) {
-    throw new Blocked(`Thunderbird has no identity for ${name}. Add one, or let the add-on create identities in the settings.`);
+    throw new Blocked(t("Thunderbird has no identity for {name}. Add one, or let the add-on create identities in the settings.", { name }));
   }
   const mailbox = core.pickMailboxIdentity(identities, verifiedMailboxes(ctx, alias), accountId).candidates[0];
   if (!mailbox) {
-    throw new Blocked(`No Thunderbird identity uses a verified mailbox of ${name}, so the add-on cannot tell which account it belongs to.`);
+    throw new Blocked(t("No Thunderbird identity uses a verified mailbox of {name}, so the add-on cannot tell which account it belongs to.", { name }));
   }
   if (!create) {
     return null;
@@ -1013,7 +1014,7 @@ async function setSender(tabId, identity) {
   await messenger.compose.setComposeDetails(tabId, { identityId: identity.id });
   if ((await messenger.compose.getComposeDetails(tabId)).identityId != identity.id) {
     throw new Error(
-      `${identity.email} is ready as a sender, but this window only lists the senders it opened with. Save the message as a draft and open it again, then choose ${identity.email}.`
+      t("{identity} is ready as a sender, but this window only lists the senders it opened with. Save the message as a draft and open it again, then choose {identity}.", { identity: identity.email })
     );
   }
 }
@@ -1124,7 +1125,7 @@ async function matchSiteAlias(ctx, tabId) {
       showSiteNote(tabId, e.message, "!");
       return;
     }
-    showSiteNote(tabId, `The recipients are contacts of ${owner.email}, so it is set as sender.`, "✓");
+    showSiteNote(tabId, t("The recipients are contacts of {owner}, so it is set as sender.", { owner: owner.email }), "✓");
     return;
   }
   const automated = ["reply", "forward"].includes(details.type) && details.relatedMessageId && ctx.settings.creation.replyFromAlias;
@@ -1139,7 +1140,7 @@ async function matchSiteAlias(ctx, tabId) {
   } catch (e) {
     siteChecks.delete(tabId); // looked at again with the next recipient change
     seenRecipients.delete(tabId);
-    showSiteNote(tabId, `Could not look for an alias for ${site}: ${e.message}`, "");
+    showSiteNote(tabId, t("Could not look for an alias for {site}: {error}", { site, error: e.message }), "");
     return;
   }
   const { matches, complete } = found;
@@ -1157,16 +1158,16 @@ async function matchSiteAlias(ctx, tabId) {
         showSiteNote(tabId, e.message, "!");
         return;
       }
-      showSiteNote(tabId, `Matching alias ${live.email} found for ${site} and set as sender.`, "✓");
+      showSiteNote(tabId, t("Matching alias {alias} found for {site} and set as sender.", { alias: live.email, site }), "✓");
       return;
     }
   }
   if (matches.length == 1) {
-    showSiteNote(tabId, `Alias ${matches[0].email} found for ${site}. Choose it in Alias Buddy.`, "1");
+    showSiteNote(tabId, t("Alias {alias} found for {site}. Choose it in Alias Buddy.", { alias: matches[0].email, site }), "1");
   } else if (matches.length > 1) {
-    showSiteNote(tabId, `${matches.length}${complete ? "" : "+"} aliases found for ${site}. Choose one in Alias Buddy.`, String(matches.length));
+    showSiteNote(tabId, t("{count} aliases found for {site}. Choose one in Alias Buddy.", { count: `${matches.length}${complete ? "" : "+"}`, site }), String(matches.length));
   } else {
-    showSiteNote(tabId, `No alias for ${site} yet.`, "");
+    showSiteNote(tabId, t("No alias for {site} yet.", { site }), "");
   }
 }
 
@@ -1249,7 +1250,7 @@ const ALIAS_ACTIONS = {
   useAlias: async (ctx, m) => {
     const alias = await aliasFor(ctx, core.norm(m.email));
     if (!alias) {
-      throw new Blocked(`${m.email} is not one of your aliases.`);
+      throw new Blocked(t("{email} is not one of your aliases.", { email: m.email }));
     }
     return useAlias(ctx, m.tabId, alias);
   },
@@ -1290,7 +1291,7 @@ function forgetAlias(ctx, email, id, { contacts = false } = {}) {
 /** Turns an API error into a message the page can show. */
 async function api(ctx, action) {
   if (!ctx.sl) {
-    throw new Blocked("Add your SimpleLogin API key in the settings first.");
+    throw new Blocked(t("Add your SimpleLogin API key in the settings first."));
   }
   try {
     return await action();
@@ -1386,10 +1387,10 @@ Object.assign(ALIAS_ACTIONS, {
   composeAs: async (ctx, m) => {
     const alias = await aliasFor(ctx, core.norm(m.email));
     if (!alias) {
-      throw new Blocked(`${m.email} is not one of your aliases.`);
+      throw new Blocked(t("{email} is not one of your aliases.", { email: m.email }));
     }
     if (!alias.enabled) {
-      throw new Blocked(`${alias.email} is turned off, so replies to it would not arrive. Turn it on first.`);
+      throw new Blocked(t("{alias} is turned off, so replies to it would not arrive. Turn it on first.", { alias: alias.email }));
     }
     const identity = await ensureIdentity(ctx, alias, undefined);
     await messenger.compose.beginNew({ identityId: identity.id });
@@ -1445,11 +1446,11 @@ async function fetchAliasList(full) {
   const step = work =>
     serialized(ctx => {
       if (!ctx.sl) {
-        throw new Blocked("Add your SimpleLogin API key in the settings first.");
+        throw new Blocked(t("Add your SimpleLogin API key in the settings first."));
       }
       owner ??= ctx.cache.owner;
       if (ctx.cache.owner != owner) {
-        throw new Blocked("The API key changed during the update. Update again.");
+        throw new Blocked(t("The API key changed during the update. Update again."));
       }
       return work(ctx);
     });
@@ -1616,18 +1617,18 @@ async function showOrigin(tabId, messages) {
   }
   const action = messenger.messageDisplayAction;
   if (origin === null) {
-    await action.setLabel({ tabId, label: "No alias" });
-    await action.setTitle({ tabId, title: "Alias Buddy: this message did not come through a SimpleLogin alias" });
+    await action.setLabel({ tabId, label: t("No alias") });
+    await action.setTitle({ tabId, title: t("Alias Buddy: this message did not come through a SimpleLogin alias") });
     return action.disable(tabId);
   }
   await action.enable(tabId);
   const [label, title] = origin?.error
-    ? ["Alias", `Alias Buddy: ${origin.error}`]
+    ? [t("Alias"), `Alias Buddy: ${origin.error}`]
     : origin?.alias
-      ? [origin.alias.email, `Alias Buddy: came through ${origin.alias.email} from ${origin.sender}`]
+      ? [origin.alias.email, t("Alias Buddy: came through {alias} from {sender}", { alias: origin.alias.email, sender: origin.sender })]
       : origin
-        ? ["Unconfirmed alias", `Alias Buddy: names ${origin.named}, but the sender is not a contact of that alias`]
-        : ["Alias", "Alias Buddy: the alias this message came through"];
+        ? [t("Unconfirmed alias"), t("Alias Buddy: names {alias}, but the sender is not a contact of that alias", { alias: origin.named })]
+        : [t("Alias"), t("Alias Buddy: the alias this message came through")];
   await action.setLabel({ tabId, label });
   await action.setTitle({ tabId, title });
 }

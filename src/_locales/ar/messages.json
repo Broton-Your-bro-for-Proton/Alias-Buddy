@@ -1,0 +1,17 @@
+{
+  "extensionDescription": {
+    "message": "أرسل باسم مستعار من SimpleLogin إلى العناوين العادية، وتتولى الإضافة الأسماء المستعارة العكسية. تحجب الرسائل التي تكشف عنوانك الحقيقي. غير تابع لـ Proton AG أو SimpleLogin."
+  },
+  "overviewTitle": {
+    "message": "Alias Buddy: أسماؤك المستعارة"
+  },
+  "overviewLabel": {
+    "message": "الأسماء المستعارة"
+  },
+  "messageTitle": {
+    "message": "Alias Buddy: الاسم المستعار الذي وصلت عبره هذه الرسالة"
+  },
+  "messageLabel": {
+    "message": "اسم مستعار"
+  }
+}

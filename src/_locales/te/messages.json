@@ -1,0 +1,17 @@
+{
+  "extensionDescription": {
+    "message": "సాధారణ చిరునామాలకు SimpleLogin అలియాస్‌గా పంపండి, రివర్స్ అలియాస్‌లను యాడ్-ఆన్ చూసుకుంటుంది. మీ అసలు చిరునామాను బయటపెట్టే సందేశాలను నిరోధిస్తుంది. Proton AG లేదా SimpleLoginతో సంబంధం లేదు."
+  },
+  "overviewTitle": {
+    "message": "Alias Buddy: మీ అలియాస్‌లు"
+  },
+  "overviewLabel": {
+    "message": "అలియాస్‌లు"
+  },
+  "messageTitle": {
+    "message": "Alias Buddy: ఈ సందేశం వచ్చిన అలియాస్"
+  },
+  "messageLabel": {
+    "message": "అలియాస్"
+  }
+}

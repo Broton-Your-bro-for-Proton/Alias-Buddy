@@ -1,0 +1,17 @@
+{
+  "extensionDescription": {
+    "message": "Trimiteți ca alias SimpleLogin către adrese obișnuite, extensia se ocupă de aliasurile inverse. Blochează mesajele care v-ar dezvălui adresa reală. Nu este afiliat cu Proton AG sau SimpleLogin."
+  },
+  "overviewTitle": {
+    "message": "Alias Buddy: aliasurile dvs."
+  },
+  "overviewLabel": {
+    "message": "Aliasuri"
+  },
+  "messageTitle": {
+    "message": "Alias Buddy: aliasul prin care a sosit acest mesaj"
+  },
+  "messageLabel": {
+    "message": "Alias"
+  }
+}

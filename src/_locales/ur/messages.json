@@ -1,0 +1,17 @@
+{
+  "extensionDescription": {
+    "message": "عام پتوں کو SimpleLogin عرفی نام کے طور پر بھیجیں، ریورس عرفی ناموں کو ایڈ آن سنبھالتا ہے۔ ایسے پیغامات روکتا ہے جو آپ کا اصل پتا ظاہر کر دیں۔ Proton AG یا SimpleLogin سے وابستہ نہیں۔"
+  },
+  "overviewTitle": {
+    "message": "Alias Buddy: آپ کے عرفی نام"
+  },
+  "overviewLabel": {
+    "message": "عرفی نام"
+  },
+  "messageTitle": {
+    "message": "Alias Buddy: وہ عرفی نام جس کے ذریعے یہ پیغام آیا"
+  },
+  "messageLabel": {
+    "message": "عرفی نام"
+  }
+}
