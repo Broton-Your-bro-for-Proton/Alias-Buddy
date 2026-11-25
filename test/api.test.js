@@ -87,7 +87,7 @@ test("isOutage covers network, rate limit and server errors only", () => {
 test("findSiteAlias finds the enabled alias whose note names the site and template", async () => {
   fake((m, p, body) => {
     const page = Number(/page_id=(\d+)/.exec(p)[1]);
-    assert.equal(body.query, "amazon.de");
+    assert.equal(body.query, "Alias Buddy: amazon.de");
     const aliases = [
       { id: 1, email: "a@x.example", note: "Alias Buddy: amazon.de (shop.{domain})", enabled: false, mailboxes: [] },
       { id: 4, email: "c@x.example", note: "Alias Buddy: amazon.de (news.{domain})", enabled: true, mailboxes: [] },
@@ -146,4 +146,18 @@ test("alias management calls use the documented routes and fields", async () => 
     "DELETE /api/contacts/8",
   ]);
   assert.deepEqual(calls[2][2], { note: "n", pinned: false });
+});
+
+test("an answer that is not SimpleLogin's JSON counts as an outage", async () => {
+  fake(() => [200, "<html>Sign in to the hotel Wi-Fi</html>"]);
+  await assert.rejects(sl.mailboxes(), e => isOutage(e));
+  fake(() => [401, { error: "Wrong api key" }]);
+  await assert.rejects(sl.mailboxes(), e => !isOutage(e) && e.status == 401);
+});
+
+test("findSiteAlias searches for the note's tie, not the bare site", async () => {
+  let query;
+  fake((m, p, body) => ((query = body.query), [200, { aliases: [] }]));
+  assert.equal(await sl.findSiteAlias("mine.example", "{domain}.{random}"), null);
+  assert.equal(query, "Alias Buddy: mine.example");
 });

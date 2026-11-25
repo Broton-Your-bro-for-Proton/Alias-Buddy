@@ -1,3 +1,5 @@
+import { sendOnceOffer } from "../lib/core.js";
+
 const $ = id => document.getElementById(id);
 const [tab] = await messenger.tabs.query({ active: true, currentWindow: true });
 
@@ -11,9 +13,9 @@ const SUMMARY = {
   blocked: p => `This message would be blocked: ${p.reason}`,
 };
 
-let shown = null;
-function render({ preview, last, found }) {
-  shown = preview;
+let offer = null; // the block "send once" accepts
+function render({ preview, last, found, accepted }) {
+  offer = sendOnceOffer(preview, last, accepted);
   $("found").hidden = !found;
   $("found").textContent = found ?? "";
   $("summary").textContent = SUMMARY[preview.state](preview);
@@ -32,7 +34,7 @@ function render({ preview, last, found }) {
   const lastBlocked = last?.state == "blocked" && last.reason != preview.reason;
   $("last").hidden = !lastBlocked;
   $("last").textContent = lastBlocked ? `Last send was blocked: ${last.reason}` : "";
-  $("sendOnce").hidden = !((preview.state == "blocked" && preview.overridable) || preview.state == "switch");
+  $("sendOnce").hidden = !offer;
   $("sendOnce").textContent = preview.state == "switch" ? "Send from my real address instead" : "Send this message unchanged";
 }
 
@@ -139,9 +141,8 @@ $("create").addEventListener("click", () =>
 );
 $("sendOnce").addEventListener("click", async () => {
   // The block the user saw; a different one is not sent once.
-  const reason = shown.state == "switch" ? shown.override : shown.reason;
   // A send blocked again rejects; the popup closes either way, the button shows the new reason.
-  await messenger.runtime.sendMessage({ type: "sendOnce", tabId: tab.id, reason }).catch(() => {});
+  await messenger.runtime.sendMessage({ type: "sendOnce", tabId: tab.id, reason: offer }).catch(() => {});
   window.close();
 });
 $("overview").addEventListener("click", async event => {

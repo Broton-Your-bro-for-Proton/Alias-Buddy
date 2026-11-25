@@ -100,6 +100,7 @@ function header(mail, name) {
 
 const api = {
   down: false,
+  revoked: false, // every request answers 401, as after the key was revoked
   forbid: false, // contact creation answers 403, as for a plan without reverse aliases
   posts: 0,
   searches: [], // alias search queries, to see which addresses reached SimpleLogin
@@ -147,7 +148,7 @@ const apiServer = http.createServer(async (req, res) => {
   if (api.down) {
     return send(503, { error: "maintenance" });
   }
-  if (req.headers.authentication != "test-key") {
+  if (req.headers.authentication != "test-key" || api.revoked) {
     return send(401, { error: "Wrong api key" });
   }
   let raw = "";
@@ -291,7 +292,7 @@ const prefs = {
   "mail.accountmanager.defaultaccount": "account1",
   "mail.accountmanager.localfoldersserver": "server1",
   "mail.account.account1.server": "server1",
-  "mail.account.account1.identities": "id1,id2,id3,id4,id5,id6,id7,id8,id9,id10,id12,id13",
+  "mail.account.account1.identities": "id1,id2,id3,id4,id5,id6,id7,id8,id9,id10,id12,id13,id14,id15",
   "mail.server.server1.type": "none",
   "mail.server.server1.hostname": "Local Folders",
   "mail.server.server1.userName": "nobody",
@@ -323,6 +324,10 @@ const prefs = {
   ...identity("id12", "gone@mine.example"),
   // On the user's own domain, but never created as an alias.
   ...identity("id13", "nobody@mine.example"),
+  // On a SimpleLogin domain, for example an alias deleted in the dashboard, without the add-on's label.
+  ...identity("id14", "lost.cat@aleeas.example"),
+  // An account that has nothing to do with SimpleLogin, never looked up before the revoked key.
+  ...identity("id15", "max@example.com"),
 };
 fs.writeFileSync(
   path.join(profile, "user.js"),
@@ -927,6 +932,14 @@ try {
     expectBlocked(`await send("id13", { to: "bob@x.example" })`, /nobody@mine\.example is on your SimpleLogin domain but is not an alias/)
   );
 
+  await check("other identity: an address on a SimpleLogin domain that is not your alias is blocked", () =>
+    expectBlocked(`await send("id14", { to: "bob@x.example" })`, /lost\.cat@aleeas\.example is on a SimpleLogin domain but is not one of your aliases/)
+  );
+
+  await check("mailbox: a Reply-To with the real address on the way through SimpleLogin is blocked", () =>
+    expectBlocked(`await send("id5", { to: "ra-known@sl.example", replyTo: "${MINE}" })`, /Reply-To contains me@real\.example/)
+  );
+
   await check("mailbox: sending an unknown reverse alias once accepts only that and still blocks the vCard", async () => {
     await expectBlocked(`await send("id6", { to: "ra-unknown@sl.example" })`, /ra-unknown@sl\.example looks like a reverse alias/);
     const mail = nextMail(5000);
@@ -1230,6 +1243,28 @@ try {
       `)
     );
   const composeIdentity = () => client.run(chrome(`return composeWindows()[0].getCurrentIdentityKey();`));
+  /** Sets checkboxes on the settings page and saves. */
+  const setOptions = async flags => {
+    await client.run(
+      chrome(`
+        const url = WebExtensionPolicy.getByID(args[0]).getURL("options/options.html");
+        window.document.getElementById("tabmail").openTab("contentTab", { url });
+        await sleep(1500);
+      `),
+      addon
+    );
+    await client.run(
+      inPage(
+        `window.document.getElementById("tabmail").currentTabInfo.browser`,
+        `
+        await until(() => doc.getElementById("apiKey").value, "settings loaded");
+        for (const [id, on] of Object.entries(${JSON.stringify(flags)})) doc.getElementById(id).checked = on;
+        doc.getElementById("form").requestSubmit();
+        await until(() => doc.getElementById("result").textContent.startsWith("Saved. Connected"), "saved");
+        `
+      )
+    );
+  };
 
   await check("settings: alias creation lists own domains, subdomains and SimpleLogin domains and saves the choices", async () => {
     await client.run(
@@ -1400,6 +1435,43 @@ try {
     const alias = api.created[created];
     const contact = (api.contacts[alias?.id] ?? []).find(c => c.contact == "hello@fresh.example");
     expect([api.created.length - created, alias?.note, sent?.to], [1, "Alias Buddy: fresh.example ({domain}.{random})", [contact?.reverse_alias_address]], "new site alias");
+  });
+
+  await check("automatic: without one alias per site, a send that failed after creating the alias reuses it", async () => {
+    await setOptions({ perDomain: false });
+    api.forbid = true;
+    const created = api.created.length;
+    try {
+      await expectBlocked(`await send("id5", { to: "a@again.example" })`, /Sending as the alias for again\.example failed/);
+      // Send again in the same window, as a user would.
+      await expectBlocked(`(() => { const win = composeWindows()[0]; win.goDoCommand("cmd_sendNow"); return win; })()`, /Sending as the alias for again\.example failed/);
+    } finally {
+      api.forbid = false;
+      await setOptions({ perDomain: true });
+    }
+    expect(api.created.length - created, 1, "aliases created");
+  });
+
+  await check("popup: a new alias is not created when its identity could not be made", async () => {
+    await setOptions({ autoIdentity: false });
+    const created = api.created.length;
+    try {
+      await client.run(chrome(`await compose("id5", { to: "hi@nextsite.example" });`));
+      await openPopup();
+      const error = await client.run(
+        inPage(
+          popup,
+          `await until(() => !doc.getElementById("suggestion").hidden, "suggestion shown");
+          doc.getElementById("useSuggestion").click();
+          await until(() => !doc.getElementById("aliasError").hidden, "error shown");
+          return doc.getElementById("aliasError").textContent;`
+        )
+      );
+      if (!/Thunderbird has no identity for nextsite\.[a-z0-9]{5}@mine\.example/.test(error)) throw new Error("error: " + error);
+    } finally {
+      await setOptions({ autoIdentity: true });
+    }
+    expect(api.created.length, created, "aliases created");
   });
 
   await check("automatic: recipients of two sites are blocked, not switched", async () => {
@@ -2082,6 +2154,56 @@ try {
     await client.run(chrome(`await send("id4", { to: "bob@x.example" }); await sleep(3000);`));
     api.down = false;
     expect(await mail, null, "sent message");
+  });
+
+  await check("API key revoked: an unrelated identity can be sent once", async () => {
+    api.revoked = true;
+    try {
+      // An address on a domain of the user's aliases may itself be one, so it stays blocked.
+      await expectBlocked(`await send("id4", { to: "bob@x.example" })`, /cannot tell whether fresh@alias\.example is an alias\.$/);
+      await expectBlocked(`await send("id15", { to: "bob@x.example" })`, /Send once if max@example\.com has nothing to do with SimpleLogin/);
+      const mail = nextMail();
+      await client.run(
+        chrome(`
+          const win = composeWindows()[0];
+          win.document.querySelector('[id$="-composeAction-toolbarbutton"]').click();
+          await until(() => win.document.querySelector(".webextension-popup-browser"), "popup opened");
+        `)
+      );
+      await popupShot("popup-unanswered");
+      await client.run(inPage(popup, `await until(() => !doc.getElementById("sendOnce").hidden, "send button shown"); doc.getElementById("sendOnce").click();`));
+      expect((await mail)?.from, "max@example.com", "sent once");
+    } finally {
+      api.revoked = false;
+    }
+  });
+
+  await check("settings: an API address with plain http to another computer is not saved", async () => {
+    await client.run(
+      chrome(`
+        const url = WebExtensionPolicy.getByID(args[0]).getURL("options/options.html");
+        window.document.getElementById("tabmail").openTab("contentTab", { url });
+        await sleep(1500);
+      `),
+      addon
+    );
+    const text = await client.run(
+      inPage(
+        `window.document.getElementById("tabmail").currentTabInfo.browser`,
+        `
+        await until(() => doc.getElementById("apiKey").value, "settings loaded");
+        const saved = doc.getElementById("apiUrl").value;
+        doc.getElementById("apiUrl").value = "http://sl.example";
+        doc.getElementById("form").requestSubmit();
+        await until(() => doc.getElementById("result").textContent.startsWith("Not saved"), "refused");
+        const text = doc.getElementById("result").textContent;
+        doc.getElementById("apiUrl").value = saved; // the tab is reused by the next check
+        return text;
+        `
+      )
+    );
+    await screenshot(client, "settings-http-refused");
+    if (!/must start with https/.test(text)) throw new Error("result: " + text);
   });
 
   // Last, because it removes the API key.
